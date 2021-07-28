@@ -1,0 +1,123 @@
+##### This is an example .yaml file for how you should make your config file
+##### See below for what you need to have
+##### Make sure the paths are correct. They are individual to your machine
+randomseed: 0
+device: "cuda"
+dataset:
+  forcing_path: "G:\\Farshid\\PGML_STemp_results\\subsetTemp_20\\forcing_10_days_20sites.feather"
+  attr_path: "G:\\Farshid\\PGML_STemp_results\\subsetTemp_20\\attr_temp10_days_20sites.feather"
+output:
+  model: "G:\\Farshid\\PGML_STemp_results\\models"
+
+optData:
+  name: 'hydroDL.data.camels.DataframeCamels'
+  subset: 'All'
+  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
+  varC: [
+    'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06',
+    'PLANTNLCD06', 'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN',
+    'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
+    'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN',
+    'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',
+    'NDAMS_2009', 'ELEV_MEAN_M_BASIN'
+  ]
+  target: ['00010_Mean']
+  tRange: [19800101, 20200101]
+  t_train: [19800101, 19900101]
+  t_val: [19900101, 20000101]
+  t_test: [20000101, 20100101]
+  doNorm: [True, True]
+  rmNan: [True, False]
+  daObs: 0
+  damean: False
+  davar: 'streamflow'
+  dameanopt: 0
+  lckernel: None
+  fdcopt: False
+hyperprameters:
+  rho: 365
+  batch_size: 20
+  epochs: 2000
+  hidden_size: 100
+  dropout: 0.5
+seq_lin_layers:
+  hidden_size: 10
+params_target: ["param1", "param2"]
+STemp_default_params:
+  shade_fraction: 0
+  longwave_reflect_fraction: 0
+  cloud_fraction: 0
+  emissivity_veg: 0.9526
+  shade_fraction_riparian: 0
+  albedo: 0.1
+file_paths:
+  basin_csv: "/home/tkb5476/Projects/pkdn/src/data_structures/data/{}-{}.csv"
+  data: "/home/tkb5476/Projects/pkdn/src/data_structures/data/{}-{}.json"
+  node:
+    shortened: "/home/tkb5476/Projects/pkdn/data/shortened_data/node.csv"
+    full: "/home/tkb5476/Projects/pkdn /data/srb/interpolated_data/graphs/node_cut_end.csv"
+    dx2000: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/graphs/node.csv"
+  edge:
+    shortened: "/home/tkb5476/Projects/pkdn/data/shortened_data/edge.csv"
+    full: "/home/tkb5476/Projects/pkdn/data/srb/interpolated_data/graphs/edge.csv"
+    dx2000: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/graphs/edge.csv"
+  inflow:
+    interpolated:
+      dx2000: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/inflow_interpolated/"
+      json_file: "/home/tkb5476/Projects/pkdn/src/data_structures/data/inflow-interpolated-dict_{}_{}_{}.json"
+    non_interpolated:
+      dx2000: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/inflow_non_interpolated/"
+      json_file: "/home/tkb5476/Projects/pkdn/src/data_structures/data/inflow-non-interpolated-dict_{}_{}_{}.json"
+  intersection:
+    json_file: "/home/tkb5476/Projects/pkdn/src/data_structures/data/intersection-dict.json"
+  transition_matrix: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/graphs/TM.csv"
+  huc10:
+    interpolated:
+      data: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/graphs/SRB_HUC10_interpolated.csv"
+      shortened_csv: "/home/tkb5476/Projects/pkdn/src/data_structures/data/huc-10_interpolated_{}_{}.csv"
+    non_interpolated:
+      data: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/graphs/SRB_HUC10_All_new_NLDAS2_forcingByBasin_for_SRB.csv"
+      shortened_csv: "/home/tkb5476/Projects/pkdn/src/data_structures/data/huc-10_non_interpolated_{}_{}.csv"
+  plots: "/home/tkb5476/Projects/pkdn/plots/{}.png"
+is_cuda: False
+regex:
+  code_regex: "-r.*-"
+time:
+  start_interval: "2004-10-01T00:00:00"
+  end_interval: "2005-09-30T23:00:00"
+  date_codes: "/home/tkb5476/Projects/pkdn/data/dx-2000dis/date_codes.json"
+  interpolated:
+    date_format: "%Y-%m-%dT%H:%M:%S"
+  non_interpolated:
+    date_format: "%Y%m%d"
+    huc_10_format: "%D"
+scaling:
+  # n p q x
+  range: [[0.01, 0.15], [1, 50], [1, 5], [0.01, 0.35]]
+jobs:
+  basins: [650, 650, 650, 650, 650, 650, 650, 650, 650, 650, 650]
+  param_df_name: "/home/tkb5476/Projects/pkdn/runs/{}__{}_job_{}_data.csv"
+  param_df_columns: ["Epoch", "Loss", "n", "p", "q", "x"]
+  writer_file: "/home/tkb5476/Projects/pkdn/runs/{}__{}_job_{}_writer"
+  hydrograph_df_name: "/home/tkb5476/Projects/pkdn/runs/{}__{}_job_{}_hydrograph_data.csv"
+  hydrograph_df_columns: ["time_interval", "y_hat", "y_t"]
+#  noise_mask: [True, True, True, True]
+  noise_deviation: [0.5, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+#  noise_mean: [0, 0, 0, 0]
+#  input_mask: [[True, False, True, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False], [True, False, False, False]]
+  epochs: [7, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50]
+  hydropgraph_plot_name: "{}__{}_job_{}_hydrograph"
+  loss_plot_name: "{}__{}_job_{}_loss"
+  model_name: "/home/tkb5476/Projects/pkdn/torch_models/{}__{}_job_{}_model.tar"
+  number: 1
+  synthetic_params: [0.03, 21.0018, 1.444, 0.2]
+  seed: 2
+#  training_params: [[0.3, 0.05], [0.0225, 0.5]]
+run_output: "/home/tkb5476/Projects/pkdn/runs/run"
+param_dict: {"n": 0, "p": 1, "q": 2, "x": 3}
+mlp:
+  in_channels: 81
+  value_size: 2
+  key_size: 8
+  attributes: 8
+
