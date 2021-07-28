@@ -117,7 +117,14 @@ class stream_temp_eq:
     def finding_K1(self, A, B, C, T_e):
         return 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
 
-    def finding_K2(self, H_i=0, ):
+    def finding_K2(self, H_i=0, T_e, T_o):
+        """
+        :param H_i: initial net heat flux at temp T_0
+        :param T_e:equilibrium temperature
+        :param T_o:initial water temperature of the upstream inflow
+        :return: K2, the second order coefficient of the ODE
+        """
+
 
 
 
