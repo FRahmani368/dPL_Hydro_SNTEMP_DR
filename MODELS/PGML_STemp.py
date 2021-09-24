@@ -114,16 +114,33 @@ class stream_temp_eq:
             T_e = next_geuss
         return T_e
 
-    def finding_K1(self, A, B, C, T_e):
-        return 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
+    def finding_K1_K2(self, A, B, C, T_e, H_i=0, T_o=make_tensor(0)):
+        """
+        :param A: Constant coming from equilibrium temp equation
+        :param B: Constant coming from equilibrium temp equation
+        :param C: Constant coming from equilibrium temp equation
+        :param T_e: equilibrium temperature
+        :param H_i: initial net heat flux at temperature T_o, of the upstream inflow
+        :param T_o: initial water temperature
+        :return: K1 (first order thermal exchange coefficient), K2 (second order coefficient)
+        """
+        K1 = 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
+        K2 = (H_i - (K1 * (T_e - T_o)))/(torch.pow((T_e - T_o), 2))
+        return K1, K2
 
-    def finding_K2(self, H_i=0, T_e, T_o):
-        """
-        :param H_i: initial net heat flux at temp T_0
-        :param T_e:equilibrium temperature
-        :param T_o:initial water temperature of the upstream inflow
-        :return: K2, the second order coefficient of the ODE
-        """
+    def solving_SNTEMP_ODE(self, K1, K2, ave_width, q_l, T_l, T_e, T_o=make_tensor(0), L):
+        a = (q_l * T_l) + ((K1 * ave_width)/(args['params']['water_density'] * args['params']['C_w'])) * T_e
+        b = q_l + (K1 * ave_width)/ (args['params']['water_density'] * args['params']['C_w'])
+        if q_l > 0:
+            Tprime_e = a/b
+            R = (1 + (q_l * make_tensor(L)/ Q_o))
+
+
+
+
+
+
+
 
 
 

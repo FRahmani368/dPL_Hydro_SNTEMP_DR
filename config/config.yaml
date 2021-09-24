@@ -50,6 +50,9 @@ STemp_default_params:
   emissivity_veg: 0.9526
   shade_fraction_riparian: 0
   albedo: 0.1
+params:
+  water_density: 1000
+  C_w: 4184    # J/kg. K
 file_paths:
   basin_csv: "/home/tkb5476/Projects/pkdn/src/data_structures/data/{}-{}.csv"
   data: "/home/tkb5476/Projects/pkdn/src/data_structures/data/{}-{}.json"
