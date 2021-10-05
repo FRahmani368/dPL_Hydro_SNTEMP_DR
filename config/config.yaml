@@ -4,8 +4,8 @@
 randomseed: 0
 device: "cuda"
 dataset:
-  forcing_path: "G:\\Farshid\\PGML_STemp_results\\subsetTemp_20\\forcing_10_days_20sites.feather"
-  attr_path: "G:\\Farshid\\PGML_STemp_results\\subsetTemp_20\\attr_temp10_days_20sites.feather"
+  forcing_path: "/home/fzr5082/GitHub/scratch/SNTemp/Forcing/Forcing_new/forcing_10__days_415sites.feather"
+  attr_path: "/home/fzr5082/GitHub/scratch/SNTemp/Forcing/attr_new/attr_temp10__days_415sites.feather"
 output:
   model: "G:\\Farshid\\PGML_STemp_results\\models"
 
