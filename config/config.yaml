@@ -34,7 +34,7 @@ optData:
   dameanopt: 0
   lckernel: None
   fdcopt: False
-hyperprameters:
+hyperparameters:
   rho: 365
   batch_size: 20
   epochs: 2000

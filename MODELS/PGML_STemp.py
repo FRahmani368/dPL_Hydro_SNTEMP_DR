@@ -260,7 +260,7 @@ class STREAM_TEMP_EQ:
                                             res_time_ssflow=res_time_ssflow)
 
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, ave_width, q_l=obsQ/stream_length, T_l, T_e, T_0=T_0, L=stream_length, Q_0=make_tensor(0.01))
-
+        return T_w
 
 
 
