@@ -6,12 +6,13 @@ from rnn import CudnnLstmModel
 from core.small_codes import make_tensor
 
 
-class PGML_STemp(nn.Module):
+class MLP(nn.Module):
     def __init__(self,
-                 args, vars):
-        super(PGML_STemp, self).__init__()
+                 args):
+        super(MLP, self).__init__()
         self.seq_lin_layers = nn.Sequential(
-            nn.Linear(vars, args['seq_lin_layers']['hidden_size']),
+            nn.Linear(len(args['optData']['varT']) + len(args['optData']['varC']), \
+                      args['seq_lin_layers']['hidden_size']),
             nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             nn.ReLU(),

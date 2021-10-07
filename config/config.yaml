@@ -12,7 +12,7 @@ output:
 optData:
   name: 'hydroDL.data.camels.DataframeCamels'
   subset: 'All'
-  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
+  varT: []   #['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
   varC: [
     'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06',
     'PLANTNLCD06', 'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN',
@@ -36,13 +36,13 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 20
-  epochs: 2000
+  batchSize: 20
+  EPOCHS: 2000
   hidden_size: 100
   dropout: 0.5
 seq_lin_layers:
   hidden_size: 10
-params_target: ["param1", "param2"]
+params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 STemp_default_params:
   shade_fraction: 0
   longwave_reflect_fraction: 0
