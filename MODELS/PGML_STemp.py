@@ -2,8 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import datetime
-from rnn import CudnnLstmModel
-from core.small_codes import make_tensor
+#from rnn import CudnnLstmModel
+from core.small_codes import make_tensor, tRange2Array, intersect
 
 
 class MLP(nn.Module):
@@ -11,25 +11,29 @@ class MLP(nn.Module):
                  args):
         super(MLP, self).__init__()
         self.seq_lin_layers = nn.Sequential(
-            nn.Linear(len(args['optData']['varT']) + len(args['optData']['varC']), \
+            nn.Linear(len(args['optData']['varC']), \
                       args['seq_lin_layers']['hidden_size']),
             nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             nn.ReLU(),
-            nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target']))
+            nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target'])),
+            nn.Softmax(dim=1)
         )
 
-        self.lstm = CudnnLstmModel(
-            nx=input.shape[2],
-            ny=len(args['params_target']),
-            hiddenSize=args['hyperprameters']['hidden_size'],
-            dr=args['hyperprameters']['dropout'])
+        # self.lstm = CudnnLstmModel(
+        #     nx=input.shape[2],
+        #     ny=len(args['params_target']),
+        #     hiddenSize=args['hyperprameters']['hidden_size'],
+        #     dr=args['hyperprameters']['dropout'])
         #
         # self.stream_temp_eq = stream_temp_eq(args)
 
-    def forward(self, x):
+    def forward(self, x, max_sr_res_time=10, max_ss_res_time=200, max_gw_res_time=1000):
         out = self.seq_lin_layers(x)
-        return out
+        out[:, 0] = out[:, 0] * max_sr_res_time + 1
+        out[:, 1] = out[:, 1] * max_ss_res_time + 1
+        out[:, 2] = out[:, 2] * max_gw_res_time + 1
+        return out.int().float()
 
 
 def str_to_datetime(t):
@@ -43,16 +47,9 @@ def str_to_datetime(t):
 class STREAM_TEMP_EQ:
     def __init__(self,
                  args,
-                 forcings,
-                 attr,
-                 t,
-                 site_no):
+                 x_total_raw):
         self.args = args
-        self.forcings = forcings
-        self.attr = attr
-        self.t = t
-        self.site_no = site_no
-
+        self.x_total_raw = x_total_raw
 
     def atm_pressure(self, elev):
         mmHg2mb = make_tensor(0.75061683)  # Unit conversion
@@ -109,7 +106,7 @@ class STREAM_TEMP_EQ:
         H_v = emissivity_veg * St_Boltzman_ct * shade_fraction_riparian * torch.pow((T_a + 273.16), 4)
         return H_v
 
-    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow):
+    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow, T_g):
         """
 
         :param T_a: average daily air temperature
@@ -126,20 +123,20 @@ class STREAM_TEMP_EQ:
         P = self.atm_pressure(elev)  # calculating atmosphere pressure based on elevation
         B_c = 0.00061 * P / (e_s - e_a)
         K_g = make_tensor(1.65)
-        delta_Z = make_tensor(1.0)
+        delta_Z = make_tensor(self.args['STemp_default_params']['delta_Z'])
         H_a = self.atm_longwave_radiation_heat(T_a, e_a)
         H_f = self.stream_friction_heat(top_width=top_width, slope=slope, Q=inflow)
         H_s = self.shortwave_solar_radiation_heat(albedo=self.args['STemp_default_params']['albedo'], H_sw=swrad) # shortwave solar radiation heat
         H_v = self.riparian_veg_longwave_radiation_heat(T_a=T_a)
 
-        A = make_tensor(5.40 * 10 ^ (-8))
-        B = (10 ^ 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / Z)
-        C = (10 ^ 6) * E * R_c * 2.36
+        A = torch.pow(make_tensor(np.full((T_a.shape[0], T_a.shape[1]), 5.40 * 10)), (-8))
+        B = (10 ^ 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
+        C = (10 ^ 6) * E * B_c * 2.36
         D = H_a + H_f + H_s + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
 
         return A, B, C, D
 
-    def Equilibrium_temperature(self, A, B, C, D, T_e = make_tensor(10), iter=100):
+    def Equilibrium_temperature(self, A, B, C, D, T_e=make_tensor(20), iter=1000):
         def F(T_e):
             return A * torch.pow((T_e + 273.16), 4) - C * torch.pow(T_e, 2) + B * T_e - D
         def Fprime(T_e):
@@ -176,14 +173,22 @@ class STREAM_TEMP_EQ:
         return srflow, ssflow, gwflow
 
     def residence_time_temperature(self, res_time):
-        t_datetime_format = str_to_datetime(self.t)
-        t1 = t_datetime_format - datetime.timedelta(res_time)
-        t1_str = str(t_datetime_format.year) + "-" + str(t_datetime_format.month).zfill(2) + "-" + str(t_datetime_format.day).zfill(2)
-        tmax = self.forcings.loc[(self.forcings['datetime'] <= self.t) &
-                                         (self.forcings['datetime']> t1_str), "tmax(C)"]
-        tmin = self.forcings.loc[(self.forcings['datetime'] <= self.t) &
-                                 (self.forcings['datetime'] > t1_str ), "tmin(C)"]
-        ave_air_temp = make_tensor(tmax.sum() + tmin.sum())/ (2 * len(tmax))
+        vars = self.args['optData']['varT'] + self.args['optData']['varC']
+        tLst_total = tRange2Array(self.args['optData']['tRange'])
+        tLst_train = tRange2Array(self.args['optData']['t_train'])
+        C, ind1, ind2 = intersect(tLst_total, tLst_train)
+        ind1_tensor = make_tensor(ind1, dtype=torch.int32, has_grad=False).repeat((res_time.shape[0], 1))
+        ave_air_temp = make_tensor(np.full((res_time.shape[0], res_time.shape[1]), np.nan))
+        for station in range(res_time.shape[0]):
+            for day in range(res_time.shape[1]):
+                tmax_temp = self.x_total_raw[station,
+                            (ind1_tensor[station, day].item() - res_time.int()[station, day].item()): ind1_tensor[station, day].item(),
+                            vars.index("tmax(C)")].sum().item()
+                tmin_temp = self.x_total_raw[station,
+                                          (ind1_tensor[station, day].item() - res_time.int()[station, day].item()):
+                                          ind1_tensor[station, day].item(),
+                                          vars.index("tmin(C)")].sum().item()
+                ave_air_temp[station, day] = (tmax_temp + tmin_temp) / (2 * res_time.int()[station, day].item())
         return ave_air_temp
 
     def lateral_flow_temperature(self, srflow, ssflow, gwflow,
@@ -204,48 +209,49 @@ class STREAM_TEMP_EQ:
         T_l = (gwflow * gwflow_Temp + srflow * srflow_temp + ssflow * ssflow_temp / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
-    def solving_SNTEMP_ODE_second_order(self, K1, K2, ave_width, q_l, T_l, T_e, T_0=make_tensor(0), L, Q_0=make_tensor(0.01)):
-        a = (q_l * T_l) + ((K1 * ave_width)/(args['params']['water_density'] * args['params']['C_w'])) * T_e
-        b = q_l + (K1 * ave_width)/ (args['params']['water_density'] * args['params']['C_w'])
-        if q_l > 0:
-            Tprime_e = a/b
-            R = torch.pow((1 + (q_l * make_tensor(L)/ Q_0)), -(ave_width/q_l))
-        elif q_l == 0:
-            Tprime_e = T_e
-            R = torch.exp(-(ave_width * L) / Q_0)
-        else:   # negative q_l
+    def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l,  L , T_0=make_tensor(0), Q_0=make_tensor(0.01)):
+        a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
+        b = q_l + (K1 * ave_width)/ (self.args['params']['water_density'] * self.args['params']['C_w'])
+        Tprime_e = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
+        R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
+        # for positive q_l
+        mask_q_l = q_l > 0
+        Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
+        R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * make_tensor(L[mask_q_l]) / Q_0[mask_q_l])),
+                                -(ave_width[mask_q_l] / q_l[mask_q_l]))
+        # for zero q_l
+        mask_q_l = q_l == 0
+        Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
+        R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * make_tensor(L[mask_q_l]) / Q_0[mask_q_l])),
+                                -(ave_width[mask_q_l] / q_l[mask_q_l]))
+
+        # for negative q_l
+        mask_q_l = q_l < 0
+        if mask_q_l.sum() > 0:
             print("negative q_l")
             exit()
+
         T_w = Tprime_e - ((Tprime_e - T_0) * R / (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R))))
         return T_w
 
-    def forward(self):
-        obsQ = make_tensor(self.forcings.loc[(self.forcings['datetime'] == self.t) &
-                                             (self.forcings['site_no'] == self.site_no), '00060_Mean'])
+    def forward(self, x, c, res_time):
+        res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
+        res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
+        res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
+        vars = self.args['optData']['varT'] + self.args['optData']['varC']
+        obsQ = x[:, :, vars.index("00060_Mean")]
+        T_0 = (x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2
+        vp = x[:, :, vars.index('vp(Pa)')]
+        swrad = x[:, :, vars.index('srad(W/m2)')]
+        elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
+        slope = x[:, :, vars.index("SLOPE_PCT")]
+        stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+        stream_length = stream_density * x[:, :, vars.index("DRAIN_SQKM")]
 
-        T_0 = make_tensor((self.forcings.loc[(self.forcings['datetime'] == self.t) &
-                                             (self.forcings['site_no'] == self.site_no), 'tmax(C)'] +
-                           (self.forcings.loc[(self.forcings['datetime'] == self.t) &
-                                              (self.forcings['site_no'] == self.site_no), 'tmin(C)'])) / 2)
-
-        vp = make_tensor(self.forcings.loc[(self.forcings['datetime'] == self.t) &
-                                             (self.forcings['site_no'] == self.site_no), 'vp(Pa)'])
-
-        swrad = make_tensor(self.forcings.loc[(self.forcings['datetime'] == self.t) &
-                               (self.forcings['site_no'] == self.site_no), 'srad(W/m2)'])
-
-        elev = make_tensor(self.attr.loc[self.attr['site_no'] == self.site_no, "ELEV_MEAN_M_BASIN"])
-
-        slope = make_tensor(self.attr.loc[self.attr['site_no'] == self.site_no, "SLOPE_PCT"])
-
-        stream_density = make_tensor(self.attr.loc[self.attr['site_no'] == self.site_no, "STREAMS_KM_SQ_KM"])
-
-        stream_length = stream_density * make_tensor(self.attr.loc[self.attr['site_no'] == self.site_no, "DRAIN_SQKM"])
-
-        top_width=make_tensor(10)
-
+        top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10))
+        PET = make_tensor(np.full((x.shape[0], x.shape[1]), 8))
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, inflow=obsQ)
+                                         slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=res_time_gwflow)
 
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D)
 
@@ -253,14 +259,16 @@ class STREAM_TEMP_EQ:
 
 
 
-        srflow, ssflow, gw_flow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
+        srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
 
-        T_l = self.lateral_flow_temperature(srflow=srflow, ssflow=ssflow, gwflow=gwflow,
+        T_l, srflow_temp, ssflow_temp, gwflow_Temp = self.lateral_flow_temperature(srflow=srflow, ssflow=ssflow, gwflow=gwflow,
                                             res_time_gwflow=res_time_gwflow,
                                             res_time_srflow=res_time_srflow,
                                             res_time_ssflow=res_time_ssflow)
 
-        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, ave_width, q_l=obsQ/stream_length, T_l, T_e, T_0=T_0, L=stream_length, Q_0=make_tensor(0.01))
+        Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.01))
+
+        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width, q_l=obsQ/stream_length, L=stream_length, T_0=T_0, Q_0=Q_0)
         return T_w
 
 

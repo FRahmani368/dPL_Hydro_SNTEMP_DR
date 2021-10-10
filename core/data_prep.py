@@ -22,9 +22,12 @@ def load_df(args):
         x_total[k, :, :] = np.concatenate(
             (x[k, :, :], np.tile(c[k], (x.shape[1], 1))), axis=1
         )
+    # streamflow values should not be negative
+    # vars = args['optData']['varT'] + args['optData']['varC']
+    # x_total[x_total[:, :, vars.index("00060_Mean")] < 0] = 0
     return x_total, y, c
 
-def scaling(args, x, y):
+def scaling(args, x, y, c):
     """
     creates our datasets
     :param set_name:
@@ -34,13 +37,12 @@ def scaling(args, x, y):
     :param y_total_raw:
     :return:  x, y, ngrid, nIterEp, nt
     """
-
-
     initcamels(args, x, y)
     #Normalization
     x_total_scaled = transNorm(x, args['optData']['varT']+args['optData']['varC'], toNorm=True)
-    y_total_scaled = transNorm(y, args['optData']['target'][0], toNorm=True)
-    return x_total_scaled, y_total_scaled
+    y_scaled = transNorm(y, args['optData']['target'][0], toNorm=True)
+    c_scaled = transNorm(c, args['optData']['varC'], toNorm=True)
+    return x_total_scaled, y_scaled, c_scaled
 
 def train_val_test_split(set_name, args, time1, x_total, y_total):
     c, ind1, ind2 = np.intersect1d(
@@ -50,9 +52,63 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
     y = y_total[:, ind1, :]
     ngrid, nt, nx = x.shape
     nIterEp = int(
-        np.ceil(np.log(0.01) / np.log(1 - args['hyperprameters']['batch_size'] * args['hyperprameters']['rho'] / ngrid / nt)))
+        np.ceil(np.log(0.01) / np.log(1 - args['hyperparameters']['batch_size'] * \
+                                      args['hyperparameters']['rho'] / ngrid / nt)))
 
-    return x, y, ngrid, nIterEp, nt
+    return x, y, ngrid, nIterEp, nt, args['hyperparameters']['rho'], args['hyperparameters']['batch_size']
+
+def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
+    nx = x.shape[-1]
+    nt = x.shape[1]
+    if x.shape[0] == len(iGrid):   #hack
+        iGrid = np.arange(0,len(iGrid))  # hack
+        if nt <= rho:
+            iT.fill(0)
+
+    if iT is not None:
+        batchSize = iGrid.shape[0]
+        xTensor = torch.zeros([rho, batchSize, nx], requires_grad=False)
+        for k in range(batchSize):
+            temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+            xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+    else:
+        if len(x.shape) == 2:
+            # Used for local calibration kernel
+            # x = Ngrid * Ntime
+            xTensor = torch.from_numpy(x[iGrid, :]).float()
+        else:
+            # Used for rho equal to the whole length of time series
+            xTensor = torch.from_numpy(np.swapaxes(x[iGrid, :, :], 1, 0)).float()
+            rho = xTensor.shape[0]
+    if c is not None:
+        nc = c.shape[-1]
+        temp = np.repeat(
+            np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
+        cTensor = torch.from_numpy(np.swapaxes(temp, 1, 0)).float()
+
+        if (tupleOut):
+            if torch.cuda.is_available():
+                xTensor = xTensor.cuda()
+                cTensor = cTensor.cuda()
+            out = (xTensor, cTensor)
+        else:
+            out = torch.cat((xTensor, cTensor), 2)
+    else:
+        out = xTensor
+
+    if torch.cuda.is_available() and type(out) is not tuple:
+        out = out.cuda()
+    return out
+
+
+def randomIndex(ngrid, nt, dimSubset):
+    batchSize, rho = dimSubset
+    iGrid = np.random.randint(0, ngrid, [batchSize])
+    iT = np.random.randint(0, nt - rho, [batchSize])     # np.random.randint(0, nt - rho, [batchSize])
+    return iGrid, iT
+
+
+
 
 def create_tensor(rho, mini_batch, x, y):
     """
