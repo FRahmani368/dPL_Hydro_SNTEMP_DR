@@ -38,18 +38,18 @@ hyperparameters:
   rho: 730
   batch_size: 99
   EPOCHS: 2000
-  hidden_size: 100
+  hidden_size: 10
   dropout: 0.5
   saveEpoch: 100
 seq_lin_layers:
   hidden_size: 10
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 STemp_default_params:
-  shade_fraction: 0
-  longwave_reflect_fraction: 0
-  cloud_fraction: 0
+  shade_fraction: 0.05
+  longwave_reflect_fraction: 0.1
+  cloud_fraction: 0.1
   emissivity_veg: 0.9526
-  shade_fraction_riparian: 0
+  shade_fraction_riparian: 0.5
   albedo: 0.1
   delta_Z: 1.0       # for streambed conduction
 params:

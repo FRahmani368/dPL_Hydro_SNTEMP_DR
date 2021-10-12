@@ -60,10 +60,10 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
 def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
     nx = x.shape[-1]
     nt = x.shape[1]
-    if x.shape[0] == len(iGrid):   #hack
-        iGrid = np.arange(0,len(iGrid))  # hack
-        if nt <= rho:
-            iT.fill(0)
+    # if x.shape[0] == len(iGrid):   #hack
+    #     iGrid = np.arange(0,len(iGrid))  # hack
+    #     if nt <= rho:
+    #         iT.fill(0)
 
     if iT is not None:
         batchSize = iGrid.shape[0]
