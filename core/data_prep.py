@@ -57,7 +57,7 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
 
     return x, y, ngrid, nIterEp, nt, args['hyperparameters']['rho'], args['hyperparameters']['batch_size']
 
-def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
+def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
     nx = x.shape[-1]
     nt = x.shape[1]
     # if x.shape[0] == len(iGrid):   #hack
@@ -67,7 +67,7 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
 
     if iT is not None:
         batchSize = iGrid.shape[0]
-        xTensor = torch.zeros([rho, batchSize, nx], requires_grad=False)
+        xTensor = torch.zeros([rho, batchSize, nx], requires_grad=has_grad)
         for k in range(batchSize):
             temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
             xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))

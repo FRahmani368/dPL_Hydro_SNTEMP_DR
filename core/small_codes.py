@@ -5,7 +5,7 @@ import os
 from core.read_configurations import config
 import datetime as dt
 
-def make_tensor(*values, has_grad=True, dtype=torch.float32, device=config['device']):
+def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['device']):
 
     if len(values) > 1:
         tensor_list = []

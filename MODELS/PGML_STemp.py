@@ -17,7 +17,7 @@ class MLP(nn.Module):
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target'])),
-            #nn.ReLU()
+            nn.ReLU()
         )
         self.activation = torch.nn.Sigmoid()
         # self.lstm = CudnnLstmModel(
@@ -30,11 +30,12 @@ class MLP(nn.Module):
 
     def forward(self, x, max_sr_res_time=10, max_ss_res_time=200, max_gw_res_time=1000):
         out = self.seq_lin_layers(x)
-        out = self.activation(out)
-        out[:, 0] = out[:, 0] * max_sr_res_time + 1
-        out[:, 1] = out[:, 1] * max_ss_res_time + 1
-        out[:, 2] = out[:, 2] * max_gw_res_time + 1
-        return out.int().float()
+        # out = self.activation(out)
+        out1 = torch.empty(out.shape, requires_grad=False)
+        out1[:, 0] = out[:, 0] * max_sr_res_time + 1
+        out1[:, 1] = out[:, 1] * max_ss_res_time + 1
+        out1[:, 2] = out[:, 2] * max_gw_res_time + 1
+        return out1.round()
 
 
 
@@ -77,7 +78,7 @@ class STREAM_TEMP_EQ:
         cloud_fraction = make_tensor(self.args['STemp_default_params']['cloud_fraction'])
         H_a = (
                 (1 - longwave_reflect_frac) * (1 - shade_fraction) * (1 + 0.17 * cloud_fraction) *
-                emissivity_air * St_Boltzman_ct * torch.pow(make_tensor(T_a + 273.16), 4)
+                emissivity_air * St_Boltzman_ct * torch.pow((T_a + 273.16), 4)
         )
         return H_a
 
@@ -207,17 +208,16 @@ class STREAM_TEMP_EQ:
         :param res_time_gwflow: residence time for groundwater flow
         :return: temperature of lateral flow
         """
+        srflow_temp = ave_air_temp[:, :, 0]
+        ssflow_temp = ave_air_temp[:, :, 1]
+        gwflow_Temp = ave_air_temp[:, :, 2]
 
-        srflow_temp = ave_air_temp[:,:, 0]
-        ssflow_temp = ave_air_temp[:,:, 1]
-        gwflow_Temp = ave_air_temp[:,:, 2]
-
-        T_l = (gwflow * gwflow_Temp + srflow * srflow_temp + ssflow * ssflow_temp / (gwflow + ssflow + srflow))
+        T_l = ((gwflow * gwflow_Temp + srflow * srflow_temp + ssflow * ssflow_temp) / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l,  L , T_0=make_tensor(0), Q_0=make_tensor(0.01)):
         a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
-        b = q_l + (K1 * ave_width)/ (self.args['params']['water_density'] * self.args['params']['C_w'])
+        b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
         Tprime_e = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
         R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
         # for positive q_l
@@ -240,22 +240,23 @@ class STREAM_TEMP_EQ:
         T_w = Tprime_e - ((Tprime_e - T_0) * R / (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R))))
         return T_w
 
-    def forward(self, x, c, res_time, ave_air_temp):
-        res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
-        res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
-        res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
+    def forward(self, x, res_time, ave_air_temp):
+        # res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
+        # res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
+        # res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
-        obsQ = x[:, :, vars.index("00060_Mean")]
-        T_0 = (x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2
-        vp = make_tensor(0.01) * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
-        swrad = x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')]/86400
-        elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-        slope = make_tensor(0.01) * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
-        stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-        stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
+        with torch.no_grad():
+            obsQ = x[:, :, vars.index("00060_Mean")].clone().detach()
+            T_0 = (x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2
+            vp = make_tensor(0.01) * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
+            swrad = x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')]/86400
+            elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")].clone().detach()
+            slope = make_tensor(0.01) * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
+            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")].clone().detach()
+            stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
 
-        top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10))
-        PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400))
+            top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10))
+            PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400))
 
 
 
@@ -276,6 +277,7 @@ class STREAM_TEMP_EQ:
         Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.01))
 
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width, q_l=obsQ/stream_length, L=stream_length, T_0=T_0, Q_0=Q_0)
+        T_w.requires_grad = True
         return T_w
 
 
