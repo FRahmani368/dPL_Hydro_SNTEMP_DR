@@ -38,7 +38,7 @@ hyperparameters:
   rho: 730
   batch_size: 99
   EPOCHS: 2000
-  hidden_size: 30
+  hidden_size: 60
   dropout: 0.5
   saveEpoch: 100
 seq_lin_layers:

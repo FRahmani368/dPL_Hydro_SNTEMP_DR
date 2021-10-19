@@ -17,7 +17,7 @@ class MLP(nn.Module):
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target'])),
-            nn.ReLU()
+            # nn.ReLU()
         )
         self.activation = torch.nn.Sigmoid()
         # self.lstm = CudnnLstmModel(
@@ -30,12 +30,8 @@ class MLP(nn.Module):
 
     def forward(self, x, max_sr_res_time=10, max_ss_res_time=200, max_gw_res_time=1000):
         out = self.seq_lin_layers(x)
-        # out = self.activation(out)
-        out1 = torch.empty(out.shape, requires_grad=False)
-        out1[:, 0] = out[:, 0] * max_sr_res_time + 1
-        out1[:, 1] = out[:, 1] * max_ss_res_time + 1
-        out1[:, 2] = out[:, 2] * max_gw_res_time + 1
-        return out1.round()
+        out = self.activation(out)
+        return out
 
 
 
@@ -171,9 +167,9 @@ class STREAM_TEMP_EQ:
 
     def srflow_ssflow_gwflow_portions(self,
                              discharge,
-                             srflow_factor=make_tensor(0.85),
-                             ssflow_factor=make_tensor(0.1),
-                             gwlow_factor=make_tensor(0.05)):
+                             srflow_factor=make_tensor(0.90),
+                             ssflow_factor=make_tensor(0.07),
+                             gwlow_factor=make_tensor(0.03)):
         srflow = srflow_factor * discharge
         ssflow = ssflow_factor * discharge
         gwflow = gwlow_factor * discharge
@@ -208,19 +204,22 @@ class STREAM_TEMP_EQ:
         :param res_time_gwflow: residence time for groundwater flow
         :return: temperature of lateral flow
         """
-        srflow_temp = ave_air_temp[:, :, 0]
-        ssflow_temp = ave_air_temp[:, :, 1]
-        gwflow_Temp = ave_air_temp[:, :, 2]
+        with torch.no_grad():
+            srflow_temp = ave_air_temp[:, :, 0].clone().detach()
+            ssflow_temp = ave_air_temp[:, :, 1].clone().detach()
+            gwflow_Temp = ave_air_temp[:, :, 2].clone().detach()
 
-        T_l = ((gwflow * gwflow_Temp + srflow * srflow_temp + ssflow * ssflow_temp) / (gwflow + ssflow + srflow))
+        T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
-    def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l,  L , T_0=make_tensor(0), Q_0=make_tensor(0.01)):
+    def solving_SNTEMP_ODE_second_order(self, a, K1, K2, T_l, T_e, ave_width, q_l,  L, Tprime_e, R,
+                                        T_0=make_tensor(0), Q_0=make_tensor(0.01)):
         a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
         b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
-        Tprime_e = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
-        R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
+        # Tprime_e = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
+        # R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
         # for positive q_l
+        # with torch.no_grad():
         mask_q_l = q_l > 0
         Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
         R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * make_tensor(L[mask_q_l]) / Q_0[mask_q_l])),
@@ -238,47 +237,66 @@ class STREAM_TEMP_EQ:
             exit()
 
         T_w = Tprime_e - ((Tprime_e - T_0) * R / (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R))))
-        return T_w
+        # T_w.requires_grad = True
+        return T_w, Tprime_e, R, a
 
-    def forward(self, x, res_time, ave_air_temp):
+    def forward(self, x, ave_air_temp, Tprime_e, R, a):
         # res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
         with torch.no_grad():
-            obsQ = x[:, :, vars.index("00060_Mean")].clone().detach()
-            T_0 = (x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2
-            vp = make_tensor(0.01) * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
-            swrad = x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')]/86400
-            elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")].clone().detach()
-            slope = make_tensor(0.01) * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
-            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")].clone().detach()
+            # obsQ = torch.empty(x[:, :, vars.index("00060_Mean")].shape, requires_grad=False, device=self.args['device'])
+            obsQ = x[:, :, vars.index("00060_Mean")]
+
+            # T_0 = torch.empty(x[:, :, vars.index("tmax(C)")].shape, requires_grad=False, device=self.args['device'])
+            T_0 = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
+
+            # vp = torch.empty(x[:, :, vars.index('vp(Pa)')].shape, requires_grad=False, device=self.args['device'])
+            vp = 0.01 * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
+
+            # swrad = torch.empty(x[:, :, vars.index('srad(W/m2)')].shape, requires_grad=False, device=self.args['device'])
+            swrad = (x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')] / 86400)
+
+            # elev = torch.empty(x[:, :, vars.index("ELEV_MEAN_M_BASIN")].shape, requires_grad=False, device=self.args['device'])
+            elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
+
+            # slope = torch.empty(x[:, :, vars.index("SLOPE_PCT")].shape, requires_grad=False, device=self.args['device'])
+            slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
+
+            # stream_density = torch.empty(x[:, :, vars.index("STREAMS_KM_SQ_KM")].shape, requires_grad=False, device=self.args['device'])
+            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+
+            # stream_length = torch.empty(x[:, :, vars.index("DRAIN_SQKM")].shape, requires_grad=False, device=self.args['device'])
             stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
 
-            top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10))
-            PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400))
+
+            top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
+            PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400), has_grad=False)
 
 
 
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
 
-        T_l, srflow_temp, ssflow_temp, gwflow_Temp = self.lateral_flow_temperature(srflow=srflow,
+        T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
                                                                                    ave_air_temp=ave_air_temp)
 
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=gwflow_Temp)
+                                         slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=gwflow_temp)
 
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D)
 
         K1, K2 = self.finding_K1_K2(A=A, B=B, C=C, D=D, T_e=T_e, T_0=T_0)
         Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.01))
 
-        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width, q_l=obsQ/stream_length, L=stream_length, T_0=T_0, Q_0=Q_0)
-        T_w.requires_grad = True
-        return T_w
+        T_w, Tprime_e, R, a = self.solving_SNTEMP_ODE_second_order(a, K1, K2, T_l, T_e, ave_width=top_width,
+                                                                q_l=obsQ/stream_length, L=stream_length,
+                                                                Tprime_e=Tprime_e, R=R, T_0=T_0, Q_0=Q_0)
+        # T_w.requires_grad = True
+        return T_w, Tprime_e, R, a
 
 
 
