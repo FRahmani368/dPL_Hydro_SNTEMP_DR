@@ -14,7 +14,7 @@ import os
 import matplotlib.pyplot as plt
 
 
-def ave_temp_res_time(args, ave_air_temp, x, res_time, x_total, iGrid, iT):
+def ave_temp_res_time(args, ave_air_temp, x, res_time, res_rnd, x_total, iGrid, iT):
     rho = args['hyperparameters']['rho']
     tArray_Total = tRange2Array(args['optData']['tRange'])
     tArray_train = tRange2Array(args['optData']['t_train'])
@@ -120,6 +120,11 @@ def main(args):
     a = torch.empty((args['hyperparameters']['batch_size'],
                      args['hyperparameters']['rho']), device=args['device'], requires_grad=False)
 
+    factor = torch.empty((args['hyperparameters']['batch_size'],
+                                len(args['params_target'])), device=args['device'], requires_grad=False)
+    factor[:, 0] = 10   # srflow residence time
+    factor[:, 1] = 200   # ssflow residence time
+    factor[:, 2] = 1000   # gwflow residence factor
     # training
 
     for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
@@ -132,18 +137,17 @@ def main(args):
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
             c_tensorTrain = make_tensor(c_scaled[iGrid], has_grad=False)
             res_time = model(c_tensorTrain)
-            res_time_mod[:, 0] = (res_time[:, 0] * 10 + 1)
-            res_time_mod[:, 1] = res_time[:, 1] * 200 + 1
-            res_time_mod[:, 2] = res_time[:, 2] * 1000 + 1
+            res_time_mod = (res_time * factor + 1) #.round()
+
             # res_time = model(xTrain_sample_scaled)
-            ave_air_temp = ave_temp_res_time(args, ave_air_temp, xTrain_sample, res_time_mod.round(), x_total_raw_tensor[iGrid], iGrid, iT)
-
-            Yp, Tprime_e, R, a = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp, Tprime_e=Tprime_e, R=R, a=a)
-
-
-            loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
+            # ave_air_temp = ave_temp_res_time(args, ave_air_temp, xTrain_sample, res_time_mod, res_rnd, x_total_raw_tensor[iGrid], iGrid, iT)
+            #
+            # Yp, Tprime_e, R, a = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp, Tprime_e=Tprime_e, R=R, a=a)
+            loss = lossFun(res_time_mod[:, 0:1].unsqueeze(-1), yObs[0:1, :, :].transpose(1, 0))
+            # loss = lossFun(ave_air_temp[:, :, 0:1], yObs.transpose(1, 0))
+            # loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
             c = list(model.parameters())[0].clone()
-            loss.backward(retain_graph=True)  # retain_graph=True
+            loss.backward()  # retain_graph=True
             # for param in model.parameters():
             #     print(param.grad.data.sum())
             optim.step()
