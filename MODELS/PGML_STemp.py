@@ -198,7 +198,7 @@ class STREAM_TEMP_EQ:
                 ave_air_temp[station, day] = (tmax_temp + tmin_temp) / (2 * res_time.int()[station, day].item())
         return ave_air_temp
 
-    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp):
+    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, ave_air_temp23):
         """
         :param srflow: surface runoff
         :param ssflow: subsurface runoff
@@ -210,10 +210,10 @@ class STREAM_TEMP_EQ:
         """
         with torch.no_grad():
             srflow_temp = ave_air_temp[:, :, 0].clone().detach()
-            ssflow_temp = ave_air_temp[:, :, 1].clone().detach()
-            gwflow_Temp = ave_air_temp[:, :, 2].clone().detach()
+            ssflow_temp = ave_air_temp23[:, :, 0].clone().detach()
+            gwflow_Temp = ave_air_temp23[:, :, 1].clone().detach()
 
-        T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
+        T_l = ((gwflow * ave_air_temp23[:, :, 1] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp23[:, :, 0]) / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L,
@@ -258,7 +258,7 @@ class STREAM_TEMP_EQ:
         # T_w.requires_grad = True
         return T_w
 
-    def forward(self, x, ave_air_temp):
+    def forward(self, x, ave_air_temp, ave_air_temp23):
         # res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
@@ -284,7 +284,8 @@ class STREAM_TEMP_EQ:
         T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
-                                                                                   ave_air_temp=ave_air_temp)
+                                                                                   ave_air_temp=ave_air_temp,
+                                                                                   ave_air_temp23=ave_air_temp23)
 
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=gwflow_temp)

@@ -58,9 +58,11 @@ def syntheticP(args):
     ave_air_temp = torch.empty((args['hyperparameters']['batch_size'],
                                 x_train.shape[1],
                                 len(args['params_target'])), device=args['device'], requires_grad=False)
+
     ave_air = torch.empty((args['hyperparameters']['batch_size'],
                            x_train.shape[1],
                            len(args['params_target'])), device=args['device'], requires_grad=False)
+
 
     factor = torch.empty((args['hyperparameters']['batch_size'],
                           len(args['params_target'])), device=args['device'], requires_grad=False)
@@ -126,13 +128,20 @@ def main(args):
     ave_air = torch.empty((args['hyperparameters']['batch_size'],
                                 args['hyperparameters']['rho'],
                                 len(args['params_target'])), device=args['device'], requires_grad=False)
-
+    ave_air_temp23 = torch.empty((args['hyperparameters']['batch_size'],
+                                  x_train.shape[1],
+                                  2), device=args['device'], requires_grad=False)
+    ave_air23 = torch.empty((args['hyperparameters']['batch_size'],
+                             args['hyperparameters']['rho'],
+                             2), device=args['device'], requires_grad=False)
+    res23 = torch.empty((args['hyperparameters']['batch_size'],
+                             2), device=args['device'], requires_grad=False)
 
     factor = torch.empty((args['hyperparameters']['batch_size'],
                                 len(args['params_target'])), device=args['device'], requires_grad=False)
-    factor[:, 0] = 10   # srflow residence time
-    factor[:, 1] = 200   # ssflow residence time
-    factor[:, 2] = 1000   # gwflow residence factor
+    factor[:, 0] = 10   # factor for srflow residence time
+    res23[:, 0] = 10.0   # value of ssflow residence time
+    res23[:, 1] = 365.0   # value of gwflow residence factor
     # training
 
     for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
@@ -149,8 +158,9 @@ def main(args):
 
             # res_time = model(xTrain_sample_scaled)
             ave_air_temp, ave_air = ave_temp_res_time(args, ave_air_temp, ave_air, xTrain_sample, res_time_mod, x_total_raw_tensor[iGrid], iGrid, iT)
-            #
-            Yp = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp)
+            ave_air_temp23, ave_air23 = ave_temp_res_time(args, ave_air_temp23, ave_air23, xTrain_sample, res23,
+                                                      x_total_raw_tensor[iGrid], iGrid, iT)
+            Yp = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp, ave_air_temp23)
             loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
             # c = list(model.parameters())[0].clone()
             loss.backward()  # retain_graph=True
