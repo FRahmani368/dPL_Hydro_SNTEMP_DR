@@ -47,7 +47,9 @@ class RmseLoss(torch.nn.Module):
             ### to calculate loss based on measurements
             p0 = output[:, :, k]
             t0 = target[:, :, k]
-            mask = t0 == t0
+            maskt = t0 == t0
+            maskp = p0 == p0
+            mask = maskp * maskt > 0
             p = p0[mask]
             t = t0[mask]
             temp = torch.sqrt(((p - t) ** 2).mean())

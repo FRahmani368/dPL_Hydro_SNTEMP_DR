@@ -15,6 +15,8 @@ class MLP(nn.Module):
                       args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
+            nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
+            # nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target'])),
             # nn.ReLU()
@@ -162,7 +164,9 @@ class STREAM_TEMP_EQ:
         """
         H_i = A * torch.pow((T_0 + 273.16), 4) - C * torch.pow(T_0, 2) + B * T_0 - D
         K1 = 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
-        K2 = (H_i - (K1 * (T_e - T_0)))/(torch.pow((T_e - T_0), 2))
+        denom = (torch.pow((T_e - T_0), 2))
+        denom[denom == 0] = 1
+        K2 = (H_i - (K1 * (T_e - T_0)))/ denom
         return K1, K2
 
     def srflow_ssflow_gwflow_portions(self,
@@ -212,7 +216,7 @@ class STREAM_TEMP_EQ:
         T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
-    def solving_SNTEMP_ODE_second_order(self, a, K1, K2, T_l, T_e, ave_width, q_l,  L, Tprime_e, R,
+    def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01)):
         a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
         b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
@@ -220,56 +224,54 @@ class STREAM_TEMP_EQ:
         # R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
         # for positive q_l
         # with torch.no_grad():
-        mask_q_l = q_l > 0
-        Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
-        R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * make_tensor(L[mask_q_l]) / Q_0[mask_q_l])),
-                                -(ave_width[mask_q_l] / q_l[mask_q_l]))
-        # for zero q_l
-        mask_q_l = q_l == 0
-        Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
-        R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * make_tensor(L[mask_q_l]) / Q_0[mask_q_l])),
-                                -(ave_width[mask_q_l] / q_l[mask_q_l]))
+        #     Tp = torch.empty((self.args['hyperparameters']['batch_size'],
+        #                             self.args['hyperparameters']['rho']), device=self.args['device'], requires_grad=False)
+        #     ap = torch.empty((self.args['hyperparameters']['batch_size'],
+        #                       self.args['hyperparameters']['rho']), device=self.args['device'], requires_grad=False)
+        #     Tp = Tprime_e.clone()
+        #     ap = a.clone()
+        # mask_q_l = q_l > 0
+        # Tp[mask_q_l] = ap[mask_q_l] / b[mask_q_l]
+        # # Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
+        # R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * (L[mask_q_l]) / Q_0[mask_q_l])),
+        #                         -(ave_width[mask_q_l] / q_l[mask_q_l]))
+        # # for zero q_l
+        # mask_q_l = q_l == 0
+        # Tp[mask_q_l] = ap[mask_q_l] / b[mask_q_l]
+        # # Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
+        # R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * (L[mask_q_l]) / Q_0[mask_q_l])),
+        #                         -(ave_width[mask_q_l] / q_l[mask_q_l]))
+
+        Tprime_e = a / b
+        R = torch.pow((1 + (q_l * (L) / Q_0)), -(ave_width / q_l))
 
         # for negative q_l
         mask_q_l = q_l < 0
         if mask_q_l.sum() > 0:
             print("negative q_l")
             exit()
+        with torch.no_grad():
+            denom = (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R)))
+            denom[denom==0] = 0.01
 
-        T_w = Tprime_e - ((Tprime_e - T_0) * R / (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R))))
+        T_w = Tprime_e - ((Tprime_e - T_0) * R / denom)
         # T_w.requires_grad = True
-        return T_w, Tprime_e, R, a
+        return T_w
 
-    def forward(self, x, ave_air_temp, Tprime_e, R, a):
+    def forward(self, x, ave_air_temp):
         # res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
         # res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
         with torch.no_grad():
-            # obsQ = torch.empty(x[:, :, vars.index("00060_Mean")].shape, requires_grad=False, device=self.args['device'])
             obsQ = x[:, :, vars.index("00060_Mean")]
-
-            # T_0 = torch.empty(x[:, :, vars.index("tmax(C)")].shape, requires_grad=False, device=self.args['device'])
             T_0 = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
-
-            # vp = torch.empty(x[:, :, vars.index('vp(Pa)')].shape, requires_grad=False, device=self.args['device'])
             vp = 0.01 * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
-
-            # swrad = torch.empty(x[:, :, vars.index('srad(W/m2)')].shape, requires_grad=False, device=self.args['device'])
             swrad = (x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')] / 86400)
-
-            # elev = torch.empty(x[:, :, vars.index("ELEV_MEAN_M_BASIN")].shape, requires_grad=False, device=self.args['device'])
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-
-            # slope = torch.empty(x[:, :, vars.index("SLOPE_PCT")].shape, requires_grad=False, device=self.args['device'])
             slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
-
-            # stream_density = torch.empty(x[:, :, vars.index("STREAMS_KM_SQ_KM")].shape, requires_grad=False, device=self.args['device'])
             stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-
-            # stream_length = torch.empty(x[:, :, vars.index("DRAIN_SQKM")].shape, requires_grad=False, device=self.args['device'])
             stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
-
 
             top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
             PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400), has_grad=False)
@@ -292,11 +294,11 @@ class STREAM_TEMP_EQ:
         K1, K2 = self.finding_K1_K2(A=A, B=B, C=C, D=D, T_e=T_e, T_0=T_0)
         Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.01))
 
-        T_w, Tprime_e, R, a = self.solving_SNTEMP_ODE_second_order(a, K1, K2, T_l, T_e, ave_width=top_width,
+        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
                                                                 q_l=obsQ/stream_length, L=stream_length,
-                                                                Tprime_e=Tprime_e, R=R, T_0=T_0, Q_0=Q_0)
+                                                                T_0=T_0, Q_0=Q_0)
         # T_w.requires_grad = True
-        return T_w, Tprime_e, R, a
+        return T_w
 
 
 
