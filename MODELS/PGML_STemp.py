@@ -15,13 +15,19 @@ class MLP(nn.Module):
                       args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
-            nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
-            # nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
-            nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['params_target'])),
+            nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
+            nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
+            # nn.ReLU(),
+            nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['one_param_target'])),
             # nn.ReLU()
         )
-        self.activation = torch.nn.Sigmoid()
+        self.L1 = nn.Linear(len(args['optData']['varC']), \
+                      args['seq_lin_layers']['hidden_size'])
+        self.L2 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
+        self.L3 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
+        self.L4 = nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['one_param_target']))
+
         # self.lstm = CudnnLstmModel(
         #     nx=input.shape[2],
         #     ny=len(args['params_target']),
@@ -29,11 +35,17 @@ class MLP(nn.Module):
         #     dr=args['hyperprameters']['dropout'])
         #
         # self.stream_temp_eq = stream_temp_eq(args)
-
-    def forward(self, x, max_sr_res_time=10, max_ss_res_time=200, max_gw_res_time=1000):
-        out = self.seq_lin_layers(x)
-        out = self.activation(out)
-        return out
+        self.activation = torch.nn.Sigmoid()
+        self.activation_tanh = torch.nn.Tanh()
+    def forward(self, x):
+        # out = self.seq_lin_layers(x)
+        out = self.L1(x)
+        out = self.L2(out)
+        out = self.L3(out)
+        out = self.L4(out)
+        # out1 = torch.abs(out)
+        out = self.activation_tanh(out)
+        return out + 1
 
 
 
@@ -171,9 +183,9 @@ class STREAM_TEMP_EQ:
 
     def srflow_ssflow_gwflow_portions(self,
                              discharge,
-                             srflow_factor=make_tensor(0.90),
-                             ssflow_factor=make_tensor(0.07),
-                             gwlow_factor=make_tensor(0.03)):
+                             srflow_factor=make_tensor(0.40),
+                             ssflow_factor=make_tensor(0.3),
+                             gwlow_factor=make_tensor(0.3)):
         srflow = srflow_factor * discharge
         ssflow = ssflow_factor * discharge
         gwflow = gwlow_factor * discharge
@@ -198,7 +210,7 @@ class STREAM_TEMP_EQ:
                 ave_air_temp[station, day] = (tmax_temp + tmin_temp) / (2 * res_time.int()[station, day].item())
         return ave_air_temp
 
-    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, ave_air_temp23):
+    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp):
         """
         :param srflow: surface runoff
         :param ssflow: subsurface runoff
@@ -208,60 +220,80 @@ class STREAM_TEMP_EQ:
         :param res_time_gwflow: residence time for groundwater flow
         :return: temperature of lateral flow
         """
-        with torch.no_grad():
-            srflow_temp = ave_air_temp[:, :, 0].clone().detach()
-            ssflow_temp = ave_air_temp23[:, :, 0].clone().detach()
-            gwflow_Temp = ave_air_temp23[:, :, 1].clone().detach()
+        # with torch.no_grad():
+        srflow_temp = ave_air_temp[:, :, 0]  #.clone().detach()
+        ssflow_temp = ave_air_temp[:, :, 1]  #.clone().detach()
+        gwflow_Temp = ave_air_temp[:, :, 2]  #.clone().detach()
 
-        T_l = ((gwflow * ave_air_temp23[:, :, 1] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp23[:, :, 0]) / (gwflow + ssflow + srflow))
+        T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] + ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
         return T_l, srflow_temp, ssflow_temp, gwflow_Temp
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01)):
-        a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
-        b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
-        # Tprime_e = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
-        # R = make_tensor(np.full((a.shape[0], a.shape[1]), 0), has_grad=False)
-        # for positive q_l
-        # with torch.no_grad():
-        #     Tp = torch.empty((self.args['hyperparameters']['batch_size'],
-        #                             self.args['hyperparameters']['rho']), device=self.args['device'], requires_grad=False)
-        #     ap = torch.empty((self.args['hyperparameters']['batch_size'],
-        #                       self.args['hyperparameters']['rho']), device=self.args['device'], requires_grad=False)
-        #     Tp = Tprime_e.clone()
-        #     ap = a.clone()
-        # mask_q_l = q_l > 0
-        # Tp[mask_q_l] = ap[mask_q_l] / b[mask_q_l]
-        # # Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
-        # R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * (L[mask_q_l]) / Q_0[mask_q_l])),
-        #                         -(ave_width[mask_q_l] / q_l[mask_q_l]))
-        # # for zero q_l
-        # mask_q_l = q_l == 0
-        # Tp[mask_q_l] = ap[mask_q_l] / b[mask_q_l]
-        # # Tprime_e[mask_q_l] = a[mask_q_l] / b[mask_q_l]
-        # R[mask_q_l] = torch.pow((1 + (q_l[mask_q_l] * (L[mask_q_l]) / Q_0[mask_q_l])),
-        #                         -(ave_width[mask_q_l] / q_l[mask_q_l]))
+        # Note: as we assume that Q_0 is 0.01, we are always gaining flow with positive lateral flow or
+        # with zero lateral flow
+        density = self.args['params']['water_density']
+        c_w = self.args['params']['C_w']
+        # a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
+        # b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
 
-        Tprime_e = a / b
-        R = torch.pow((1 + (q_l * (L) / Q_0)), -(ave_width / q_l))
+
+        # for positive lateral flow
+        mask_pos = q_l.ge(0)
+        a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
+                                                                                   * ave_width * mask_pos.int().float())
+                                                   / (density * c_w)) * T_e * mask_pos.int().float())
+        b_pos = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
+                                                 ) / (density * c_w))
+        # to get rid of having zero denominator in the next line
+        b_pos[b_pos == 0] = 0.01
+
+        Tprime_e_pos = a_pos / b_pos
+        R_pos = torch.pow((1 + (q_l * mask_pos.int().float() * L * mask_pos.int().float() /
+                                Q_0 * mask_pos.int().float())),
+                                -(ave_width * mask_pos.int().float() / q_l * mask_pos.int().float()))
+        # with torch.no_grad():
+        #     denom = (1 + ((K2 * mask_pos.int().float()/K1 * mask_pos.int().float()) *
+        #                   (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
+        #     denom[denom==0] = 0.01
+        # Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom)
+
+        denom_pos = (1 + ((K2 * mask_pos.int().float() / K1 * mask_pos.int().float()) *
+                      (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
+        mask_denom = denom_pos.eq(0)
+        denom_pos2 = denom_pos + mask_denom.int().float() * 0.01
+        Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom_pos2)
+
+        # for zero lateral flow
+        mask_zero = q_l.eq(0)
+        Tprime_e_zero = T_e * mask_zero.int().float()
+        R_zero = torch.exp(-ave_width * mask_zero.int().float() * L * mask_zero.int().float() /
+                           Q_0 * mask_zero.int().float())
+        # with torch.no_grad():
+        #     denom = (1 + ((K2 * mask_zero.int().float()/K1 * mask_zero.int().float()) *
+        #                   (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
+        #     denom[denom==0] = 0.01
+        # Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom)
+
+        denom_zero = (1 + ((K2 * mask_zero.int().float() / K1 * mask_zero.int().float()) *
+                      (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
+        mask_denom_zero = denom_zero.eq(0)
+        denom_zero2 = denom_zero + mask_denom_zero.int().float() * 0.01
+        Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom_zero2)
+
+
 
         # for negative q_l
         mask_q_l = q_l < 0
         if mask_q_l.sum() > 0:
             print("negative q_l")
             exit()
-        with torch.no_grad():
-            denom = (1 + ((K2/K1) * (Tprime_e - T_0) * (1 - R)))
-            denom[denom==0] = 0.01
-
-        T_w = Tprime_e - ((Tprime_e - T_0) * R / denom)
-        # T_w.requires_grad = True
+        # Tw_pos and Tw_zero do not have any common cell which means, in each cell,
+        # at least one of them is zero. That's why we can add them up.
+        T_w = Tw_pos + Tw_zero
         return T_w
 
-    def forward(self, x, ave_air_temp, ave_air_temp23):
-        # res_time_srflow = res_time[:, 0].repeat((x.shape[1], 1)).transpose(1, 0)
-        # res_time_ssflow = res_time[:, 1].repeat((x.shape[1], 1)).transpose(1, 0)
-        # res_time_gwflow = res_time[:, 2].repeat((x.shape[1], 1)).transpose(1, 0)
+    def forward(self, x, ave_air_temp):
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
         with torch.no_grad():
             obsQ = x[:, :, vars.index("00060_Mean")]
@@ -284,8 +316,7 @@ class STREAM_TEMP_EQ:
         T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
-                                                                                   ave_air_temp=ave_air_temp,
-                                                                                   ave_air_temp23=ave_air_temp23)
+                                                                                   ave_air_temp=ave_air_temp)
 
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=gwflow_temp)
@@ -298,7 +329,7 @@ class STREAM_TEMP_EQ:
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
                                                                 q_l=obsQ/stream_length, L=stream_length,
                                                                 T_0=T_0, Q_0=Q_0)
-        # T_w.requires_grad = True
+
         return T_w
 
 

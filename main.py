@@ -12,7 +12,7 @@ import pandas as pd
 import time
 import os
 import matplotlib.pyplot as plt
-
+from sklearn import preprocessing
 
 def ave_temp_res_time(args, ave_air_temp, ave_air, x, res_time, x_total, iGrid, iT):
     rho = x.shape[0] #args['hyperparameters']['rho']
@@ -66,15 +66,14 @@ def syntheticP(args):
 
     factor = torch.empty((args['hyperparameters']['batch_size'],
                           len(args['params_target'])), device=args['device'], requires_grad=False)
-    factor[:, 0] = 1  # srflow residence time
-    factor[:, 1] = 10  # ssflow residence time
-    factor[:, 2] = 365  # gwflow residence factor
+    factor[:, 0] = 5.0  # srflow residence time
+    factor[:, 1] = 20.0  # ssflow residence time
+    factor[:, 2] = 180.0  # gwflow residence factor
     synthP = torch.zeros((99, 3), device=args['device'])
     synthP_mod = synthP + factor
 
     ave_air_temp, ave_air = ave_temp_res_time(args, ave_air_temp, ave_air, torch.from_numpy(x_train.transpose(1, 0, 2)), synthP_mod,
                                               x_total_raw_tensor, 0, np.zeros(synthP_mod.shape[0]))
-    #
     Yp = T_w.forward(torch.from_numpy(x_train).cuda().float(), ave_air_temp)
     print('end')
 
@@ -87,11 +86,12 @@ def main(args):
 
     # Creating output directories
     args = create_output_dirs(args)
-
+    min_max_scaler = preprocessing.MinMaxScaler()
     # getting the data
     x_total_temp, y_raw, c_raw = load_df(args)
     x_total_raw = x_total_temp.copy()
     x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
+    c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
     time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
     x_train, y_train, ngrid_train, nIterEp, nt, rho, batchSize = train_val_test_split("t_train", args, time1,
                                                                                       x_total_raw, y_raw)
@@ -112,13 +112,14 @@ def main(args):
     # loss function
     lossFun = crit.RmseLoss()
     optim = torch.optim.Adadelta(model.parameters())
-    # optim = torch.optim.SGD(model.parameters(), lr=1)
+    # optim = torch.optim.SGD(model.parameters(), lr=0.1)
 
     if torch.cuda.is_available():
         model = model.cuda()
         lossFun = lossFun.cuda()
         # moving dataset to CUDA
     model.zero_grad()
+    model.train()
     T_w = STREAM_TEMP_EQ(args, x_total_raw_tensor)
 
     # initializing the variables
@@ -128,20 +129,17 @@ def main(args):
     ave_air = torch.empty((args['hyperparameters']['batch_size'],
                                 args['hyperparameters']['rho'],
                                 len(args['params_target'])), device=args['device'], requires_grad=False)
-    ave_air_temp23 = torch.empty((args['hyperparameters']['batch_size'],
-                                  x_train.shape[1],
-                                  2), device=args['device'], requires_grad=False)
-    ave_air23 = torch.empty((args['hyperparameters']['batch_size'],
-                             args['hyperparameters']['rho'],
-                             2), device=args['device'], requires_grad=False)
-    res23 = torch.empty((args['hyperparameters']['batch_size'],
-                             2), device=args['device'], requires_grad=False)
 
-    factor = torch.empty((args['hyperparameters']['batch_size'],
-                                len(args['params_target'])), device=args['device'], requires_grad=False)
-    factor[:, 0] = 10   # factor for srflow residence time
-    res23[:, 0] = 10.0   # value of ssflow residence time
-    res23[:, 1] = 365.0   # value of gwflow residence factor
+    res2 = torch.zeros((args['hyperparameters']['batch_size'],
+                             1), device=args['device'], requires_grad=False)
+    res3 = torch.zeros((args['hyperparameters']['batch_size'],
+                        1), device=args['device'], requires_grad=False)
+
+    # factor = torch.empty((args['hyperparameters']['batch_size'],
+    #                             len(args['params_target'])), device=args['device'], requires_grad=False)
+    # factor[:, 0] = 100   # factor for srflow residence time
+    res2[:, 0] = 10.0   # value of ssflow residence time
+    res3[:, 0] = 30.0   # value of gwflow residence factor
     # training
 
     for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
@@ -152,15 +150,16 @@ def main(args):
             xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
             xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
-            c_tensorTrain = make_tensor(c_scaled[iGrid], has_grad=False)
+            c_tensorTrain = make_tensor(c_scaled_0_1[iGrid], has_grad=False)
             res_time = model(c_tensorTrain)
-            res_time_mod = res_time * factor + 1 #.round()
-
+            res1 = res_time * 300 + 1
+            res_time_mod = torch.cat((res2, res3, res1), dim=1)
+            # res_time = model(xTrain_sample_scaled)
+            # res_time_mod = res_time[-1, :, :] + 1
             # res_time = model(xTrain_sample_scaled)
             ave_air_temp, ave_air = ave_temp_res_time(args, ave_air_temp, ave_air, xTrain_sample, res_time_mod, x_total_raw_tensor[iGrid], iGrid, iT)
-            ave_air_temp23, ave_air23 = ave_temp_res_time(args, ave_air_temp23, ave_air23, xTrain_sample, res23,
-                                                      x_total_raw_tensor[iGrid], iGrid, iT)
-            Yp = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp, ave_air_temp23)
+            Yp = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp)
+            # loss = lossFun(ave_air_temp, yObs.transpose(1, 0))
             loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
             # c = list(model.parameters())[0].clone()
             loss.backward()  # retain_graph=True
@@ -173,7 +172,7 @@ def main(args):
             lossEp = lossEp + loss.item()
             # del loss
             # del Yp
-            # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+            print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
         lossEp = lossEp / nIterEp
         # torch.cuda.synchronize()
         logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(
@@ -190,7 +189,8 @@ def main(args):
             modelFile = os.path.join(args['output']['out_dir'],
                                      'model_Ep' + str(epoch) + '.pt')
             torch.save(model, modelFile)
-
+        if epoch == args['hyperparameters']['EPOCHS']:
+            print('last epoch')
     print('end')
 
 if __name__=='__main__':

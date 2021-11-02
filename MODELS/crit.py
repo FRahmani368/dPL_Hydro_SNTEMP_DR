@@ -82,19 +82,6 @@ class RmseLoss(torch.nn.Module):
 
             ###########################
 
-
-################# METHOD 2 ############### it was not true
-            # k = (p0 - t0)**2
-            # kk = torch.mean(k, 0)
-            # mask = kk == kk
-            # temp = kk[mask]
-            # temp = torch.sqrt(temp.mean())
-            # loss = loss + temp
-
-
-
-
-
         return loss
 
 class RmseLossANN(torch.nn.Module):
