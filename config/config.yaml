@@ -37,7 +37,7 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 50
+  batch_size: 99
   EPOCHS: 400
   hidden_size: 60
   dropout: 0.5
@@ -45,7 +45,7 @@ hyperparameters:
 seq_lin_layers:
   hidden_size: 60
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
-one_param_target: ["res_time_srflow"]
+one_param_target: ["shade_fraction"]
 STemp_default_params:
   shade_fraction: 0.05
   longwave_reflect_fraction: 0.1
@@ -57,3 +57,6 @@ STemp_default_params:
 params:
   water_density: 1000
   C_w: 4184    # J/kg. K
+initial_values:
+  shade_fraction: 0.1
+no_basins: 99

@@ -7,6 +7,7 @@ from MODELS import crit
 from core import hydroDL
 from core.small_codes import make_tensor, tRange2Array, intersect
 import torch
+import torch.nn as nn
 import numpy as np
 import pandas as pd
 import time
@@ -14,33 +15,7 @@ import os
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 
-def ave_temp_res_time(args, ave_air_temp, ave_air, x, res_time, x_total, iGrid, iT):
-    rho = x.shape[0] #args['hyperparameters']['rho']
-    tArray_Total = tRange2Array(args['optData']['tRange'])
-    tArray_train = tRange2Array(args['optData']['t_train'])
-    _, ind1, _ = (intersect(tArray_Total, tArray_train))
-    ind1_tensor = make_tensor(ind1, has_grad=False)
-    iT_tensor = make_tensor(iT, has_grad=False)
-    vars = args['optData']['varT'] + args['optData']['varC']
-    temp_res = res_time
-    with torch.no_grad():
-        temp_res1 = temp_res.int()
-    A = res_time.repeat(1, rho)
-    B = torch.reshape(A, (res_time.shape[0], rho, res_time.shape[1]))
-    for i in range(res_time.shape[1]):
-        for station in range(x.shape[1]):
-            array = np.zeros((x.shape[0], temp_res1[station, i].item()), dtype=np.int32)
-            for j in range(temp_res1[station, i].item()):
-                array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[station] - j).item(),
-                                           (ind1_tensor[0] + iT_tensor[station] - j + x.shape[0]).item())
-            tmax_temp = x_total[station, array, vars.index("tmax(C)")]
-            max_add = torch.sum(tmax_temp, dim=1)
-            tmin_temp = x_total[station, array, vars.index("tmin(C)")]
-            min_add = torch.sum(tmin_temp, dim=1)
-            ave_air[station, :, i] = (max_add + min_add) / 2 #(2 * res_time[station, i])
-    ave_air_temp = ave_air / B
-    # return ave_air
-    return ave_air_temp, ave_air
+
 
 def syntheticP(args):
     x_total_temp, y_raw, c_raw = load_df(args)
@@ -108,7 +83,8 @@ def main(args):
     x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
 
     # ANN model to simulate parameters
-    model = MLP(args)
+    mlp = MLP(args)
+    model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
     # loss function
     lossFun = crit.RmseLoss()
     optim = torch.optim.Adadelta(model.parameters())
@@ -116,30 +92,22 @@ def main(args):
 
     if torch.cuda.is_available():
         model = model.cuda()
+        mlp = mlp.cuda()
         lossFun = lossFun.cuda()
         # moving dataset to CUDA
+
+    c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False)
+    init_shade = mlp(c_tensorTrain)
+    # model.shade_fraction[:, 0] = init_shade[:, 0]
+    model.shade_fraction = nn.ParameterList([nn.Parameter(x) for x in init_shade])
+    shade_fraction_riparian = init_shade.clone()
     model.zero_grad()
     model.train()
-    T_w = STREAM_TEMP_EQ(args, x_total_raw_tensor)
 
     # initializing the variables
-    ave_air_temp = torch.empty((args['hyperparameters']['batch_size'],
-                                args['hyperparameters']['rho'],
-                                len(args['params_target'])), device=args['device'], requires_grad=False)
-    ave_air = torch.empty((args['hyperparameters']['batch_size'],
-                                args['hyperparameters']['rho'],
-                                len(args['params_target'])), device=args['device'], requires_grad=False)
-
-    res2 = torch.zeros((args['hyperparameters']['batch_size'],
-                             1), device=args['device'], requires_grad=False)
-    res3 = torch.zeros((args['hyperparameters']['batch_size'],
-                        1), device=args['device'], requires_grad=False)
-
-    # factor = torch.empty((args['hyperparameters']['batch_size'],
-    #                             len(args['params_target'])), device=args['device'], requires_grad=False)
-    # factor[:, 0] = 100   # factor for srflow residence time
-    res2[:, 0] = 10.0   # value of ssflow residence time
-    res3[:, 0] = 30.0   # value of gwflow residence factor
+    ave_air_temp = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+                               device=args["device"], dtype=torch.float32, requires_grad=False)
+    test = torch.empty((1), dtype=torch.float32, requires_grad=True, device=args['device'])
     # training
 
     for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
@@ -150,16 +118,7 @@ def main(args):
             xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
             xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
-            c_tensorTrain = make_tensor(c_scaled_0_1[iGrid], has_grad=False)
-            res_time = model(c_tensorTrain)
-            res1 = res_time * 300 + 1
-            res_time_mod = torch.cat((res2, res3, res1), dim=1)
-            # res_time = model(xTrain_sample_scaled)
-            # res_time_mod = res_time[-1, :, :] + 1
-            # res_time = model(xTrain_sample_scaled)
-            ave_air_temp, ave_air = ave_temp_res_time(args, ave_air_temp, ave_air, xTrain_sample, res_time_mod, x_total_raw_tensor[iGrid], iGrid, iT)
-            Yp = T_w.forward(xTrain_sample.transpose(0, 1), ave_air_temp)
-            # loss = lossFun(ave_air_temp, yObs.transpose(1, 0))
+            Yp , ave_air_temp, shade_fraction_riparian = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp, shade_fraction_riparian)
             loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
             # c = list(model.parameters())[0].clone()
             loss.backward()  # retain_graph=True
