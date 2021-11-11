@@ -134,11 +134,11 @@ def main(args):
             epoch, lossEp,
             time.time() - t0, int(torch.cuda.memory_allocated() * 0.001))
         print(logStr)
-        if lossEp < 0.05:
-            torch.save(res_time, os.path.join(args['output']['data'], 'res_time' + str(lossEp) + ".pt"))
-            torch.save(res_time_mod, os.path.join(args['output']['data'], 'res_time_mod' + str(lossEp) + ".pt"))
-        elif lossEp != lossEp:
-            print("stop")
+        # if lossEp < 0.05:
+        #     torch.save(res_time, os.path.join(args['output']['data'], 'res_time' + str(lossEp) + ".pt"))
+        #     torch.save(res_time_mod, os.path.join(args['output']['data'], 'res_time_mod' + str(lossEp) + ".pt"))
+        # elif lossEp != lossEp:
+        #     print("stop")
         if epoch % args['hyperparameters']['saveEpoch'] == 0:
             # save model
             modelFile = os.path.join(args['output']['out_dir'],

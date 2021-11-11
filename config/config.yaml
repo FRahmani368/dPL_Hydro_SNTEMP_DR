@@ -22,9 +22,9 @@ optData:
     'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',
     'NDAMS_2009', 'ELEV_MEAN_M_BASIN'
   ]
-  target: ['synth_shade_0130365']   #['synth_T_0520180']
+  target: ["00010_Mean"]   #['synth_shade_0130365']   ['synth_T_0520180']
   tRange: [20101001, 20161001]
-  t_train: [20111001, 20161001]
+  t_train: [20121001, 20161001]
   t_val: [20151001, 20161001]
   t_test: [20141001, 20161001]
   doNorm: [True, True]
@@ -36,7 +36,7 @@ optData:
   lckernel: None
   fdcopt: False
 hyperparameters:
-  rho: 360
+  rho: 730
   batch_size: 50
   EPOCHS: 400
   hidden_size: 60

@@ -242,16 +242,26 @@ class STREAM_TEMP_EQ(nn.Module):
                                res_time.shape[1]),
                                    device=self.args["device"])
         for i in range(res_time.shape[1]):
-            for station in range(x.shape[0]):
-                array = np.zeros((x.shape[1], temp_res1[station, i].item()), dtype=np.int32)
-                for j in range(temp_res1[station, i].item()):
-                    array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[station] - j).item(),
-                                            (ind1_tensor[0] + iT_tensor[station] - j + x.shape[1]).item())
-                tmax_temp = self.x_total_raw[iGrid[station], array, vars.index("tmax(C)")]
+            # for station in range(x.shape[0]):
+            #     array = np.zeros((x.shape[1], temp_res1[station, i].item()), dtype=np.int32)
+            #     for j in range(temp_res1[station, i].item()):
+            #         array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[station] - j).item(),
+            #                                 (ind1_tensor[0] + iT_tensor[station] - j + x.shape[1]).item())
+            #     tmax_temp = self.x_total_raw[iGrid[station], array, vars.index("tmax(C)")]
+            #     max_add = torch.sum(tmax_temp, dim=1)
+            #     tmin_temp = self.x_total_raw[iGrid[station], array, vars.index("tmin(C)")]
+            #     min_add = torch.sum(tmin_temp, dim=1)
+            #     ave_air[station, :, i] = (max_add + min_add) / 2  # (2 * res_time[station, i])
+            for s, station in enumerate(iGrid):
+                array = np.zeros((x.shape[1], temp_res1[s, i].item()), dtype=np.int32)
+                for j in range(temp_res1[s, i].item()):
+                    array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[s] - j).item(),
+                                            (ind1_tensor[0] + iT_tensor[s] - j + x.shape[1]).item())
+                tmax_temp = self.x_total_raw[station, array, vars.index("tmax(C)")]
                 max_add = torch.sum(tmax_temp, dim=1)
-                tmin_temp = self.x_total_raw[iGrid[station], array, vars.index("tmin(C)")]
+                tmin_temp = self.x_total_raw[station, array, vars.index("tmin(C)")]
                 min_add = torch.sum(tmin_temp, dim=1)
-                ave_air[station, :, i] = (max_add + min_add) / 2  # (2 * res_time[station, i])
+                ave_air[s, :, i] = (max_add + min_add) / 2  # (2 * res_time[station, i])
         ave_air_temp = ave_air / B
         # return ave_air
         return ave_air_temp
