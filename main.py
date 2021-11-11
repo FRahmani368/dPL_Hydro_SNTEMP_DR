@@ -27,29 +27,18 @@ def syntheticP(args):
     x_train_scaled, y_train_scaled, _, _, _, _, _ = train_val_test_split("t_train", args, time1,
                                                                          x_total_scaled, y_scaled)
     x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
-    T_w = STREAM_TEMP_EQ(args, x_total_raw_tensor)
-
+    model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
+    if torch.cuda.is_available():
+        model = model.cuda()
     # initializing the variables
     ave_air_temp = torch.empty((args['hyperparameters']['batch_size'],
                                 x_train.shape[1],
                                 len(args['params_target'])), device=args['device'], requires_grad=False)
 
-    ave_air = torch.empty((args['hyperparameters']['batch_size'],
-                           x_train.shape[1],
-                           len(args['params_target'])), device=args['device'], requires_grad=False)
-
-
-    factor = torch.empty((args['hyperparameters']['batch_size'],
-                          len(args['params_target'])), device=args['device'], requires_grad=False)
-    factor[:, 0] = 5.0  # srflow residence time
-    factor[:, 1] = 20.0  # ssflow residence time
-    factor[:, 2] = 180.0  # gwflow residence factor
-    synthP = torch.zeros((99, 3), device=args['device'])
-    synthP_mod = synthP + factor
-
-    ave_air_temp, ave_air = ave_temp_res_time(args, ave_air_temp, ave_air, torch.from_numpy(x_train.transpose(1, 0, 2)), synthP_mod,
-                                              x_total_raw_tensor, 0, np.zeros(synthP_mod.shape[0]))
-    Yp = T_w.forward(torch.from_numpy(x_train).cuda().float(), ave_air_temp)
+    iGrid = np.arange(99)
+    iT = np.zeros(99)
+    Yp, ave_air_temp = model.forward(torch.from_numpy(x_train).cuda().float(), iGrid, iT, ave_air_temp)
+    # Yp = model.forward(torch.from_numpy(x_train).cuda().float(), ave_air_temp)
     print('end')
 
 
@@ -85,6 +74,8 @@ def main(args):
     # ANN model to simulate parameters
     mlp = MLP(args)
     model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
+    def_sh = torch.load("/home/fzr5082/PGML_STemp_results/data/shade.pt")
+    # model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_400_R_730_B_50_H_60_dr_0.5/model_Ep400.pt")
     # loss function
     lossFun = crit.RmseLoss()
     optim = torch.optim.Adadelta(model.parameters())
@@ -97,29 +88,34 @@ def main(args):
         # moving dataset to CUDA
 
     c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False)
-    init_shade = mlp(c_tensorTrain)
+    # init_shade = mlp(c_tensorTrain)
     # model.shade_fraction[:, 0] = init_shade[:, 0]
-    model.shade_fraction = nn.ParameterList([nn.Parameter(x) for x in init_shade])
-    shade_fraction_riparian = init_shade.clone()
+    # model.shade_fraction = nn.ParameterList([nn.Parameter(x) for x in init_shade])
+    # model.shade = nn.Parameter(init_shade)
     model.zero_grad()
     model.train()
 
     # initializing the variables
     ave_air_temp = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
                                device=args["device"], dtype=torch.float32, requires_grad=False)
-    test = torch.empty((1), dtype=torch.float32, requires_grad=True, device=args['device'])
+    shade_fraction_riparian = torch.zeros(args['hyperparameters']['batch_size'], 1,
+                               device=args["device"], dtype=torch.float32, requires_grad=False)
     # training
-
+    # shade_fraction_riparian = init_shade.clone()
     for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
         lossEp = 0
         t0 = time.time()
         for iIter in range(1, nIterEp + 1):
             iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
+            # iGrid = np.arange(50)
             xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
             xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
-            Yp , ave_air_temp, shade_fraction_riparian = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp, shade_fraction_riparian)
+            Yp, ave_air_temp = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp)
+            # mask_yp = Yp.ge(0)
+            # y_sim = Yp * mask_yp.int().float()
             loss = lossFun(Yp.unsqueeze(-1), yObs.transpose(1, 0))
+            # loss = lossFun(test_sim, test)
             # c = list(model.parameters())[0].clone()
             loss.backward()  # retain_graph=True
             # for param in model.parameters():
@@ -131,7 +127,7 @@ def main(args):
             lossEp = lossEp + loss.item()
             # del loss
             # del Yp
-            print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+            # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
         lossEp = lossEp / nIterEp
         # torch.cuda.synchronize()
         logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(
@@ -156,4 +152,5 @@ if __name__=='__main__':
     args = config
     # syntheticP(args)
     main(args)
-    print('END')
+    print('E'
+          'ND')

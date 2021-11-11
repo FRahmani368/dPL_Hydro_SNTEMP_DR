@@ -62,23 +62,23 @@ class STREAM_TEMP_EQ(nn.Module):
     def __init__(self,
                  args,
                  x_total_raw):
-        super().__init__()
+        super(STREAM_TEMP_EQ, self).__init__()
         self.args = args
         self.x_total_raw = x_total_raw
         self.shade_fraction = nn.ParameterList(
             [
                 nn.Parameter(
-                    torch.tensor(config["initial_values"]['shade_fraction'],
-                                 )
+                    torch.tensor(config["initial_values"]['shade_fraction'])
                 )
                 for i in range(config["no_basins"])
             ]
         )
-        # self.shade_fraction = nn.Parameter(
-        #             torch.empty(
-        #                 (config["no_basins"], 1)
-        #             )
-        #         )
+        self.shade = nn.Parameter(
+                    torch.sigmoid(torch.randn(
+                        (config["no_basins"], 1)
+                    ))
+                )
+        # self.shade = nn.Parameter(torch.load("/home/fzr5082/PGML_STemp_results/data/shade.pt"))
     def atm_pressure(self, elev):
         mmHg2mb = make_tensor(0.75061683)  # Unit conversion
         mmHg2inHg = make_tensor(25.3970886)  # Unit conversion
@@ -121,7 +121,7 @@ class STREAM_TEMP_EQ(nn.Module):
         H_s = (1 - albedo) * (1 - shade_fraction) * H_sw
         return H_s
 
-    def riparian_veg_longwave_radiation_heat(self, T_a, shade_fraction_riparian, iGrid):
+    def riparian_veg_longwave_radiation_heat(self, T_a, iGrid):
         """
         Incoming shortwave solar radiation is often intercepted by surrounding riparian vegetation.
         However, the vegetation will emit some longwave radiation as a black body
@@ -131,15 +131,18 @@ class STREAM_TEMP_EQ(nn.Module):
         St_Boltzman_ct = make_tensor(5.670373) * torch.pow(make_tensor(10), (-8.0))  # (J/s*m^2 * K^4)
         emissivity_veg = make_tensor(self.args['STemp_default_params']['emissivity_veg'])
         # shade_fraction_riparian = make_tensor(self.args['STemp_default_params']['shade_fraction_riparian'])
-        shade_fraction_riparian[:, 0] = self.shade_fraction[iGrid]
+        # for i in range(iGrid.shape[0]):
+        #     shade_fraction_riparian[i, 0] = self.shade_fraction[iGrid[i]][0]
+        shade2 = self.shade.repeat(1, T_a.shape[1])
         # shade_fraction_riparian = self.shade_fraction.clone().repeat(1, T_a.shape[1])
-        shade_fraction_riparian_2 = shade_fraction_riparian.repeat(1, T_a.shape[1])
+        # shade_fraction_riparian_2 = shade_fraction_riparian.repeat(1, T_a.shape[1])
         # shade_fraction_riparian = torch.empty((self.args['hyperparameters']['batch_size'],
         #                                        self.args['hyperparameters']['rho']), device=self.args['device'])
-        H_v = emissivity_veg * St_Boltzman_ct * shade_fraction_riparian_2 * torch.pow((T_a + 273.16), 4)
-        return H_v, shade_fraction_riparian
+        # H_v = emissivity_veg * St_Boltzman_ct * shade_fraction_riparian_2 * torch.pow((T_a + 273.16), 4)
+        H_v = emissivity_veg * St_Boltzman_ct * shade2[iGrid, :] * torch.pow((T_a + 273.16), 4)
+        return H_v
 
-    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow, T_g, shade_fraction_riparian, iGrid):
+    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow, T_g, iGrid):
         """
 
         :param T_a: average daily air temperature
@@ -154,7 +157,17 @@ class STREAM_TEMP_EQ(nn.Module):
         """
         e_s = 6.11 * torch.exp((17.27 * T_a) / (273.16 + T_a))
         P = self.atm_pressure(elev)  # calculating atmosphere pressure based on elevation
-        B_c = 0.00061 * P / (e_s - e_a)
+        # chacking vapor pressure with saturation vapor pressure
+        denom = e_s - e_a
+        mask_denom = denom.ge(0)
+        # converting negative values to zero
+        denom1 = denom * mask_denom.int().float()
+        # adding 0.01 to zero values as it is denominator
+        mask_denom2 = denom1.eq(0)
+        denom2 = denom1 + 0.01 * mask_denom2.int().float()
+
+        B_c = 0.00061 * P / denom2
+        B_c1 = 0.00061 * P / (e_s - e_a)
         K_g = make_tensor(1.65)
         delta_Z = make_tensor(self.args['STemp_default_params']['delta_Z'])
         # we don't need H_a, because we hae swrad directly from inputs
@@ -162,7 +175,7 @@ class STREAM_TEMP_EQ(nn.Module):
         ###############
         H_f = self.stream_friction_heat(top_width=top_width, slope=slope, Q=inflow)
         H_s = self.shortwave_solar_radiation_heat(albedo=self.args['STemp_default_params']['albedo'], H_sw=swrad) # shortwave solar radiation heat
-        H_v, shade_fraction_riparian = self.riparian_veg_longwave_radiation_heat(T_a, shade_fraction_riparian, iGrid)
+        H_v = self.riparian_veg_longwave_radiation_heat(T_a, iGrid)
 
         A = 5.4 * torch.pow(make_tensor(np.full((T_a.shape[0], T_a.shape[1]), 10)), (-8))
         B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
@@ -171,7 +184,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # D = H_a + H_f + H_s + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
         D = H_a + swrad + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
 
-        return A, B, C, D, shade_fraction_riparian
+        return A, B, C, D
 
     def Equilibrium_temperature(self, A, B, C, D, T_e=make_tensor(20), iter=50):
         def F(T_e):
@@ -197,8 +210,9 @@ class STREAM_TEMP_EQ(nn.Module):
         H_i = A * torch.pow((T_0 + 273.16), 4) - C * torch.pow(T_0, 2) + B * T_0 - D
         K1 = 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
         denom = (torch.pow((T_e - T_0), 2))
-        denom[denom == 0] = 1
-        K2 = (H_i - (K1 * (T_e - T_0)))/ denom
+        mask_denom = denom.eq(0)
+        denom1 = denom + mask_denom.int().float()
+        K2 = (H_i - (K1 * (T_e - T_0))) / denom1
         return K1, K2
 
     def srflow_ssflow_gwflow_portions(self,
@@ -233,9 +247,9 @@ class STREAM_TEMP_EQ(nn.Module):
                 for j in range(temp_res1[station, i].item()):
                     array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[station] - j).item(),
                                             (ind1_tensor[0] + iT_tensor[station] - j + x.shape[1]).item())
-                tmax_temp = self.x_total_raw[station, array, vars.index("tmax(C)")]
+                tmax_temp = self.x_total_raw[iGrid[station], array, vars.index("tmax(C)")]
                 max_add = torch.sum(tmax_temp, dim=1)
-                tmin_temp = self.x_total_raw[station, array, vars.index("tmin(C)")]
+                tmin_temp = self.x_total_raw[iGrid[station], array, vars.index("tmin(C)")]
                 min_add = torch.sum(tmin_temp, dim=1)
                 ave_air[station, :, i] = (max_add + min_add) / 2  # (2 * res_time[station, i])
         ave_air_temp = ave_air / B
@@ -255,11 +269,11 @@ class STREAM_TEMP_EQ(nn.Module):
         # with torch.no_grad():
         srflow_temp = ave_air_temp[:, :, 0]  #.clone().detach()
         ssflow_temp = ave_air_temp[:, :, 1]  #.clone().detach()
-        gwflow_Temp = ave_air_temp[:, :, 2]  #.clone().detach()
+        gwflow_temp = ave_air_temp[:, :, 2]  #.clone().detach()
 
         T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] +
                 ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
-        return T_l, srflow_temp, ssflow_temp, gwflow_Temp
+        return T_l, srflow_temp, ssflow_temp, gwflow_temp
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01)):
@@ -328,7 +342,7 @@ class STREAM_TEMP_EQ(nn.Module):
         T_w = Tw_pos + Tw_zero
         return T_w
 
-    def forward(self, x, iGrid, iT, ave_air_temp, shade_fraction_riparian):
+    def forward(self, x, iGrid, iT, ave_air_temp):
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
         with torch.no_grad():
             obsQ = x[:, :, vars.index("00060_Mean")]
@@ -360,9 +374,9 @@ class STREAM_TEMP_EQ(nn.Module):
                                                                                    gwflow=gwflow,
                                                                                    ave_air_temp=ave_air_temp)
 
-        A, B, C, D, shade_fraction_riparian = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, inflow=obsQ, E=PET, T_g=gwflow_temp,
-                                                                  shade_fraction_riparian=shade_fraction_riparian, iGrid=iGrid)
+        A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
+                                                                  slope=slope, top_width=top_width, inflow=obsQ, E=PET,
+                                                                  T_g=gwflow_temp, iGrid=iGrid)
 
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D)
 
@@ -373,7 +387,7 @@ class STREAM_TEMP_EQ(nn.Module):
                                                                 q_l=obsQ/stream_length, L=stream_length,
                                                                 T_0=T_0, Q_0=Q_0)
 
-        return T_w, ave_air_temp, shade_fraction_riparian
+        return T_w, ave_air_temp
 
 
 
