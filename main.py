@@ -73,13 +73,13 @@ def main(args):
 
     # ANN model to simulate parameters
     mlp = MLP(args)
-    model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
-    def_sh = torch.load("/home/fzr5082/PGML_STemp_results/data/shade.pt")
-    # model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_400_R_730_B_50_H_60_dr_0.5/model_Ep400.pt")
+    # model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
+    model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_400_R_730_B_99_H_60_dr_0.5/model_Ep400.pt")
+
     # loss function
     lossFun = crit.RmseLoss()
-    optim = torch.optim.Adadelta(model.parameters())
-    # optim = torch.optim.SGD(model.parameters(), lr=0.1)
+    # optim = torch.optim.Adadelta(model.parameters())
+    optim = torch.optim.SGD(model.parameters(), lr=10)
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -107,7 +107,7 @@ def main(args):
         t0 = time.time()
         for iIter in range(1, nIterEp + 1):
             iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
-            # iGrid = np.arange(50)
+            # iGrid = np.arange(99)
             xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
             xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
@@ -152,5 +152,4 @@ if __name__=='__main__':
     args = config
     # syntheticP(args)
     main(args)
-    print('E'
-          'ND')
+    print('END')

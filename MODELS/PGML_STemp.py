@@ -6,7 +6,6 @@ from core.read_configurations import config
 #from rnn import CudnnLstmModel
 from core.small_codes import make_tensor, tRange2Array, intersect
 
-
 class MLP(nn.Module):
     def __init__(self,
                  args):
@@ -65,19 +64,22 @@ class STREAM_TEMP_EQ(nn.Module):
         super(STREAM_TEMP_EQ, self).__init__()
         self.args = args
         self.x_total_raw = x_total_raw
-        self.shade_fraction = nn.ParameterList(
-            [
-                nn.Parameter(
-                    torch.tensor(config["initial_values"]['shade_fraction'])
-                )
-                for i in range(config["no_basins"])
-            ]
-        )
-        self.shade = nn.Parameter(
-                    torch.sigmoid(torch.randn(
-                        (config["no_basins"], 1)
-                    ))
-                )
+        # self.shade_fraction = nn.ParameterList(
+        #     [
+        #         nn.Parameter(
+        #             torch.tensor(config["initial_values"]['shade_fraction'])
+        #         )
+        #         for i in range(config["no_basins"])
+        #     ]
+        # )
+        # self.shade = nn.Parameter(
+        #             torch.randn(
+        #                 (config["no_basins"], 1)
+        #             )
+        #         )
+        self.res_time_srflow = nn.Parameter(torch.zeros((99, 1)) + 1)
+        self.res_time_ssflow = nn.Parameter(torch.zeros((99, 1)) + 1)
+        self.res_time_gwflow = nn.Parameter(torch.zeros((99, 1)) + 1)
         # self.shade = nn.Parameter(torch.load("/home/fzr5082/PGML_STemp_results/data/shade.pt"))
     def atm_pressure(self, elev):
         mmHg2mb = make_tensor(0.75061683)  # Unit conversion
@@ -130,16 +132,17 @@ class STREAM_TEMP_EQ(nn.Module):
         """
         St_Boltzman_ct = make_tensor(5.670373) * torch.pow(make_tensor(10), (-8.0))  # (J/s*m^2 * K^4)
         emissivity_veg = make_tensor(self.args['STemp_default_params']['emissivity_veg'])
-        # shade_fraction_riparian = make_tensor(self.args['STemp_default_params']['shade_fraction_riparian'])
+        shade_fraction_riparian = make_tensor(self.args['STemp_default_params']['shade_fraction_riparian'])
         # for i in range(iGrid.shape[0]):
         #     shade_fraction_riparian[i, 0] = self.shade_fraction[iGrid[i]][0]
-        shade2 = self.shade.repeat(1, T_a.shape[1])
+        # shade2 = self.shade.repeat(1, T_a.shape[1])
+        # shade2 = torch.sigmoid(shade2)
         # shade_fraction_riparian = self.shade_fraction.clone().repeat(1, T_a.shape[1])
         # shade_fraction_riparian_2 = shade_fraction_riparian.repeat(1, T_a.shape[1])
         # shade_fraction_riparian = torch.empty((self.args['hyperparameters']['batch_size'],
         #                                        self.args['hyperparameters']['rho']), device=self.args['device'])
-        # H_v = emissivity_veg * St_Boltzman_ct * shade_fraction_riparian_2 * torch.pow((T_a + 273.16), 4)
-        H_v = emissivity_veg * St_Boltzman_ct * shade2[iGrid, :] * torch.pow((T_a + 273.16), 4)
+        H_v = emissivity_veg * St_Boltzman_ct * shade_fraction_riparian * torch.pow((T_a + 273.16), 4)
+        # H_v = emissivity_veg * St_Boltzman_ct * shade2[iGrid, :] * torch.pow((T_a + 273.16), 4)
         return H_v
 
     def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow, T_g, iGrid):
@@ -240,18 +243,8 @@ class STREAM_TEMP_EQ(nn.Module):
         B = torch.reshape(A, (res_time.shape[0], rho, res_time.shape[1]))
         ave_air = torch.zeros((self.args['hyperparameters']['batch_size'], self.args["hyperparameters"]["rho"],
                                res_time.shape[1]),
-                                   device=self.args["device"])
+                               device=self.args["device"])
         for i in range(res_time.shape[1]):
-            # for station in range(x.shape[0]):
-            #     array = np.zeros((x.shape[1], temp_res1[station, i].item()), dtype=np.int32)
-            #     for j in range(temp_res1[station, i].item()):
-            #         array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[station] - j).item(),
-            #                                 (ind1_tensor[0] + iT_tensor[station] - j + x.shape[1]).item())
-            #     tmax_temp = self.x_total_raw[iGrid[station], array, vars.index("tmax(C)")]
-            #     max_add = torch.sum(tmax_temp, dim=1)
-            #     tmin_temp = self.x_total_raw[iGrid[station], array, vars.index("tmin(C)")]
-            #     min_add = torch.sum(tmin_temp, dim=1)
-            #     ave_air[station, :, i] = (max_add + min_add) / 2  # (2 * res_time[station, i])
             for s, station in enumerate(iGrid):
                 array = np.zeros((x.shape[1], temp_res1[s, i].item()), dtype=np.int32)
                 for j in range(temp_res1[s, i].item()):
@@ -372,12 +365,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
 
-        with torch.no_grad():
-            res_time = torch.zeros((self.args['hyperparameters']["batch_size"], 3),
-                                   device=self.args['device'], dtype=torch.float32)
-            res_time[:, 0] = 1.0
-            res_time[:, 1] = 30.0
-            res_time[:, 2] = 365.0
+        res_time = torch.cat(((torch.sigmoid(self.res_time_srflow[iGrid])) * 25,
+                              (torch.sigmoid(self.res_time_ssflow[iGrid])) * 50,
+                              (torch.sigmoid(self.res_time_gwflow[iGrid])) * 500), dim=1)
         ave_air_temp = self.ave_temp_res_time(ave_air_temp, x, res_time, iGrid, iT)
         T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
