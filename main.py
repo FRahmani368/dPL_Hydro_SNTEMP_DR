@@ -73,13 +73,13 @@ def main(args):
 
     # ANN model to simulate parameters
     mlp = MLP(args)
-    # model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
-    model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_400_R_730_B_99_H_60_dr_0.5/model_Ep400.pt")
+    model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
+    # model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_400_R_730_B_99_H_60_dr_0.5/model_Ep400.pt")
 
     # loss function
     lossFun = crit.RmseLoss()
-    # optim = torch.optim.Adadelta(model.parameters())
-    optim = torch.optim.SGD(model.parameters(), lr=10)
+    optim = torch.optim.Adadelta(model.parameters())
+    # optim = torch.optim.SGD(model.parameters(), lr=10)
 
     if torch.cuda.is_available():
         model = model.cuda()

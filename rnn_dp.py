@@ -1001,7 +1001,10 @@ def UH_conv(x,UH,viewmode=1):
     # view
     # x: [batch, var, time]
     # UH:[batch, var, uhLen]
-    # batch needs to be accommodated by channels and we make use of groups
+    # batch needs to be accommodated by channels and we make use of gr
+    # ++++---------------------------------+
+    #
+    # oups
     # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
     # https://pytorch.org/docs/stable/nn.functional.html
 
