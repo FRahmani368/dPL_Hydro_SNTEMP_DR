@@ -14,7 +14,7 @@ import time
 import os
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
-
+from rnn_dp import UH_gamma, UH_conv
 
 
 def syntheticP(args):
@@ -71,6 +71,7 @@ def main(args):
     #                                                x_train, y_train)
     x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
 
+
     # ANN model to simulate parameters
     mlp = MLP(args)
     model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
@@ -78,13 +79,15 @@ def main(args):
 
     # loss function
     lossFun = crit.RmseLoss()
-    optim = torch.optim.Adadelta(model.parameters())
+    optim = torch.optim.Adadelta(model.parameters(), lr=400)
     # optim = torch.optim.SGD(model.parameters(), lr=10)
 
     if torch.cuda.is_available():
         model = model.cuda()
         mlp = mlp.cuda()
         lossFun = lossFun.cuda()
+        torch.backends.cudnn.deterministic = True
+        CUDA_LAUNCH_BLOCKING = 1
         # moving dataset to CUDA
 
     c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False)
@@ -92,6 +95,12 @@ def main(args):
     # model.shade_fraction[:, 0] = init_shade[:, 0]
     # model.shade_fraction = nn.ParameterList([nn.Parameter(x) for x in init_shade])
     # model.shade = nn.Parameter(init_shade)
+    # model.a_srflow = nn.Parameter(torch.ones(args['no_basins'], args["res_time_params"]["lenF_srflow"], 1))
+    # model.bias_srflow[:] = 0
+    # model.bias_ssflow[:] = 0
+    # model.bias_gwflow[:] = 0
+
+
     model.zero_grad()
     model.train()
 
@@ -108,6 +117,7 @@ def main(args):
         for iIter in range(1, nIterEp + 1):
             iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
             # iGrid = np.arange(99)
+            # iT = np.zeros(99, dtype=np.int32)
             xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
             xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
             yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)

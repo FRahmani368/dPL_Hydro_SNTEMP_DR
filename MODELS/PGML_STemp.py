@@ -2,9 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import datetime
+import torch.nn.functional as F
 from core.read_configurations import config
-#from rnn import CudnnLstmModel
+# from rnn import CudnnLstmModel
 from core.small_codes import make_tensor, tRange2Array, intersect
+
 
 class MLP(nn.Module):
     def __init__(self,
@@ -23,7 +25,7 @@ class MLP(nn.Module):
             # nn.ReLU()
         )
         self.L1 = nn.Linear(len(args['optData']['varC']), \
-                      args['seq_lin_layers']['hidden_size'])
+                            args['seq_lin_layers']['hidden_size'])
         self.L2 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
         self.L3 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
         self.L4 = nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['one_param_target']))
@@ -37,6 +39,7 @@ class MLP(nn.Module):
         # self.stream_temp_eq = stream_temp_eq(args)
         self.activation = torch.nn.Sigmoid()
         self.activation_tanh = torch.nn.Tanh()
+
     def forward(self, x):
         # out = self.seq_lin_layers(x)
         out = self.L1(x)
@@ -48,7 +51,6 @@ class MLP(nn.Module):
         return out
 
 
-
 def str_to_datetime(t):
     if isinstance(t, datetime.datetime):
         return t
@@ -57,6 +59,7 @@ def str_to_datetime(t):
         t_datetime_format = datetime.datetime(int(year), int(month), int(day))
         return t_datetime_format
 
+
 class STREAM_TEMP_EQ(nn.Module):
     def __init__(self,
                  args,
@@ -64,6 +67,29 @@ class STREAM_TEMP_EQ(nn.Module):
         super(STREAM_TEMP_EQ, self).__init__()
         self.args = args
         self.x_total_raw = x_total_raw
+        self.a_srflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_srflow"],
+                                                 1))
+        self.b_srflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_srflow"],
+                                                 1))
+        self.bias_srflow = nn.Parameter(torch.randn(args['no_basins']))
+        self.a_ssflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_ssflow"],
+                                                 1))
+        self.b_ssflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_ssflow"],
+                                                 1))
+        self.bias_ssflow = nn.Parameter(torch.zeros(args['no_basins']))
+        self.a_gwflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_gwflow"],
+                                                 1))
+        self.b_gwflow = nn.Parameter(torch.randn(args['no_basins'],
+                                                 args["res_time_params"]["lenF_gwflow"],
+                                                 1))
+        self.bias_gwflow = nn.Parameter(torch.zeros(args['no_basins']))
+
+
         # self.shade_fraction = nn.ParameterList(
         #     [
         #         nn.Parameter(
@@ -77,10 +103,11 @@ class STREAM_TEMP_EQ(nn.Module):
         #                 (config["no_basins"], 1)
         #             )
         #         )
-        self.res_time_srflow = nn.Parameter(torch.zeros((99, 1)) + 1)
-        self.res_time_ssflow = nn.Parameter(torch.zeros((99, 1)) + 1)
-        self.res_time_gwflow = nn.Parameter(torch.zeros((99, 1)) + 1)
+        # self.res_time_srflow = nn.Parameter(torch.zeros((99, 1)) + 1)
+        # self.res_time_ssflow = nn.Parameter(torch.zeros((99, 1)) + 1)
+        # self.res_time_gwflow = nn.Parameter(torch.zeros((99, 1)) + 1)
         # self.shade = nn.Parameter(torch.load("/home/fzr5082/PGML_STemp_results/data/shade.pt"))
+
     def atm_pressure(self, elev):
         mmHg2mb = make_tensor(0.75061683)  # Unit conversion
         mmHg2inHg = make_tensor(25.3970886)  # Unit conversion
@@ -110,7 +137,7 @@ class STREAM_TEMP_EQ(nn.Module):
         return H_a
 
     def stream_friction_heat(self, top_width, slope, Q):
-        H_f = 9805 * Q * slope /top_width    # Q is the seg_inflow (total flow entering a segment)
+        H_f = 9805 * Q * slope / top_width  # Q is the seg_inflow (total flow entering a segment)
         return H_f
 
     def shortwave_solar_radiation_heat(self, albedo, H_sw):
@@ -177,7 +204,8 @@ class STREAM_TEMP_EQ(nn.Module):
         H_a = self.atm_longwave_radiation_heat(T_a, e_a)
         ###############
         H_f = self.stream_friction_heat(top_width=top_width, slope=slope, Q=inflow)
-        H_s = self.shortwave_solar_radiation_heat(albedo=self.args['STemp_default_params']['albedo'], H_sw=swrad) # shortwave solar radiation heat
+        H_s = self.shortwave_solar_radiation_heat(albedo=self.args['STemp_default_params']['albedo'],
+                                                  H_sw=swrad)  # shortwave solar radiation heat
         H_v = self.riparian_veg_longwave_radiation_heat(T_a, iGrid)
 
         A = 5.4 * torch.pow(make_tensor(np.full((T_a.shape[0], T_a.shape[1]), 10)), (-8))
@@ -192,11 +220,13 @@ class STREAM_TEMP_EQ(nn.Module):
     def Equilibrium_temperature(self, A, B, C, D, T_e=make_tensor(20), iter=50):
         def F(T_e):
             return A * torch.pow((T_e + 273.16), 4) - C * torch.pow(T_e, 2) + B * T_e - D
+
         def Fprime(T_e):
             return 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
+
         ## solving the equation with Newton's method
         for i in range(iter):
-            next_geuss = T_e - (F(T_e)/Fprime(T_e))
+            next_geuss = T_e - (F(T_e) / Fprime(T_e))
             T_e = next_geuss
         return T_e
 
@@ -219,10 +249,10 @@ class STREAM_TEMP_EQ(nn.Module):
         return K1, K2
 
     def srflow_ssflow_gwflow_portions(self,
-                             discharge,
-                             srflow_factor=make_tensor(0.40),
-                             ssflow_factor=make_tensor(0.3),
-                             gwlow_factor=make_tensor(0.3)):
+                                      discharge,
+                                      srflow_factor=make_tensor(0.40),
+                                      ssflow_factor=make_tensor(0.3),
+                                      gwlow_factor=make_tensor(0.3)):
         srflow = srflow_factor * discharge
         ssflow = ssflow_factor * discharge
         gwflow = gwlow_factor * discharge
@@ -243,7 +273,7 @@ class STREAM_TEMP_EQ(nn.Module):
         B = torch.reshape(A, (res_time.shape[0], rho, res_time.shape[1]))
         ave_air = torch.zeros((self.args['hyperparameters']['batch_size'], self.args["hyperparameters"]["rho"],
                                res_time.shape[1]),
-                               device=self.args["device"])
+                              device=self.args["device"])
         for i in range(res_time.shape[1]):
             for s, station in enumerate(iGrid):
                 array = np.zeros((x.shape[1], temp_res1[s, i].item()), dtype=np.int32)
@@ -259,6 +289,90 @@ class STREAM_TEMP_EQ(nn.Module):
         # return ave_air
         return ave_air_temp
 
+    def x_sample_air_temp(self, iGrid, iT, lenF):
+        """
+        :param iGrid:
+        :param iT:
+        :param lenF: maximum number of days that it is needed to be considered in average
+        :return:
+        """
+        rho = self.args['hyperparameters']['rho']
+        tArray_Total = tRange2Array(self.args['optData']['tRange'])
+        tArray_train = tRange2Array(self.args['optData']['t_train'])
+        _, ind1, _ = (intersect(tArray_Total, tArray_train))
+        ind1_tensor = make_tensor(ind1, has_grad=False)
+        iT_tensor = make_tensor(iT, has_grad=False)
+        vars = self.args['optData']['varT'] + self.args['optData']['varC']
+        ave_air = torch.zeros((self.args['hyperparameters']['batch_size'], self.args["hyperparameters"]["rho"],
+                               lenF),
+                              device=self.args["device"])
+        for s, station in enumerate(iGrid):
+            array = np.zeros((rho, lenF), dtype=np.int32)
+            for j in range(lenF):
+                array[:, j] = np.arange((ind1_tensor[0] + iT_tensor[s] - j).item(),
+                                        (ind1_tensor[0] + iT_tensor[s] - j + rho).item())
+            # array = np.flip(array, 1).copy()
+            tmax_temp = self.x_total_raw[station, array, vars.index("tmax(C)")]
+            tmin_temp = self.x_total_raw[station, array, vars.index("tmin(C)")]
+            temp = (tmax_temp + tmin_temp) / 2
+            ave_air[s, :, :] = temp
+        return ave_air
+
+
+    def res_time_gamma(self, a, b, lenF):
+        # UH. a [time (same all time steps), batch, var]
+        a = torch.abs(a)
+        # m = a.shape
+        # w = torch.zeros([lenF, m[1], m[2]])
+        # aa = F.relu(a[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
+        # theta = F.relu(b[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+        # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        # t = t.cuda(aa.device)
+        # denom = (aa.lgamma().exp()) * (theta ** aa)
+        # mid = t ** (aa - 1)
+        # right = torch.exp(-t / theta)
+        # w = 1 / denom * mid * right
+        # w = w / w.sum(0)  # scale to 1 for each UH
+
+        return a / a.sum(0) #w
+
+    def res_time_conv(self, x_sample, UH, bias, viewmode=1):
+        # UH is a vector indicating the unit hydrograph
+        # the convolved dimension will be the last dimension
+        # UH convolution is
+        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+        # hence we flip the UH
+        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+        # view
+        # x: [batch, var, time]
+        # UH:[batch, var, uhLen]
+        # batch needs to be accommodated by channels and we make use of gr
+        # ++++---------------------------------+
+        #
+        # oups
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+        # https://pytorch.org/docs/stable/nn.functional.html
+
+        x = x_sample[:, 0:1, :]
+        mm = x.shape;
+        nb = mm[0]
+        m = UH.shape[-1]
+        padd = m - 1
+        if viewmode == 1:
+            xx = x.view([1, nb, mm[-1]])
+            w = UH.view([nb, 1, m])
+            groups = nb
+
+            # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+            # y = y[:, :, 0:-padd]
+
+        x_sample1 = x_sample.permute(1, 0, 2)
+        a = torch.arange(x_sample.shape[1])
+        y = F.conv1d(x_sample1[a], w, groups=groups, padding=0, stride=1, bias=None)
+
+        # return y.view(mm)
+        return y.permute(1, 0, 2)
     def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp):
         """
         :param srflow: surface runoff
@@ -270,9 +384,9 @@ class STREAM_TEMP_EQ(nn.Module):
         :return: temperature of lateral flow
         """
         # with torch.no_grad():
-        srflow_temp = ave_air_temp[:, :, 0]  #.clone().detach()
-        ssflow_temp = ave_air_temp[:, :, 1]  #.clone().detach()
-        gwflow_temp = ave_air_temp[:, :, 2]  #.clone().detach()
+        srflow_temp = ave_air_temp[:, :, 0]  # .clone().detach()
+        ssflow_temp = ave_air_temp[:, :, 1]  # .clone().detach()
+        gwflow_temp = ave_air_temp[:, :, 2]  # .clone().detach()
 
         T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] +
                 ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
@@ -287,14 +401,14 @@ class STREAM_TEMP_EQ(nn.Module):
         # a = (q_l * T_l) + ((K1 * ave_width)/(self.args['params']['water_density'] * self.args['params']['C_w'])) * T_e
         # b = q_l + (K1 * ave_width) / (self.args['params']['water_density'] * self.args['params']['C_w'])
 
-
         # for positive lateral flow
         mask_pos = q_l.ge(0)
         a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
                                                                                    * ave_width * mask_pos.int().float())
-                                                   / (density * c_w)) * T_e * mask_pos.int().float())
+                                                                                  / (
+                                                                                              density * c_w)) * T_e * mask_pos.int().float())
         b_pos1 = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
-                                                 ) / (density * c_w))
+                                                  ) / (density * c_w))
         # to get rid of having zero denominator in the next line
         mask_b_pos = b_pos1.eq(0)
         b_pos2 = mask_b_pos.int().float() * b_pos1 * 0.01 + b_pos1
@@ -303,7 +417,7 @@ class STREAM_TEMP_EQ(nn.Module):
         Tprime_e_pos = a_pos / b_pos2
         R_pos = torch.pow((1 + (q_l * mask_pos.int().float() * L * mask_pos.int().float() /
                                 Q_0 * mask_pos.int().float())),
-                                -(ave_width * mask_pos.int().float() / q_l * mask_pos.int().float()))
+                          -(ave_width * mask_pos.int().float() / q_l * mask_pos.int().float()))
         # with torch.no_grad():
         #     denom = (1 + ((K2 * mask_pos.int().float()/K1 * mask_pos.int().float()) *
         #                   (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
@@ -311,7 +425,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom)
 
         denom_pos = (1 + ((K2 * mask_pos.int().float() / K1 * mask_pos.int().float()) *
-                      (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
+                          (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
         mask_denom = denom_pos.eq(0)
         denom_pos2 = denom_pos + mask_denom.int().float() * 0.01
         Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom_pos2)
@@ -328,12 +442,10 @@ class STREAM_TEMP_EQ(nn.Module):
         # Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom)
 
         denom_zero = (1 + ((K2 * mask_zero.int().float() / K1 * mask_zero.int().float()) *
-                      (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
+                           (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
         mask_denom_zero = denom_zero.eq(0)
         denom_zero2 = denom_zero + mask_denom_zero.int().float() * 0.01
         Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom_zero2)
-
-
 
         # for negative q_l
         mask_q_l = q_l < 0
@@ -353,30 +465,75 @@ class STREAM_TEMP_EQ(nn.Module):
             vp = 0.01 * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
             swrad = (x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')] / 86400)
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-            slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")] # adding the percentage
+            slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")]  # adding the percentage
             stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
 
             top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
-            PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010/86400), has_grad=False)
-
-
-
+            PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
 
-        res_time = torch.cat(((torch.sigmoid(self.res_time_srflow[iGrid])) * 25,
-                              (torch.sigmoid(self.res_time_ssflow[iGrid])) * 50,
-                              (torch.sigmoid(self.res_time_gwflow[iGrid])) * 500), dim=1)
-        ave_air_temp = self.ave_temp_res_time(ave_air_temp, x, res_time, iGrid, iT)
+        # res_time = torch.cat(((torch.sigmoid(self.res_time_srflow[iGrid])) * 25,
+        #                       (torch.sigmoid(self.res_time_ssflow[iGrid])) * 50,
+        #                       (torch.sigmoid(self.res_time_gwflow[iGrid])) * 500), dim=1)
+        # ave_air_temp = self.ave_temp_res_time(ave_air_temp, x, res_time, iGrid, iT)
+
+        # surface flow
+        w_srflow = self.res_time_gamma(a=self.a_srflow[iGrid].permute(1, 0, 2),
+                                b=(self.b_srflow[iGrid]).permute(1, 0, 2),
+                                lenF=self.args['res_time_params']['lenF_srflow'])
+
+        # w_srflow[0:10, :, :] = 1
+        # w_srflow[10:, :, :] = 0
+        # w_srflow = w_srflow/10
+
+        air_sample_sr = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_srflow'])
+        w_srflow = w_srflow.permute(1, 2, 0)
+        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=self.bias_srflow[iGrid])
+
+        # subsurface flow
+        w_ssflow = self.res_time_gamma(a=self.a_ssflow[iGrid].permute(1, 0, 2),
+                                       b=(self.b_ssflow[iGrid]).permute(1, 0, 2),
+                                       lenF=self.args['res_time_params']['lenF_ssflow'])
+
+        # w_ssflow = torch.empty(self.args['res_time_params']['lenF_ssflow'],
+        #                        self.args['hyperparameters']['batch_size'], 1, device=self.args['device'])
+
+        # w_ssflow[0:30, :, :] = 1
+        # w_ssflow[30:, :, :] = 0
+        # w_ssflow = w_ssflow / 30
+
+        air_sample_ss = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_ssflow'])
+        w_ssflow = w_ssflow.permute(1, 2, 0)
+        ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=self.bias_ssflow[iGrid])
+
+        # groundwater flow
+        w_gwflow = self.res_time_gamma(a=self.a_gwflow[iGrid].permute(1, 0, 2),
+                                       b=(self.b_gwflow[iGrid]).permute(1, 0, 2),
+                                       lenF=self.args['res_time_params']['lenF_gwflow'])
+
+        # w_gwflow = torch.empty(self.args['res_time_params']['lenF_gwflow'],
+        #                        self.args['hyperparameters']['batch_size'], 1, device=self.args['device'])
+        # w_gwflow[0:365, :, :] = 1
+        # w_gwflow[365:, :, :] = 0
+        # w_gwflow = w_gwflow / 365
+
+        air_sample_gw = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_gwflow'])
+        w_gwflow = w_gwflow.permute(1, 2, 0)
+        ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=self.bias_gwflow[iGrid])
+
+        ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=2)
+
+
         T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
                                                                                    ave_air_temp=ave_air_temp)
 
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                                                  slope=slope, top_width=top_width, inflow=obsQ, E=PET,
-                                                                  T_g=gwflow_temp, iGrid=iGrid)
+                                         slope=slope, top_width=top_width, inflow=obsQ, E=PET,
+                                         T_g=gwflow_temp, iGrid=iGrid)
 
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D)
 
@@ -384,20 +541,7 @@ class STREAM_TEMP_EQ(nn.Module):
         Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.01))
 
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
-                                                                q_l=obsQ/stream_length, L=stream_length,
-                                                                T_0=T_0, Q_0=Q_0)
+                                                   q_l=obsQ / stream_length, L=stream_length,
+                                                   T_0=T_0, Q_0=Q_0)
 
         return T_w, ave_air_temp
-
-
-
-
-
-
-
-
-
-
-
-
-

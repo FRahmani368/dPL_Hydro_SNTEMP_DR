@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
-from .dropout import DropMask, createMask
-from . import cnn
+# from .dropout import DropMask, createMask
+# from . import cnn
 import csv
 import numpy as np
 
