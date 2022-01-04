@@ -48,10 +48,10 @@ class RmseLoss(torch.nn.Module):
             p0 = output[:, :, k]
             t0 = target[:, :, k]
             maskt = t0 == t0
-            maskp = p0 == p0
-            mask = maskp * maskt > 0
-            p = p0[mask]
-            t = t0[mask]
+            # maskp = p0 == p0
+            # mask = maskp * maskt > 0
+            p = p0[maskt]
+            t = t0[maskt]
             temp = torch.sqrt(((p - t) ** 2).mean())
             loss = loss + temp
 

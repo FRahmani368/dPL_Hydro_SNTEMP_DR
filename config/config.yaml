@@ -2,10 +2,11 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: 0
+Action: [1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
-  forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #forcing50_synth_T_2010.feather" #"/home/fzr5082/GitHub2/LSTM_temp2/scratch/SNTemp/Forcing/Forcing_new/forcing_99%_days_99sites.feather"
-  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_temp99%_days_99sites.feather" #attr50_synth_T_2010.feather"
+  forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #          no_dam_forcing_99%_days34sites.feather
+  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_temp99%_days_99sites.feather" #          no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -15,18 +16,36 @@ optData:
   subset: 'All'
   varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
   varC: [
-    'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06',
-    'PLANTNLCD06', 'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN',
-    'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
-    'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN',
-    'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',
-    'NDAMS_2009', 'ELEV_MEAN_M_BASIN'
+    'DRAIN_SQKM', 'PPTAVG_BASIN', 'T_AVG_BASIN', 'T_MAX_BASIN',
+    'T_MAXSTD_BASIN', 'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',
+    'STREAMS_KM_SQ_KM', 'PERDUN', 'HIRES_LENTIC_PCT', 'NDAMS_2009',
+    'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'ELEV_MEAN_M_BASIN',
+    'SLOPE_PCT', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALLDAMS',
+    'RAW_DIS_NEAREST_MAJ_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',
+    'MAJ_NDAMS_2009', 'POWER_NUM_PTS', 'POWER_SUM_MW',
+    'HYDRO_DISTURB_INDX', 'BFI_AVE', 'FRAGUN_BASIN', 'DEVNLCD06',
+    'PERMAVE', 'RFACT', 'BARRENNLCD06', 'DECIDNLCD06', 'EVERGRNLCD06',
+    'MIXEDFORNLCD06', 'SHRUBNLCD06', 'GRASSNLCD06', 'WOODYWETNLCD06',
+    'EMERGWETNLCD06', 'GEOL_REEDBUSH_DOM_PCT',
+    'STRAHLER_MAX', 'MAINSTEM_SINUOUSITY', 'REACHCODE', 'ARTIFPATH_PCT',
+    'ARTIFPATH_MAINSTEM_PCT', 'PERHOR', 'TOPWET', 'CONTACT', 'CANALS_PCT',
+    'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'RAW_AVG_DIS_ALL_MAJ_NPDES',
+    'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG', 'ROADS_KM_SQ_KM',
+    'PADCAT1_PCT_BASIN', 'PADCAT2_PCT_BASIN'
   ]
-  target: ["00010_Mean"]   # ['synth_T_1030365']    #['synth_shade_0130365']   ['synth_T_0520180']
+#    [
+#    'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06',
+#    'PLANTNLCD06', 'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN',
+#    'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
+#    'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN',
+#    'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',
+#    'NDAMS_2009', 'ELEV_MEAN_M_BASIN'
+#  ]
+  target: ["00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
   tRange: [20101001, 20161001]
   t_train: [20121001, 20151001]
   t_val: [20151001, 20161001]
-  t_test: [20141001, 20161001]
+  t_test: [20140930, 20161001]
   doNorm: [True, True]
   rmNan: [True, False]
   daObs: 0
@@ -36,18 +55,18 @@ optData:
   lckernel: None
   fdcopt: False
 hyperparameters:
-  rho: 365
+  rho: 730
   batch_size: 50
-  EPOCHS: 2000
-  hidden_size: 60
+  EPOCHS: 1650
+  hidden_size: 100
   dropout: 0.5
-  saveEpoch: 100
+  saveEpoch: 50
 seq_lin_layers:
-  hidden_size: 60
+  hidden_size: 100
 res_time_params:
-  lenF_ssflow: 50
-  lenF_gwflow: 400
-  lenF_srflow: 10
+  lenF_ssflow: 365
+  lenF_gwflow: 600
+  lenF_srflow: 2
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
 STemp_default_params:

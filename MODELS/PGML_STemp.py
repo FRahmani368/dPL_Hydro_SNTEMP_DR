@@ -3,9 +3,124 @@ import torch
 import torch.nn as nn
 import datetime
 import torch.nn.functional as F
+from torch.nn import Parameter
+import math
 from core.read_configurations import config
 # from rnn import CudnnLstmModel
+import matplotlib.pyplot as plt
 from core.small_codes import make_tensor, tRange2Array, intersect
+from .dropout import createMask, DropMask
+
+class CudnnLstm(torch.nn.Module):
+    def __init__(self, *, inputSize, hiddenSize, dr=0.5, drMethod='drW',
+                 gpu=0):
+        super(CudnnLstm, self).__init__()
+        self.inputSize = inputSize
+        self.hiddenSize = hiddenSize
+        self.dr = dr
+        self.w_ih = Parameter(torch.Tensor(hiddenSize * 4, inputSize))
+        self.w_hh = Parameter(torch.Tensor(hiddenSize * 4, hiddenSize))
+        self.b_ih = Parameter(torch.Tensor(hiddenSize * 4))
+        self.b_hh = Parameter(torch.Tensor(hiddenSize * 4))
+        self._all_weights = [['w_ih', 'w_hh', 'b_ih', 'b_hh']]
+        self.cuda()
+
+        self.reset_mask()
+        self.reset_parameters()
+
+    def _apply(self, fn):
+        ret = super(CudnnLstm, self)._apply(fn)
+        return ret
+
+    def __setstate__(self, d):
+        super(CudnnLstm, self).__setstate__(d)
+        self.__dict__.setdefault('_data_ptrs', [])
+        if 'all_weights' in d:
+            self._all_weights = d['all_weights']
+        if isinstance(self._all_weights[0][0], str):
+            return
+        self._all_weights = [['w_ih', 'w_hh', 'b_ih', 'b_hh']]
+
+    def reset_mask(self):
+        self.maskW_ih = createMask(self.w_ih, self.dr)
+        self.maskW_hh = createMask(self.w_hh, self.dr)
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.hiddenSize)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+
+
+    def forward(self, input, hx=None, cx=None, doDropMC=False, dropoutFalse=False):
+        # dropoutFalse: it will ensure doDrop is false, unless doDropMC is true
+        if dropoutFalse and (not doDropMC):
+            doDrop = False
+        elif self.dr > 0 and (doDropMC is True or self.training is True):
+            doDrop = True
+        else:
+            doDrop = False
+
+        batchSize = input.size(1)
+
+        if hx is None:
+            hx = input.new_zeros(
+                1, batchSize, self.hiddenSize, requires_grad=False)
+        if cx is None:
+            cx = input.new_zeros(
+                1, batchSize, self.hiddenSize, requires_grad=False)
+
+        # cuDNN backend - disabled flat weight
+        # handle = torch.backends.cudnn.get_handle()
+        if doDrop is True:
+            self.reset_mask()
+            weight = [
+                DropMask.apply(self.w_ih, self.maskW_ih, True),
+                DropMask.apply(self.w_hh, self.maskW_hh, True), self.b_ih,
+                self.b_hh
+            ]
+        else:
+            weight = [self.w_ih, self.w_hh, self.b_ih, self.b_hh]
+
+        # output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(
+        #     input, weight, 4, None, hx, cx, torch.backends.cudnn.CUDNN_LSTM,
+        #     self.hiddenSize, 1, False, 0, self.training, False, (), None)
+        output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(  #torch._C._VariableFunctions._cudnn_rnn(
+            input.cuda(), weight, 4, None, hx.cuda(), cx.cuda(), 2,  # 2 means LSTM
+            self.hiddenSize, 1, False, 0, self.training, False, (), None)   # 4 was False before
+        return output, (hy, cy)
+
+    @property
+    def all_weights(self):
+        return [[getattr(self, weight) for weight in weights]
+                for weights in self._all_weights]
+
+
+class CudnnLstmModel(torch.nn.Module):
+    def __init__(self, *, nx, ny, hiddenSize, dr=0.5):
+        super(CudnnLstmModel, self).__init__()
+        self.nx = nx
+        self.ny = ny
+        self.hiddenSize = hiddenSize
+        self.ct = 0
+        self.nLayer = 1
+        self.linearIn = torch.nn.Linear(nx, hiddenSize)
+        self.lstm = CudnnLstm(                                           # LSTMcell_untied CudnnLstm farshid
+            inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr)          # for LSTM-untied:    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
+        #self.lstm = LSTMcell_untied(
+         #   inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
+
+        self.linearOut = torch.nn.Linear(hiddenSize, ny)
+        self.gpu = 1
+        self.activation_sigmoid = torch.nn.Sigmoid()
+    def forward(self, x, doDropMC=False, dropoutFalse=False):
+        x0 = F.relu(self.linearIn(x))
+        outLSTM, (hn, cn) = self.lstm(x0, doDropMC=doDropMC, dropoutFalse=dropoutFalse)
+        out = self.linearOut(outLSTM)
+        ### Farshid added this line:
+        out = self.activation_sigmoid(out)
+        return out
+
+
 
 
 class MLP(nn.Module):
@@ -21,14 +136,27 @@ class MLP(nn.Module):
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size']),
             # nn.ReLU(),
-            nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['one_param_target'])),
+            nn.Linear(args['seq_lin_layers']['hidden_size'], args['res_time_params']['lenF_srflow'] +
+                      args['res_time_params']['lenF_ssflow'] +
+                      args['res_time_params']['lenF_gwflow']),
             # nn.ReLU()
         )
         self.L1 = nn.Linear(len(args['optData']['varC']), \
                             args['seq_lin_layers']['hidden_size'])
         self.L2 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
         self.L3 = nn.Linear(args['seq_lin_layers']['hidden_size'], args['seq_lin_layers']['hidden_size'])
-        self.L4 = nn.Linear(args['seq_lin_layers']['hidden_size'], len(args['one_param_target']))
+
+        self.L4 = nn.Linear(args['seq_lin_layers']['hidden_size'], 23)
+
+        # 6 for alpha and beta of surface/subsurface/groundwater flow
+        # 3 for conv bias,
+        # 2 for scaling and bias of final answer,
+        # 1 for shade_factor_riparian
+        # 3 for surface/subsurface/groundwater flow percentage
+        # 1 for albedo
+        # 1 for solar shade factor
+        # 4 for width coefficient nominator, width coefficient denominator, width A coefficient, and width exponent
+        # 2 for p & q
 
         # self.lstm = CudnnLstmModel(
         #     nx=input.shape[2],
@@ -37,7 +165,7 @@ class MLP(nn.Module):
         #     dr=args['hyperprameters']['dropout'])
         #
         # self.stream_temp_eq = stream_temp_eq(args)
-        self.activation = torch.nn.Sigmoid()
+        self.activation_sigmoid = torch.nn.Sigmoid()
         self.activation_tanh = torch.nn.Tanh()
 
     def forward(self, x):
@@ -47,7 +175,7 @@ class MLP(nn.Module):
         out = self.L3(out)
         out = self.L4(out)
         # out1 = torch.abs(out)
-        out = self.activation(out)
+        out = self.activation_sigmoid(out)
         return out
 
 
@@ -67,28 +195,27 @@ class STREAM_TEMP_EQ(nn.Module):
         super(STREAM_TEMP_EQ, self).__init__()
         self.args = args
         self.x_total_raw = x_total_raw
-        self.a_srflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_srflow"],
-                                                 1))
-        self.b_srflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_srflow"],
-                                                 1))
-        self.bias_srflow = nn.Parameter(torch.randn(args['no_basins']))
-        self.a_ssflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_ssflow"],
-                                                 1))
-        self.b_ssflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_ssflow"],
-                                                 1))
-        self.bias_ssflow = nn.Parameter(torch.zeros(args['no_basins']))
-        self.a_gwflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_gwflow"],
-                                                 1))
-        self.b_gwflow = nn.Parameter(torch.randn(args['no_basins'],
-                                                 args["res_time_params"]["lenF_gwflow"],
-                                                 1))
-        self.bias_gwflow = nn.Parameter(torch.zeros(args['no_basins']))
-
+        # self.a_srflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_srflow"],
+        #                                          1))
+        # self.b_srflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_srflow"],
+        #                                          1))
+        # self.bias_srflow = nn.Parameter(torch.randn(args['no_basins']))
+        # self.a_ssflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_ssflow"],
+        #                                          1))
+        # self.b_ssflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_ssflow"],
+        #                                          1))
+        # self.bias_ssflow = nn.Parameter(torch.zeros(args['no_basins']))
+        # self.a_gwflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_gwflow"],
+        #                                          1))
+        # self.b_gwflow = nn.Parameter(torch.randn(args['no_basins'],
+        #                                          args["res_time_params"]["lenF_gwflow"],
+        #                                          1))
+        # self.bias_gwflow = nn.Parameter(torch.zeros(args['no_basins']))
 
         # self.shade_fraction = nn.ParameterList(
         #     [
@@ -140,17 +267,17 @@ class STREAM_TEMP_EQ(nn.Module):
         H_f = 9805 * Q * slope / top_width  # Q is the seg_inflow (total flow entering a segment)
         return H_f
 
-    def shortwave_solar_radiation_heat(self, albedo, H_sw):
+    def shortwave_solar_radiation_heat(self, albedo, H_sw, solar_shade_factor):
         """
         :param albedo: albedo or fraction reflected by stream , dimensionless
         :param H_sw: the clear sky solar radiation in watt per sq meter (seginc_swrad)
         :return: daily average clear sky, shortwave solar radiation for each segment
         """
-        shade_fraction = make_tensor(self.args['STemp_default_params']['shade_fraction'])
-        H_s = (1 - albedo) * (1 - shade_fraction) * H_sw
+        # solar_shade_fraction = make_tensor(self.args['STemp_default_params']['shade_fraction'])
+        H_s = (1 - albedo) * (1 - solar_shade_factor) * H_sw
         return H_s
 
-    def riparian_veg_longwave_radiation_heat(self, T_a, iGrid):
+    def riparian_veg_longwave_radiation_heat(self, T_a, iGrid, shade_fraction_riparian):
         """
         Incoming shortwave solar radiation is often intercepted by surrounding riparian vegetation.
         However, the vegetation will emit some longwave radiation as a black body
@@ -159,7 +286,7 @@ class STREAM_TEMP_EQ(nn.Module):
         """
         St_Boltzman_ct = make_tensor(5.670373) * torch.pow(make_tensor(10), (-8.0))  # (J/s*m^2 * K^4)
         emissivity_veg = make_tensor(self.args['STemp_default_params']['emissivity_veg'])
-        shade_fraction_riparian = make_tensor(self.args['STemp_default_params']['shade_fraction_riparian'])
+        # shade_fraction_riparian = make_tensor(self.args['STemp_default_params']['shade_fraction_riparian'])
         # for i in range(iGrid.shape[0]):
         #     shade_fraction_riparian[i, 0] = self.shade_fraction[iGrid[i]][0]
         # shade2 = self.shade.repeat(1, T_a.shape[1])
@@ -172,7 +299,8 @@ class STREAM_TEMP_EQ(nn.Module):
         # H_v = emissivity_veg * St_Boltzman_ct * shade2[iGrid, :] * torch.pow((T_a + 273.16), 4)
         return H_v
 
-    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope, top_width, inflow, T_g, iGrid):
+    def ABCD_equations(self, T_a, swrad, e_a, E, elev, slope,
+                       top_width, inflow, T_g, iGrid, shade_fraction_riparian, albedo, solar_shade_factor):
         """
 
         :param T_a: average daily air temperature
@@ -204,16 +332,18 @@ class STREAM_TEMP_EQ(nn.Module):
         H_a = self.atm_longwave_radiation_heat(T_a, e_a)
         ###############
         H_f = self.stream_friction_heat(top_width=top_width, slope=slope, Q=inflow)
-        H_s = self.shortwave_solar_radiation_heat(albedo=self.args['STemp_default_params']['albedo'],
-                                                  H_sw=swrad)  # shortwave solar radiation heat
-        H_v = self.riparian_veg_longwave_radiation_heat(T_a, iGrid)
+        H_s = self.shortwave_solar_radiation_heat(albedo=albedo,
+                                                  H_sw=swrad,
+                                                  solar_shade_factor=solar_shade_factor)  # shortwave solar radiation heat
+        H_v = self.riparian_veg_longwave_radiation_heat(T_a, iGrid, shade_fraction_riparian)
 
         A = 5.4 * torch.pow(make_tensor(np.full((T_a.shape[0], T_a.shape[1]), 10)), (-8))
         B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
         C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
         # D = H_a + H_f + H_s + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
         # D = H_a + H_f + H_s + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
-        D = H_a + swrad + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
+        D = H_a + H_s + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
+        # D = H_a + swrad + H_v + 2495 * E * (B_c * T_a - 1) + (T_g * K_g / delta_Z)
 
         return A, B, C, D
 
@@ -318,23 +448,52 @@ class STREAM_TEMP_EQ(nn.Module):
             ave_air[s, :, :] = temp
         return ave_air
 
-
     def res_time_gamma(self, a, b, lenF):
         # UH. a [time (same all time steps), batch, var]
-        a = torch.abs(a)
-        # m = a.shape
-        # w = torch.zeros([lenF, m[1], m[2]])
-        # aa = F.relu(a[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
-        # theta = F.relu(b[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
-        # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
-        # t = t.cuda(aa.device)
-        # denom = (aa.lgamma().exp()) * (theta ** aa)
-        # mid = t ** (aa - 1)
-        # right = torch.exp(-t / theta)
-        # w = 1 / denom * mid * right
-        # w = w / w.sum(0)  # scale to 1 for each UH
-
-        return a / a.sum(0) #w
+        # a = torch.abs(a)
+        if a.dim() == 2:
+            m = a.shape
+            a1 = a.repeat(1, lenF)
+            b1 = b.repeat(1, lenF)
+            alpha = F.relu(a1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.1
+            beta = F.relu(b1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.5
+            x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
+            if torch.cuda.is_available():
+                x = x.cuda(a.device)
+            # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
+            denom = (alpha.lgamma().exp()) * torch.pow(beta, alpha)
+            right = torch.exp((-1) * x / beta)
+            mid = torch.pow(x, alpha - 1)
+            w = 1 / denom * mid * right
+            # m = a.shape
+            # w = torch.zeros([lenF, m[1], m[2]])
+            # aa = F.relu(a[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
+            # theta = F.relu(b[0:lenF, :, 0]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+            # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+            # t = t.cuda(aa.device)
+            # denom = (aa.lgamma().exp()) * (theta ** aa)
+            # mid = t ** (aa - 1)
+            # right = torch.exp(-t / theta)
+            # w = 1 / denom * mid * right
+            ww = torch.cumsum(w, dim=0)
+            www = ww / ww.sum(0)  # scale to 1 for each UH
+        elif a.dim() == 3:
+            m = a.shape
+            a1 = a.repeat(1, 1, lenF)
+            b1 = b.repeat(1, 1, lenF)
+            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.1
+            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.5
+            x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
+            if torch.cuda.is_available():
+                x = x.cuda(a.device)
+            # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
+            denom = (alpha.lgamma().exp()) * torch.pow(beta, alpha)
+            right = torch.exp((-1) * x / beta)
+            mid = torch.pow(x, alpha - 1)
+            w = 1 / denom * mid * right
+            ww = torch.cumsum(w, dim=0)
+            www = ww / ww.sum(0)  # scale to 1 for each UH
+        return www
 
     def res_time_conv(self, x_sample, UH, bias, viewmode=1):
         # UH is a vector indicating the unit hydrograph
@@ -353,26 +512,35 @@ class STREAM_TEMP_EQ(nn.Module):
         # oups
         # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
         # https://pytorch.org/docs/stable/nn.functional.html
+        if UH.shape[1] == 1:
+            x = x_sample[:, 0:1, :]
+            mm = x.shape
+            nb = mm[0]
+            m = UH.shape[-1]
+            padd = m - 1
+            if viewmode == 1:
+                xx = x.view([1, nb, mm[-1]])
+                w = UH.view([nb, 1, m])
+                groups = nb
 
-        x = x_sample[:, 0:1, :]
-        mm = x.shape;
-        nb = mm[0]
-        m = UH.shape[-1]
-        padd = m - 1
-        if viewmode == 1:
-            xx = x.view([1, nb, mm[-1]])
-            w = UH.view([nb, 1, m])
-            groups = nb
+                # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+                # y = y[:, :, 0:-padd]
 
-            # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
-            # y = y[:, :, 0:-padd]
+            x_sample1 = x_sample.permute(1, 0, 2)
+            a = torch.arange(x_sample.shape[1])
+            y = F.conv1d(x_sample1[a], torch.flip(w, [2]), groups=groups, padding=0, stride=1, bias=bias)
+            y = y.permute(1, 0, 2)
+        elif UH.shape[1] > 1:
+            w = torch.flip(UH, [2])
+            y = x_sample * w
+            y = y.sum(2)
+            if bias is not None:
+                y = y + bias
+            y = y.unsqueeze(2)
 
-        x_sample1 = x_sample.permute(1, 0, 2)
-        a = torch.arange(x_sample.shape[1])
-        y = F.conv1d(x_sample1[a], w, groups=groups, padding=0, stride=1, bias=None)
 
-        # return y.view(mm)
-        return y.permute(1, 0, 2)
+        return y
+
     def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp):
         """
         :param srflow: surface runoff
@@ -406,7 +574,7 @@ class STREAM_TEMP_EQ(nn.Module):
         a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
                                                                                    * ave_width * mask_pos.int().float())
                                                                                   / (
-                                                                                              density * c_w)) * T_e * mask_pos.int().float())
+                                                                                          density * c_w)) * T_e * mask_pos.int().float())
         b_pos1 = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
                                                   ) / (density * c_w))
         # to get rid of having zero denominator in the next line
@@ -457,7 +625,100 @@ class STREAM_TEMP_EQ(nn.Module):
         T_w = Tw_pos + Tw_zero
         return T_w
 
-    def forward(self, x, iGrid, iT, ave_air_temp):
+    def forward(self, x, params, iGrid, iT, ave_air_temp):
+        # restricting the params
+        paramCalLst = [
+            [0.01, 5], [0.01, 5], [0.01, 8], [0.01, 8], [0.01, 10], [0.01, 10],      # a and b
+            [0.01, 1],                                                    # shade factor
+            [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
+            [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
+            [0, 3], [-4, 4],                                            # final scale and final bias
+            [0, 1],                                                        # albedo
+            [0, 1],                                                           # solar shade factor
+            [0, 1],                                                       # width coefficient nominator
+            [0, 1],                                                         # width exponent
+            [0, 1],                                                            # width A coefficient
+            [0, 1],                                                           # width coefficient denominator
+            [0, 40],                                                    # p
+            [0, 2]                                                        # q
+        ]
+        # for all a and b
+        if params.dim() == 3:
+            a_srflow = params[:, :, 0: 1] * (paramCalLst[0][1] - paramCalLst[0][0]) + paramCalLst[0][0]
+            b_srflow = params[:, :, 1: 2] * (paramCalLst[1][1] - paramCalLst[1][0]) + paramCalLst[1][0]
+            a_ssflow = params[:, :, 2: 3] * (paramCalLst[2][1] - paramCalLst[2][0]) + paramCalLst[2][0]
+            b_ssflow = params[:, :, 3: 4] * (paramCalLst[3][1] - paramCalLst[3][0]) + paramCalLst[3][0]
+            a_gwflow = params[:, :, 4: 5] * (paramCalLst[4][1] - paramCalLst[4][0]) + paramCalLst[4][0]
+            b_gwflow = params[:, :, 5: 6] * (paramCalLst[5][1] - paramCalLst[5][0]) + paramCalLst[5][0]
+
+            shade_fraction_riparian = params[:, :, 6] * (paramCalLst[6][1] - paramCalLst[6][0]) + paramCalLst[6][0]
+
+            srflow_portion = params[:, :, 7] * (paramCalLst[7][1] - paramCalLst[7][0]) + paramCalLst[7][0]
+            ssflow_portion = params[:, :, 8] * (paramCalLst[8][1] - paramCalLst[8][0]) + paramCalLst[8][0]
+            gwflow_portion = params[:, :, 9] * (paramCalLst[9][1] - paramCalLst[9][0]) + paramCalLst[9][0]
+
+            sr_conv_bias = ((params[:, :, 10: 11]).squeeze()) * (paramCalLst[10][1] - paramCalLst[10][0]) + \
+                           paramCalLst[10][0]
+            ss_conv_bias = ((params[:, :, 11: 12]).squeeze()) * (paramCalLst[11][1] - paramCalLst[11][0]) + \
+                           paramCalLst[11][0]
+            gw_conv_bias = ((params[:, :, 12: 13]).squeeze()) * (paramCalLst[12][1] - paramCalLst[12][0]) + \
+                           paramCalLst[12][0]
+            # for scaling and bias of final y_Sim
+            final_scale = params[:, :, 13] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
+            final_bias = params[:, :, 14] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
+
+            albedo = params[:, :, 15] * (paramCalLst[15][1] - paramCalLst[15][0]) + paramCalLst[15][0]
+            solar_shade_factor = params[:, :, 16] * (paramCalLst[16][1] - paramCalLst[16][0]) + paramCalLst[16][0]
+
+            width_coef_nom = params[:, :, 17: 18] * (paramCalLst[17][1] - paramCalLst[17][0]) + paramCalLst[17][0]
+            width_exp = params[:, :, 18: 19] * (paramCalLst[18][1] - paramCalLst[18][0]) + paramCalLst[18][0]
+            width_A_coef = params[:, :, 19: 20] * (paramCalLst[19][1] - paramCalLst[19][0]) + paramCalLst[19][0]
+            width_coef_denom = params[:, :, 20: 21] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
+            p = params[:, :, 21] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
+            q = params[:, :, 22] * (paramCalLst[22][1] - paramCalLst[22][0]) + paramCalLst[22][0]
+
+        if params.dim() == 2:
+            a_srflow = params[:, 0: 1] * (paramCalLst[0][1] - paramCalLst[0][0]) + paramCalLst[0][0]
+            b_srflow = params[:, 1: 2] * (paramCalLst[1][1] - paramCalLst[1][0]) + paramCalLst[1][0]
+            a_ssflow = params[:, 2: 3] * (paramCalLst[2][1] - paramCalLst[2][0]) + paramCalLst[2][0]
+            b_ssflow = params[:, 3: 4] * (paramCalLst[3][1] - paramCalLst[3][0]) + paramCalLst[3][0]
+            a_gwflow = params[:, 4: 5] * (paramCalLst[4][1] - paramCalLst[4][0]) + paramCalLst[4][0]
+            b_gwflow = params[:, 5: 6] * (paramCalLst[5][1] - paramCalLst[5][0]) + paramCalLst[5][0]
+
+            shade_fraction_riparian = params[:, 6:7] * (paramCalLst[6][1] - paramCalLst[6][0]) + paramCalLst[6][0]
+
+            srflow_portion = params[:, 7: 8] * (paramCalLst[7][1] - paramCalLst[7][0]) + paramCalLst[7][0]
+            ssflow_portion = params[:, 8: 9] * (paramCalLst[8][1] - paramCalLst[8][0]) + paramCalLst[8][0]
+            gwflow_portion = params[:, 9: 10] * (paramCalLst[9][1] - paramCalLst[9][0]) + paramCalLst[9][0]
+
+            sr_conv_bias = ((params[:, 10: 11]).squeeze()) * (paramCalLst[10][1] - paramCalLst[10][0]) + \
+                           paramCalLst[10][0]
+            ss_conv_bias = ((params[:, 11: 12]).squeeze()) * (paramCalLst[11][1] - paramCalLst[11][0]) + \
+                           paramCalLst[11][0]
+            gw_conv_bias = ((params[:, 12: 13]).squeeze()) * (paramCalLst[12][1] - paramCalLst[12][0]) + \
+                           paramCalLst[12][0]
+            # for scaling and bias of final y_Sim
+            final_scale = params[:, 13:14] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
+            final_bias = params[:, 14:15] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
+
+            albedo = params[:, 15:16] * (paramCalLst[15][1] - paramCalLst[15][0]) + paramCalLst[15][0]
+            solar_shade_factor = params[:, 16:17] * (paramCalLst[16][1] - paramCalLst[16][0]) + paramCalLst[16][0]
+
+            width_coef_nom = params[:, 17:18] * (paramCalLst[17][1] - paramCalLst[17][0]) + paramCalLst[17][0]
+            width_exp = params[:, 18:19] * (paramCalLst[18][1] - paramCalLst[18][0]) + paramCalLst[18][0]
+            width_A_coef = params[:, 19:20] * (paramCalLst[19][1] - paramCalLst[19][0]) + paramCalLst[19][0]
+            width_coef_denom = params[:, 20:21] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
+            p = params[:, 21:22] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
+            q = params[:, 22:] * (paramCalLst[22][1] - paramCalLst[22][0]) + paramCalLst[22][0]
+
+
+        srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+        ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+        gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+
+
+
+
         vars = self.args['optData']['varT'] + self.args['optData']['varC']
         with torch.no_grad():
             obsQ = x[:, :, vars.index("00060_Mean")]
@@ -469,10 +730,24 @@ class STREAM_TEMP_EQ(nn.Module):
             stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
 
-            top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
+
+            basin_area = x[:, :, vars.index("DRAIN_SQKM")]
+
+            # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
+
             PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
 
-        srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ)
+        # d = torch.pow(width_coef_nom * obsQ / (width_coef_denom * torch.pow(basin_area, width_A_coef)), width_exp)
+        # top_width = p * torch.pow(d, q)
+        # if p.dim() == 3:
+        top_width = p * torch.pow(basin_area, q)
+        # elif p.dim() == 2:
+        #     top_width = p * torch.pow(basin_area, q)
+
+        srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
+                                                                    srflow_factor=srflow_percentage,
+                                                                    ssflow_factor=ssflow_percentage,
+                                                                    gwlow_factor=gwflow_percentage)
 
         # res_time = torch.cat(((torch.sigmoid(self.res_time_srflow[iGrid])) * 25,
         #                       (torch.sigmoid(self.res_time_ssflow[iGrid])) * 50,
@@ -480,9 +755,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # ave_air_temp = self.ave_temp_res_time(ave_air_temp, x, res_time, iGrid, iT)
 
         # surface flow
-        w_srflow = self.res_time_gamma(a=self.a_srflow[iGrid].permute(1, 0, 2),
-                                b=(self.b_srflow[iGrid]).permute(1, 0, 2),
-                                lenF=self.args['res_time_params']['lenF_srflow'])
+        w_srflow = self.res_time_gamma(a=a_srflow, b=b_srflow, lenF=self.args['res_time_params']['lenF_srflow'])
 
         # w_srflow[0:10, :, :] = 1
         # w_srflow[10:, :, :] = 0
@@ -490,12 +763,10 @@ class STREAM_TEMP_EQ(nn.Module):
 
         air_sample_sr = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_srflow'])
         w_srflow = w_srflow.permute(1, 2, 0)
-        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=self.bias_srflow[iGrid])
+        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=sr_conv_bias)    # sr_conv_bias
 
         # subsurface flow
-        w_ssflow = self.res_time_gamma(a=self.a_ssflow[iGrid].permute(1, 0, 2),
-                                       b=(self.b_ssflow[iGrid]).permute(1, 0, 2),
-                                       lenF=self.args['res_time_params']['lenF_ssflow'])
+        w_ssflow = self.res_time_gamma(a=a_ssflow, b=b_ssflow, lenF=self.args['res_time_params']['lenF_ssflow'])
 
         # w_ssflow = torch.empty(self.args['res_time_params']['lenF_ssflow'],
         #                        self.args['hyperparameters']['batch_size'], 1, device=self.args['device'])
@@ -506,12 +777,10 @@ class STREAM_TEMP_EQ(nn.Module):
 
         air_sample_ss = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_ssflow'])
         w_ssflow = w_ssflow.permute(1, 2, 0)
-        ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=self.bias_ssflow[iGrid])
+        ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=ss_conv_bias)  # ss_conv_bias
 
         # groundwater flow
-        w_gwflow = self.res_time_gamma(a=self.a_gwflow[iGrid].permute(1, 0, 2),
-                                       b=(self.b_gwflow[iGrid]).permute(1, 0, 2),
-                                       lenF=self.args['res_time_params']['lenF_gwflow'])
+        w_gwflow = self.res_time_gamma(a=a_gwflow, b=b_gwflow, lenF=self.args['res_time_params']['lenF_gwflow'])
 
         # w_gwflow = torch.empty(self.args['res_time_params']['lenF_gwflow'],
         #                        self.args['hyperparameters']['batch_size'], 1, device=self.args['device'])
@@ -521,10 +790,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         air_sample_gw = self.x_sample_air_temp(iGrid, iT, lenF=self.args['res_time_params']['lenF_gwflow'])
         w_gwflow = w_gwflow.permute(1, 2, 0)
-        ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=self.bias_gwflow[iGrid])
+        ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=gw_conv_bias)  # gw_conv_bias
 
         ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=2)
-
 
         T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
@@ -533,7 +801,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, inflow=obsQ, E=PET,
-                                         T_g=gwflow_temp, iGrid=iGrid)
+                                         T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
+                                         albedo=albedo,
+                                         solar_shade_factor=solar_shade_factor)
 
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D)
 
@@ -543,5 +813,8 @@ class STREAM_TEMP_EQ(nn.Module):
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
                                                    q_l=obsQ / stream_length, L=stream_length,
                                                    T_0=T_0, Q_0=Q_0)
+
+        # scaling and bias
+        T_w = final_scale * T_w + final_bias
 
         return T_w, ave_air_temp
