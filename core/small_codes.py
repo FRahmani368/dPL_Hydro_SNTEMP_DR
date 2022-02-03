@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from core.read_configurations import config
 import datetime as dt
+from core import hydroDL
 
 def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['device']):
 
@@ -18,6 +19,12 @@ def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['dev
     return tensor_list
 
 def create_output_dirs(args):
+    # checking rho value first
+    t = hydroDL.utils.time.tRange2Array(args['optData']['t_train'])
+    if t.shape[0] < args['hyperparameters']['rho']:
+        args['hyperparameters']['rho'] = t.shape[0]
+
+    # checking the directory
     if not os.path.exists(args['output']['model']):
         os.makedirs(args['output']['model'])
     out_folder = 'E_' + str(args['hyperparameters']['EPOCHS']) + \

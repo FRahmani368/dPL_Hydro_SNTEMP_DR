@@ -57,9 +57,9 @@ def main(args):
     x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
     c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
     time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
-    x_train, y_train, ngrid_train, nIterEp, nt, rho, batchSize = train_val_test_split("t_train", args, time1,
+    x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
                                                                                       x_total_raw, y_raw)
-    x_train_scaled, y_train_scaled, _, _, _, _, _ = train_val_test_split("t_train", args, time1,
+    x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
                                                                                       x_total_scaled, y_scaled)
 
 
@@ -75,12 +75,12 @@ def main(args):
     # ANN model to simulate parameters
     # model = MLP(args)
     # model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
-    #                     ny=23,
+    #                     ny=27,
     #                     hiddenSize=args["hyperparameters"]["hidden_size"],
     #                     dr=args["hyperparameters"]["dropout"])
-    Ts = STREAM_TEMP_EQ(args, x_total_raw_tensor)
-    model = torch.load("/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1650.pt")
-
+    Ts = STREAM_TEMP_EQ()
+    model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
+    #
     # loss function
     lossFun = crit.RmseLoss()
     optim = torch.optim.Adadelta(model.parameters(), lr=0.1)
@@ -114,7 +114,7 @@ def main(args):
 
     if 0 in args['Action']:
 
-
+        rho = args["hyperparameters"]["rho"]
         model.zero_grad()
         model.train()
         # training
@@ -136,9 +136,11 @@ def main(args):
                     params = model(xTrain_sample_scaled.permute(1, 0, 2))
                 yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
                 # Yp, ave_air_temp = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp)
-                Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp)
+                Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
+                                              args=args, x_total_raw=x_total_raw_tensor,
+                                              time_range=args['optData']['t_train'])
 
-                mask_yp = Yp.ge(0)
+                mask_yp = Yp.ge(1e-6)
                 y_sim = Yp * mask_yp.int().float()
                 loss = lossFun(y_sim.unsqueeze(-1), yObs.transpose(1, 0))
                 # loss = lossFun(test_sim, test)
@@ -153,7 +155,7 @@ def main(args):
                 lossEp = lossEp + loss.item()
                 # del loss
                 # del Yp
-                print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+                # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
             lossEp = lossEp / nIterEp
             # torch.cuda.synchronize()
             logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(
@@ -175,17 +177,21 @@ def main(args):
         print('end')
 
     if 1 in args['Action']:
-        # modelFile = os.path.join(args['output']['out_dir'],
-        #                          'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
-        modelFile = "/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1900.pt"
+        modelFile = os.path.join(args['output']['out_dir'],
+                                 'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
+        modelFile = r'//home//fzr5082//PGML_STemp_results//models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep360.pt'
+        # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_50_H_100_dr_0.5/model_Ep20.pt"\
+        # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_99_H_100_dr_0.5/model_Ep80.pt"\
+        # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1700.pt"
         model = torch.load(modelFile)
         model.eval()
         # iGrid = np.arange(99)
+
         time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
-        x_test, y_test, ngrid_test, nIterEp, nt, rho, batchSize = train_val_test_split("t_test", args, time1,
+        x_test, y_test, ngrid_test, nIterEp, nt, batchSize = train_val_test_split("t_test", args, time1,
                                                                                           x_total_raw, y_raw)
         #Normalizing the inputs for ML part
-        x_test_scaled, _, _, _, _, _, _ = train_val_test_split("t_test", args, time1,
+        x_test_scaled, _, _, _, _, _ = train_val_test_split("t_test", args, time1,
                                                                                        x_total_scaled, y_raw)
 
         x_test_tensor = make_tensor(x_test, has_grad=False)
@@ -193,9 +199,10 @@ def main(args):
         y_test_tensor = make_tensor(y_test, has_grad=False)
 
         iGrid = np.arange(x_test_scaled_tensor.shape[0])
-        iT = np.arange(x_test_scaled_tensor.shape[1], dtype=np.int32)
-        args["hyperparameters"]["batch_size"] = 99
-        args["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
+        iT = np.zeros(x_test_scaled_tensor.shape[1], dtype=np.int32)
+        args_mod = args.copy()
+        args_mod["hyperparameters"]["batch_size"] = args['no_basins']
+        args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
         if type(model) in [MLP]:
             params = model(c_tensorTrain[iGrid])
         ### CudnnLstm
@@ -204,7 +211,9 @@ def main(args):
 
         # params = model(c_tensorTrain)
         # yObs = selectSubset(y_test, iGrid, iT, rho, has_grad=False)
-        Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp)
+        Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
+                                      args=args_mod, x_total_raw=x_total_raw_tensor,
+                                      time_range=args['optData']['t_test'])
 
         mask_yp = Yp.ge(0)
         y_sim = (Yp * mask_yp.int().float()).unsqueeze(-1)
@@ -268,3 +277,15 @@ if __name__=='__main__':
     # syntheticP(args)
     main(args)
     print('END')
+
+
+
+
+
+
+
+
+
+
+
+

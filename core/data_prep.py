@@ -45,17 +45,20 @@ def scaling(args, x, y, c):
     return x_total_scaled, y_scaled, c_scaled
 
 def train_val_test_split(set_name, args, time1, x_total, y_total):
-    c, ind1, ind2 = np.intersect1d(
-        time1, hydroDL.utils.time.tRange2Array(args['optData'][set_name]), return_indices=True
-    )
+    t = hydroDL.utils.time.tRange2Array(args['optData'][set_name])
+    c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]
     ngrid, nt, nx = x.shape
+    if t.shape[0] < args['hyperparameters']['rho']:
+        rho = t.shape[0]
+    else:
+        rho = args['hyperparameters']['rho']
     nIterEp = int(
         np.ceil(np.log(0.01) / np.log(1 - args['hyperparameters']['batch_size'] * \
-                                      args['hyperparameters']['rho'] / ngrid / nt)))
+                                      rho / ngrid / nt)))
 
-    return x, y, ngrid, nIterEp, nt, args['hyperparameters']['rho'], args['hyperparameters']['batch_size']
+    return x, y, ngrid, nIterEp, nt, args['hyperparameters']['batch_size']
 
 def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
     nx = x.shape[-1]

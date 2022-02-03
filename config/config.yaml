@@ -2,7 +2,7 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: 0
-Action: [1]   # 0:Train,   1: Test
+Action: [ 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
   forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -45,24 +45,24 @@ optData:
   tRange: [20101001, 20161001]
   t_train: [20121001, 20151001]
   t_val: [20151001, 20161001]
-  t_test: [20140930, 20161001]
+  t_test: [20151001, 20161001]
   doNorm: [True, True]
   rmNan: [True, False]
   daObs: 0
   damean: False
-  davar: 'streamflow'
+  davar: 'StreamTemp'
   dameanopt: 0
   lckernel: None
   fdcopt: False
 hyperparameters:
-  rho: 730
+  rho: 365
   batch_size: 50
-  EPOCHS: 1650
-  hidden_size: 100
+  EPOCHS: 560
+  hidden_size: 256
   dropout: 0.5
-  saveEpoch: 50
+  saveEpoch: 40
 seq_lin_layers:
-  hidden_size: 100
+  hidden_size: 256
 res_time_params:
   lenF_ssflow: 365
   lenF_gwflow: 600
@@ -71,17 +71,19 @@ params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
 STemp_default_params:
   shade_fraction: 0.05
-  longwave_reflect_fraction: 0.1
+  longwave_reflect_fraction: 0.0
   cloud_fraction: 0.1
-  emissivity_veg: 0.9526
+  emissivity_veg: 0
   shade_fraction_riparian: 0.5
   albedo: 0.1
   delta_Z: 1.0       # for streambed conduction
 params:
   water_density: 1000
   C_w: 4184    # J/kg. K
+NEARZERO: 1e-10
 initial_values:
   shade_fraction: 0.1
 no_basins: 99
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
+potet_module: "potet_hamon"
