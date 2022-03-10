@@ -11,8 +11,7 @@ import matplotlib.gridspec as gridspec
 import string
 import random
 import os
-# os.environ[
-#     'PROJ_LIB'] = r'G:\Farshid\myenvs\conda-meta'
+os.environ['PROJ_LIB'] = r'/home/fzr5082/anaconda3/envs/PGML_STemp/share/proj/'
 #  r'/opt/anaconda/pkgs/proj4-5.2.0-he6710b0_1/share/proj/'
 from mpl_toolkits import basemap
 from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,

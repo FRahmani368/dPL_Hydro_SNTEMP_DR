@@ -550,8 +550,11 @@ class STREAM_TEMP_EQ(nn.Module):
         ssflow_temp = ave_air_temp[:, :, 1]  # .clone().detach()
         gwflow_temp = ave_air_temp[:, :, 2]  # .clone().detach()
 
+        denom = gwflow + ssflow + srflow
+        mask_denom = denom.eq(0)
+        denom = denom + mask_denom.int().float()
         T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] +
-                ssflow * ave_air_temp[:, :, 1]) / (gwflow + ssflow + srflow))
+                ssflow * ave_air_temp[:, :, 1]) / denom)
 
         mask_less_zero = T_l.le(NEARZERO)
         T_l[mask_less_zero] = 0.0
@@ -559,60 +562,117 @@ class STREAM_TEMP_EQ(nn.Module):
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L, args,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01), NEARZERO=1e-10):
-        # Note: as we assume that Q_0 is 0.01, we are always gaining flow with positive lateral flow or
-        # with zero lateral flow
-        density = args['params']['water_density']
-        c_w = args['params']['C_w']
+        # # Note: as we assume that Q_0 is 0.01, we are always gaining flow with positive lateral flow or
+        # # with zero lateral flow
+        # density = args['params']['water_density']
+        # c_w = args['params']['C_w']
 
         # for positive lateral flow
-        mask_pos = q_l.ge(NEARZERO)
-        a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
-                                                                                   * ave_width * mask_pos.int().float())
-                                                                                  / (
-                                                                                          density * c_w)) * T_e * mask_pos.int().float())
-        b_pos1 = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
-                                                  ) / (density * c_w))
-        # to get rid of having zero denominator in the next line
-        mask_b_pos = b_pos1.eq(0)
-        b_pos2 = mask_b_pos.int().float() * NEARZERO + b_pos1
-        Tprime_e_pos = a_pos / b_pos2
-        R_pos = torch.pow((1 + (q_l * mask_pos.int().float() * L * mask_pos.int().float() /
-                                Q_0 * mask_pos.int().float())),
-                          -(ave_width * mask_pos.int().float() / q_l * mask_pos.int().float()))
+        # mask_pos = q_l.ge(NEARZERO)
+        # mask_T_e = T_e.eq(0)
+        # T_e_masked = T_e + mask_T_e.int().float()
+        # a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
+        #                                                                            * ave_width * mask_pos.int().float())
+        #                                                                           / (
+        #                                                                                   density * c_w)) * T_e_masked)
+        # b_pos1 = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
+        #                                           ) / (density * c_w))
+        # # to get rid of having zero denominator in the next line
+        # mask_b_pos = b_pos1.eq(0)
+        # b_pos2 = b_pos1 + mask_b_pos.int().float()     #  * NEARZERO
+        # Tprime_e_pos = a_pos / b_pos2
+        # mask_Q_0 = Q_0.eq(0)
+        # Q_0_masked = Q_0 + mask_Q_0.int().float()
+        #
+        # q_l_masked = q_l * mask_pos.int().float()
+        # mask_q_l_masked = q_l_masked.eq(0)
+        # q_l_masked2 = q_l_masked + mask_q_l_masked.int().float()
+        #
+        # R_pos = torch.pow((1 + (q_l * mask_pos.int().float() * L * mask_pos.int().float() /
+        #                         Q_0_masked)),
+        #                   -(ave_width * mask_pos.int().float() / q_l_masked2))   # q_l * mask_pos.int().float()
+        #
+        # K1_masked = K1 * mask_pos.int().float()
+        # mask_K1 = K1_masked.eq(0)
+        # K1_masked2 = K1_masked + mask_K1.int().float()
+        #
+        # mask_R_pos = R_pos.eq(1)
+        # R_pos_masked = R_pos - mask_R_pos.int().float()
+        #
+        # denom_pos = (1 + ((K2 * mask_pos.int().float() / K1_masked2) *    # K1 * mask_pos.int().float()
+        #                   (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos_masked)))
+        # mask_denom = denom_pos.eq(0)
+        # # denom_pos2 = denom_pos + mask_denom.int().float() * 0.01
+        # denom_pos2 = denom_pos + mask_denom.int().float()   # * NEARZERO
+        # Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom_pos2)
+        #
+        # # for zero lateral flow
+        # mask_zero = q_l.eq(0)
+        # Q_0_masked2 = Q_0 * mask_zero.int().float()
+        # mask2_Q_0 = Q_0_masked2.eq(0)
+        # Q_0_masked3 = Q_0_masked2 + mask2_Q_0.int().float()
+        # Tprime_e_zero = T_e * mask_zero.int().float()
+        # R_zero = torch.exp(-ave_width * mask_zero.int().float() * L * mask_zero.int().float() /
+        #                    Q_0_masked3)    # Q_0 * mask_zero.int().float()
+        #
+        #
+        # K1_masked3 = K1 * mask_zero.int().float()
+        # mask2_K1 = K1_masked3.eq(0)
+        # K1_masked4 = K1_masked3 + mask2_K1.int().float()
+        #
+        # denom_zero = (1 + ((K2 * mask_zero.int().float() / K1_masked4) *    # K1 * mask_zero.int().float()
+        #                    (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
+        # mask_denom_zero = denom_zero.eq(0)
+        # # denom_zero2 = denom_zero + mask_denom_zero.int().float() * 0.01
+        # denom_zero2 = denom_zero + mask_denom_zero.int().float() * NEARZERO
+        # Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom_zero2)
+        #
+        # # for negative q_l
+        # mask_q_l = q_l < 0
+        # if mask_q_l.sum() > 0:
+        #     print("negative q_l")
+        #     exit()
+        # # Tw_pos and Tw_zero do not have any common cell which means, in each cell,
+        # # at least one of them is zero. That's why we can add them up.
+        # T_w = Tw_pos + Tw_zero
+        #
+        # mask_final = T_w.ge(0)
+        # T_w_final = T_w * mask_final.int().float()
 
-        denom_pos = (1 + ((K2 * mask_pos.int().float() / K1 * mask_pos.int().float()) *
-                          (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos)))
-        mask_denom = denom_pos.eq(0)
-        # denom_pos2 = denom_pos + mask_denom.int().float() * 0.01
-        denom_pos2 = denom_pos + mask_denom.int().float() * NEARZERO
-        Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom_pos2)
 
-        # for zero lateral flow
-        mask_zero = q_l.eq(0)
-        Tprime_e_zero = T_e * mask_zero.int().float()
-        R_zero = torch.exp(-ave_width * mask_zero.int().float() * L * mask_zero.int().float() /
-                           Q_0 * mask_zero.int().float())
+        ###############################################
+        # new method
+        # for positive q_l
+        # mask_q_l_pos = q_l.ge(0)
+        # a = (q_l * T_l) + (((K1 * ave_width) / (density * c_w)) * T_e)
+        # b = q_l + ((K1 * ave_width) / (density * c_w))
+        # mask_b = b.eq(0)
+        # b_masked = b + mask_b.int().float()
+        # Te_prime = a / b_masked
+        # # R
+        mask_q_l = q_l.eq(0)
+        q_l_pos = q_l + mask_q_l.int().float()
+        # power = -(ave_width / q_l_pos)
+        #
+        # mask_Q_0 = Q_0.eq(0)
+        # Q_0_pos = Q_0 + mask_Q_0.int().float()
+        # R = torch.pow((1 + (q_l * L / Q_0_pos)), power)
+
+        # for headwater basins. we assume Q_0 = q_l
+        # q_test = make_tensor(np.ones(q_l.size()) * 2)
+        # R_0 = (5 / (-ave_width * L))
+        R_0 = torch.exp(-(ave_width * L) / q_l_pos)
+        mask_K1 = K1.eq(0)
+        K1_masked = K1 + mask_K1.int().float()
+        denom = (1 + ((K2 / K1_masked) * (T_e - T_0) * (1 - R_0)))
+        mask_denom = denom.eq(0)
+        denom_masked = denom + mask_denom.int().float()
+        Tw = T_e - ((T_e - T_0) * R_0 / denom_masked)
+        return Tw
 
 
-        denom_zero = (1 + ((K2 * mask_zero.int().float() / K1 * mask_zero.int().float()) *
-                           (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
-        mask_denom_zero = denom_zero.eq(0)
-        # denom_zero2 = denom_zero + mask_denom_zero.int().float() * 0.01
-        denom_zero2 = denom_zero + mask_denom_zero.int().float() * NEARZERO
-        Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom_zero2)
 
-        # for negative q_l
-        mask_q_l = q_l < 0
-        if mask_q_l.sum() > 0:
-            print("negative q_l")
-            exit()
-        # Tw_pos and Tw_zero do not have any common cell which means, in each cell,
-        # at least one of them is zero. That's why we can add them up.
-        T_w = Tw_pos + Tw_zero
-
-        mask_final = T_w.ge(0)
-        T_w_final = T_w * mask_final.int().float()
-        return T_w_final
+        # return T_w_final
 
     def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range):
         # restricting the params
@@ -625,16 +685,16 @@ class STREAM_TEMP_EQ(nn.Module):
             [0, 3], [-4, 4],                                            # final scale and final bias
             [0, 0.15],                                                        # albedo
             [0, 1],                                                           # solar shade factor
-            [0, 1],                                                       # width coefficient nominator
-            [0, 1],                                                         # width exponent
-            [0, 1],                                                            # width A coefficient
-            [0, 1],                                                           # width coefficient denominator
-            [0, 40],                                                    # p
-            [0, 2],                                                        # q
+            [0.01, 3],                                                       # width coefficient nominator
+            [0.01, 1],                                                         # width exponent
+            [0.01, 1],                                                            # width A coefficient
+            [0.5, 40], #[0.01, 1],                                                           # width coefficient denominator
+            [0.01, 40],                                                    # p
+            [0.01, 2],                                                        # q
             [-5, 5],                     # correction factor for T_0 ()temp of water at begining in lateral flow
-            [0, 1],                       # cloud cover fraction
-            [0, 1],                        # PET_ hamon coefficient
-            [0, 1]                        # w3_shade
+            [0.01, 1],                       # cloud cover fraction
+            [0.01, 1],                        # PET_ hamon coefficient
+            [0.01, 1]                        # w3_shade
         ]
         # for all a and b
         if params.dim() == 3:
@@ -749,8 +809,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))
 
-        d = torch.pow(width_coef_nom * obsQ / (width_coef_denom * torch.pow(basin_area, width_A_coef)), width_exp)
-        top_width = p * torch.pow(d, q)
+        # d = torch.pow(width_coef_nom * obsQ / (width_coef_denom * torch.pow(basin_area, width_A_coef)), width_exp)
+        # top_width = 5 + p * torch.pow(d, q)
+        top_width = width_coef_nom * obsQ + width_coef_denom
         # if p.dim() == 3:
         #     top_width = p * torch.pow(basin_area, q)
         # elif p.dim() == 2:

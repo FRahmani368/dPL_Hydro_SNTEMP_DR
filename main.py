@@ -74,12 +74,12 @@ def main(args):
 
     # ANN model to simulate parameters
     # model = MLP(args)
-    # model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
-    #                     ny=27,
-    #                     hiddenSize=args["hyperparameters"]["hidden_size"],
-    #                     dr=args["hyperparameters"]["dropout"])
+    model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
+                        ny=27,
+                        hiddenSize=args["hyperparameters"]["hidden_size"],
+                        dr=args["hyperparameters"]["dropout"])
     Ts = STREAM_TEMP_EQ()
-    model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
+    # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
     #
     # loss function
     lossFun = crit.RmseLoss()
@@ -155,7 +155,7 @@ def main(args):
                 lossEp = lossEp + loss.item()
                 # del loss
                 # del Yp
-                # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+                print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
             lossEp = lossEp / nIterEp
             # torch.cuda.synchronize()
             logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(
