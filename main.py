@@ -75,7 +75,7 @@ def main(args):
     # ANN model to simulate parameters
     # model = MLP(args)
     model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
-                        ny=27,
+                        ny=23,
                         hiddenSize=args["hyperparameters"]["hidden_size"],
                         dr=args["hyperparameters"]["dropout"])
     Ts = STREAM_TEMP_EQ()

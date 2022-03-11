@@ -10,7 +10,7 @@ dataset:
   forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites.feather" #          no_dam_forcing_99%_days34sites.feather
   attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_415_all.feather" #          no_dam_attr_temp99%_days34sites.feather
 output:
-  model: "//home//fzr5082//PGML_STemp_results//models"
+  model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
 
 optData:
@@ -93,7 +93,7 @@ hyperparameters:
   EPOCHS: 1000
   hidden_size: 256
   dropout: 0.5
-  saveEpoch: 40
+  saveEpoch: 50
 seq_lin_layers:
   hidden_size: 256
 res_time_params:
