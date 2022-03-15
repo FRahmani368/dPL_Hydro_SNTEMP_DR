@@ -86,9 +86,17 @@ class CudnnLstm(torch.nn.Module):
         # output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(
         #     input, weight, 4, None, hx, cx, torch.backends.cudnn.CUDNN_LSTM,
         #     self.hiddenSize, 1, False, 0, self.training, False, (), None)
-        output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(  #torch._C._VariableFunctions._cudnn_rnn(
-            input.cuda(), weight, 4, None, hx.cuda(), cx.cuda(), 2,  # 2 means LSTM
-            self.hiddenSize, 1, False, 0, self.training, False, (), None)   # 4 was False before
+        if torch.__version__ < "1.8":
+            output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(
+                input, weight, 4, None, hx, cx, 2,  # 2 means LSTM
+                self.hiddenSize, 1, False, 0, self.training, False, (), None)
+        else:
+            output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(
+                input, weight, 4, None, hx, cx, 2,  # 2 means LSTM
+                self.hiddenSize, 0, 1, False, 0, self.training, False, (), None)
+        # output, hy, cy, reserve, new_weight_buf = torch._cudnn_rnn(  #torch._C._VariableFunctions._cudnn_rnn(
+        #     input.cuda(), weight, 4, None, hx.cuda(), cx.cuda(), 2,  # 2 means LSTM
+        #     self.hiddenSize, 1, False, 0, self.training, False, (), None)   # 4 was False before
         return output, (hy, cy)
 
     @property
@@ -452,6 +460,47 @@ class STREAM_TEMP_EQ(nn.Module):
             ave_air[s, :, :] = temp
         return ave_air
 
+    def x_sample_air_temp2(self, iGrid, iT, lenF, args, ave_air_total):
+        rho = args["hyperparameters"]['rho']
+        ave_air = torch.zeros((args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+                               lenF),
+                              device=args["device"])
+        # array = np.array([np.arange(x, y) for x, y in zip(iT, iT + rho)])
+        ave_air_temp = ave_air_total[iGrid, :, 0:lenF]
+        for i in range(len(iGrid)):
+            ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + rho), :]
+
+        # ave_air_temp = ave_air_total[:, iT : iT + rho, 0:lenF]
+        # ave_air = ave_air_temp[iGrid, :, :]
+        return ave_air
+
+
+    def ave_temp_general(self, args, x_total_raw_tensor, time_range):
+        vars = args['optData']['varT'] + args['optData']['varC']
+        lenF_max = np.maximum(args["res_time_params"]["lenF_srflow"],
+                              np.maximum(args["res_time_params"]["lenF_ssflow"],
+                                         args["res_time_params"]["lenF_gwflow"]))
+        tArray_Total = tRange2Array(args['optData']['tRange'])
+        tArray_sample = tRange2Array(time_range)
+        c, ind1, ind2 = np.intersect1d(tArray_sample, tArray_Total, return_indices=True)
+        ave_air = torch.zeros((x_total_raw_tensor.shape[0], len(tArray_sample),
+                               lenF_max),
+                              device=args["device"])
+
+        array = np.zeros((len(ind2), lenF_max), dtype=np.int32)
+        for j in range(lenF_max):
+            array[:, j] = np.arange((ind2[0] - j).item(),
+                                    (ind2[0] - j + len(ind2)).item())
+
+        for s in range(x_total_raw_tensor.shape[0]):
+            tmax_temp = x_total_raw_tensor[s, array, vars.index("tmax(C)")]
+            tmin_temp = x_total_raw_tensor[s, array, vars.index("tmin(C)")]
+            temp = (tmax_temp + tmin_temp) / 2
+            ave_air[s, :, :] = temp
+
+        return ave_air
+
+
     def res_time_gamma(self, a, b, lenF):
         # UH. a [time (same all time steps), batch, var]
         # a = torch.abs(a)
@@ -674,7 +723,8 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # return T_w_final
 
-    def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range):
+    # def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range,ave_air_total):
+    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total):
         # restricting the params
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
@@ -834,27 +884,33 @@ class STREAM_TEMP_EQ(nn.Module):
 
         w_srflow = self.res_time_gamma(a=a_srflow, b=b_srflow, lenF=args['res_time_params']['lenF_srflow'])
 
-        air_sample_sr = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                                               args=args, x_total_raw=x_total_raw,
-                                               time_range=time_range)
+        # air_sample_sr = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+        #                                        args=args, x_total_raw=x_total_raw,
+        #                                        time_range=time_range)
+        air_sample_sr = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+                                               args=args, ave_air_total=ave_air_total)
         w_srflow = w_srflow.permute(1, 2, 0)
         ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=sr_conv_bias)    # sr_conv_bias
 
         # subsurface flow
         w_ssflow = self.res_time_gamma(a=a_ssflow, b=b_ssflow, lenF=args['res_time_params']['lenF_ssflow'])
 
-        air_sample_ss = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
-                                               args=args, x_total_raw=x_total_raw,
-                                               time_range=time_range)
+        # air_sample_ss = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+        #                                        args=args, x_total_raw=x_total_raw,
+        #                                        time_range=time_range)
+        air_sample_ss = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+                                                args=args, ave_air_total=ave_air_total)
         w_ssflow = w_ssflow.permute(1, 2, 0)
         ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=ss_conv_bias)  # ss_conv_bias
 
         # groundwater flow
         w_gwflow = self.res_time_gamma(a=a_gwflow, b=b_gwflow, lenF=args['res_time_params']['lenF_gwflow'])
 
-        air_sample_gw = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
-                                               args=args, x_total_raw=x_total_raw,
-                                               time_range=time_range)
+        # air_sample_gw = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+        #                                        args=args, x_total_raw=x_total_raw,
+        #                                        time_range=time_range)
+        air_sample_gw = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+                                                args=args, ave_air_total=ave_air_total)
         w_gwflow = w_gwflow.permute(1, 2, 0)
         ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=gw_conv_bias)  # gw_conv_bias
 

@@ -113,7 +113,7 @@ def main(args):
 
 
     if 0 in args['Action']:
-
+        ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
         rho = args["hyperparameters"]["rho"]
         model.zero_grad()
         model.train()
@@ -136,9 +136,11 @@ def main(args):
                     params = model(xTrain_sample_scaled.permute(1, 0, 2))
                 yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
                 # Yp, ave_air_temp = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp)
+                # Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
+                #                               args=args, x_total_raw=x_total_raw_tensor,
+                #                               time_range=args['optData']['t_train'])
                 Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
-                                              args=args, x_total_raw=x_total_raw_tensor,
-                                              time_range=args['optData']['t_train'])
+                                              args=args, ave_air_total=ave_air_total)
 
                 mask_yp = Yp.ge(1e-6)
                 y_sim = Yp * mask_yp.int().float()
@@ -179,7 +181,7 @@ def main(args):
     if 1 in args['Action']:
         modelFile = os.path.join(args['output']['out_dir'],
                                  'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
-        modelFile = r'//home//fzr5082//PGML_STemp_results//models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep360.pt'
+        #modelFile = r'//home//fzr5082//PGML_STemp_results//models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep360.pt'
         # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_50_H_100_dr_0.5/model_Ep20.pt"\
         # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_99_H_100_dr_0.5/model_Ep80.pt"\
         # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1700.pt"

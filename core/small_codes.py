@@ -31,7 +31,7 @@ def create_output_dirs(args):
                  '_R_' + str(args['hyperparameters']['rho']) + \
                  '_B_' + str(args['hyperparameters']['batch_size']) + \
                  '_H_' + str(args['hyperparameters']['hidden_size']) + \
-                 '_dr_' + str(args['hyperparameters']['dropout'])
+                 '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(args['randomseed'])
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
         os.makedirs(os.path.join(args['output']['model'], out_folder))
     args['output']['out_dir'] = os.path.join(args['output']['model'], out_folder)
