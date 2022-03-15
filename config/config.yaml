@@ -97,8 +97,8 @@ hyperparameters:
 seq_lin_layers:
   hidden_size: 256
 res_time_params:
-  lenF_ssflow: 365
-  lenF_gwflow: 600
+  lenF_ssflow: 100
+  lenF_gwflow: 400
   lenF_srflow: 2
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
