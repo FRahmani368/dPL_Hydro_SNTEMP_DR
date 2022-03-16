@@ -462,7 +462,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
     def x_sample_air_temp2(self, iGrid, iT, lenF, args, ave_air_total):
         rho = args["hyperparameters"]['rho']
-        ave_air = torch.zeros((args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+        ave_air = torch.zeros((len(iGrid), args["hyperparameters"]["rho"],
                                lenF),
                               device=args["device"])
         # array = np.array([np.arange(x, y) for x, y in zip(iT, iT + rho)])
@@ -724,7 +724,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # return T_w_final
 
     # def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range,ave_air_total):
-    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total):
+    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total, gwflow_percentage):
         # restricting the params
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
@@ -959,4 +959,4 @@ class STREAM_TEMP_EQ(nn.Module):
         # scaling and bias
         T_w = final_scale * T_w + final_bias
 
-        return T_w, ave_air_temp
+        return T_w, ave_air_temp, gwflow_percentage

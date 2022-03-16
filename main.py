@@ -15,6 +15,7 @@ import os
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from post import stat, plot
+import math
 
 
 def syntheticP(args):
@@ -47,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [0, 1, 2]
+    seeds = [ 1, 2]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories
@@ -113,6 +114,8 @@ def main(args):
         shade_fraction_riparian = torch.zeros(args['hyperparameters']['batch_size'], 1,
                                               device=args["device"], dtype=torch.float32, requires_grad=False)
 
+        gwflow_percentage = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+                                   device=args["device"], dtype=torch.float32, requires_grad=False)
 
         if 0 in args['Action']:
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
@@ -141,8 +144,10 @@ def main(args):
                     # Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
                     #                               args=args, x_total_raw=x_total_raw_tensor,
                     #                               time_range=args['optData']['t_train'])
-                    Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
-                                                  args=args, ave_air_total=ave_air_total)
+                    Yp, ave_air_temp, gwflow_percentage = Ts.forward(xTrain_sample.transpose(0, 1),
+                                                                     params, iGrid, iT, ave_air_temp,
+                                                                     args=args, ave_air_total=ave_air_total,
+                                                                     gwflow_percentage=gwflow_percentage)
 
                     mask_yp = Yp.ge(1e-6)
                     y_sim = Yp * mask_yp.int().float()
@@ -183,7 +188,7 @@ def main(args):
         if 1 in args['Action']:
             modelFile = os.path.join(args['output']['out_dir'],
                                      'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
-            #modelFile = r'//home//fzr5082//PGML_STemp_results//models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep360.pt'
+            modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_50_H_100_dr_0.5/model_Ep20.pt"\
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_99_H_100_dr_0.5/model_Ep80.pt"\
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1700.pt"
@@ -202,40 +207,106 @@ def main(args):
             x_test_scaled_tensor = make_tensor(x_test_scaled, has_grad=False)
             y_test_tensor = make_tensor(y_test, has_grad=False)
 
-            iGrid = np.arange(x_test_scaled_tensor.shape[0])
-            iT = np.zeros(x_test_scaled_tensor.shape[1], dtype=np.int32)
+            # iGrid = np.arange(x_test_scaled_tensor.shape[0])
+            # iT = np.zeros(x_test_scaled_tensor.shape[1], dtype=np.int32)
+            iGrid = np.array([0])
+            iT = np.zeros((1))
             args_mod = args.copy()
-            args_mod["hyperparameters"]["batch_size"] = args['no_basins']
-            args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
-            if type(model) in [MLP]:
-                params = model(c_tensorTrain[iGrid])
-            ### CudnnLstm
-            if type(model) in [CudnnLstmModel]:
-                params = model(x_test_scaled_tensor[iGrid])
-
-            # params = model(c_tensorTrain)
-            # yObs = selectSubset(y_test, iGrid, iT, rho, has_grad=False)
+            # args_mod["hyperparameters"]["batch_size"] = args['no_basins']
+            # args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
+            ngrid, nt, nx = x_test_scaled_tensor.shape
+            rho = args['hyperparameters']['rho']
+            nrows = math.ceil(nt/rho)
+            batch_size = args_mod["hyperparameters"]["batch_size"]
+            iS = np.arange(0, ngrid, batch_size)
+            iE = np.append(iS[1:], ngrid)
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_test'])
-            # Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
-            #                               args=args_mod, x_total_raw=x_total_raw_tensor,
-            #                               time_range=args['optData']['t_test'])
-            Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
-                                          args=args_mod, ave_air_total=ave_air_total)
+            for i in range(0, len(iS)):
+                # print('batch {}'.format(i))
 
-            mask_yp = Yp.ge(0)
-            y_sim = (Yp * mask_yp.int().float()).unsqueeze(-1)
-            loss = lossFun(y_sim, y_test_tensor)
+                for j in range(nrows):
+                    if j != (nrows - 1):
+                        yTemp = torch.tensor(y_test_tensor[iS[i]:iE[i], j * rho: (j + 1) * rho, :])
+                        xTemp_scaled = x_test_scaled_tensor[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
+                        xTemp = x_test_tensor[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
+                        ave_air_test = ave_air_total[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
+                        if type(model) in [MLP]:
+                            params = model(xTemp_scaled)
+                        ### CudnnLstm
+                        if type(model) in [CudnnLstmModel]:
+                            params = model(xTemp_scaled)
+                        iGrid = np.arange(xTemp.shape[0])
+                        iT = np.zeros((len(iGrid)))
+                        Yp, ave_air_temp, gwflow_percentage = Ts.forward(xTemp, params, iGrid, iT, ave_air_temp,
+                                                      args=args_mod, ave_air_total=ave_air_test,
+                                                                         gwflow_percentage=gwflow_percentage)
+
+                    else:
+                        yTemp = torch.tensor(y_test_tensor[iS[i]:iE[i], j * rho:, :])
+                        xTemp_scaled = x_test_scaled_tensor[iS[i]:iE[i], j * rho:, :]
+                        xTemp = x_test_tensor[iS[i]:iE[i], j * rho:, :]
+                        ave_air_test = ave_air_total[iS[i]:iE[i], j * rho:, :]
+                        if type(model) in [MLP]:
+                            params = model(xTemp_scaled)
+                        ### CudnnLstm
+                        if type(model) in [CudnnLstmModel]:
+                            params = model(xTemp_scaled)
+                        iGrid = np.arange(xTemp.shape[0])
+                        iT = np.zeros((len(iGrid)))
+                        Yp, ave_air_temp, gwflow_percentage = Ts.forward(xTemp, params, iGrid, iT, ave_air_temp,
+                                                      args=args_mod, ave_air_total=ave_air_test,
+                                                                         gwflow_percentage=gwflow_percentage)
+                        # yP, _ = model(torch.tensor(xTemp).float().cuda())
+                        # yP = model(torch.tensor(xTemp).float().cuda(), yTemp)
+
+                    if (j == 0):
+                        out = Yp.detach().cpu()
+                        obstemp = yTemp
+                        gw = gwflow_percentage.unsqueeze(-1).detach().cpu()
+                    else:
+                        out = torch.cat((out, Yp.detach().cpu()), dim=1)  # Farshid: should dim be 1 or 2?
+                        obstemp = torch.cat((obstemp, yTemp), dim=1)
+                        gw = torch.cat((gw, gwflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
+                if i == 0:
+                    pred = out
+                    obs = obstemp
+                    gw_p = gw
+                else:
+                    pred = torch.cat((pred, out), dim=0)
+                    obs = torch.cat((obs, obstemp), dim=0)
+                    gw_p = torch.cat((gw_p, gw), dim=0)
+
+            # if type(model) in [MLP]:
+            #     params = model(c_tensorTrain[iGrid])
+            # ### CudnnLstm
+            # if type(model) in [CudnnLstmModel]:
+            #     params = model(x_test_scaled_tensor[iGrid])
+            #
+            # # params = model(c_tensorTrain)
+            # # yObs = selectSubset(y_test, iGrid, iT, rho, has_grad=False)
+            # ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_test'])
+            # # Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
+            # #                               args=args_mod, x_total_raw=x_total_raw_tensor,
+            # #                               time_range=args['optData']['t_test'])
+            # Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
+            #                               args=args_mod, ave_air_total=ave_air_total)
+
+            mask_pred = pred.ge(0)
+            y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
+            loss = lossFun(y_sim.detach().cpu(), obs.detach().cpu())
             print(loss)
 
 
             predLst = list()
             obsLst = list()
             y_sim_np = y_sim.detach().cpu().numpy()
-            y_obs_np = y_test_tensor.detach().cpu().numpy()
+            y_obs_np = obs.detach().cpu().numpy()
+            gw_p_np = gw_p.detach().cpu().numpy()
             predLst.append(y_sim_np)  # the prediction list for all the models
             obsLst.append(y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'pred.npy'), y_sim_np)
             np.save(os.path.join(args['output']['out_dir'], 'obs.npy'), y_obs_np)
+            np.save(os.path.join(args['output']['out_dir'], 'gw_p.npy'), gw_p_np)
             statDictLst = [stat.statError(x.squeeze(), y.squeeze()) for (x, y) in zip(predLst, obsLst)]
             ### save this file too
             # median and STD calculation
@@ -279,11 +350,11 @@ def main(args):
 
 
 
-    if __name__=='__main__':
-        args = config
-        # syntheticP(args)
-        main(args)
-        print('END')
+if __name__=='__main__':
+    args = config
+    # syntheticP(args)
+    main(args)
+    print('END')
 
 
 
