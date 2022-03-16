@@ -724,7 +724,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # return T_w_final
 
     # def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range,ave_air_total):
-    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total, gwflow_percentage):
+    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total, gwflow_percentage, ssflow_percentage):
         # restricting the params
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
@@ -959,4 +959,4 @@ class STREAM_TEMP_EQ(nn.Module):
         # scaling and bias
         T_w = final_scale * T_w + final_bias
 
-        return T_w, ave_air_temp, gwflow_percentage
+        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage
