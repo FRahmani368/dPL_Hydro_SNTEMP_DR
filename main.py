@@ -48,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [ 1, 2]
+    seeds = [0, 1, 2, 3, 4]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories
@@ -118,6 +118,10 @@ def main(args):
                                    device=args["device"], dtype=torch.float32, requires_grad=False)
         ssflow_percentage = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
                                         device=args["device"], dtype=torch.float32, requires_grad=False)
+        # ss_tau = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+        #                                 device=args["device"], dtype=torch.float32, requires_grad=False)
+        # gw_tau = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
+        #                                 device=args["device"], dtype=torch.float32, requires_grad=False)
 
         if 0 in args['Action']:
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
@@ -146,7 +150,7 @@ def main(args):
                     # Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
                     #                               args=args, x_total_raw=x_total_raw_tensor,
                     #                               time_range=args['optData']['t_train'])
-                    Yp, ave_air_temp, gwflow_percentage, ssflow_percentage = Ts.forward(xTrain_sample.transpose(0, 1),
+                    Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTrain_sample.transpose(0, 1),
                                                                      params, iGrid, iT, ave_air_temp,
                                                                      args=args, ave_air_total=ave_air_total,
                                                                      gwflow_percentage=gwflow_percentage,
@@ -189,9 +193,9 @@ def main(args):
             print('end')
 
         if 1 in args['Action']:
-            # modelFile = os.path.join(args['output']['out_dir'],
-            #                          'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
-            modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
+            modelFile = os.path.join(args['output']['out_dir'],
+                                      'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
+            # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_1000_R_365_B_208_H_256_dr_0.5_4/model_Ep650.pt"
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_50_H_100_dr_0.5/model_Ep20.pt"\
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_99_H_100_dr_0.5/model_Ep80.pt"\
@@ -241,7 +245,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage = Ts.forward(xTemp, params, iGrid,
+                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTemp, params, iGrid,
                                                       iT, ave_air_temp,
                                                       args=args_mod, ave_air_total=ave_air_test,
                                                       gwflow_percentage=gwflow_percentage,
@@ -259,7 +263,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage = Ts.forward(xTemp, params, iGrid,
+                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTemp, params, iGrid,
                                                     iT, ave_air_temp,
                                                     args=args_mod, ave_air_total=ave_air_test,
                                                     gwflow_percentage=gwflow_percentage,
@@ -272,21 +276,29 @@ def main(args):
                         obstemp = yTemp
                         gw = gwflow_percentage.unsqueeze(-1).detach().cpu()
                         ss = ssflow_percentage.unsqueeze(-1).detach().cpu()
+                        w_gw_tau = gw_tau.unsqueeze(-1).detach().cpu()
+                        w_ss_tau = ss_tau.unsqueeze(-1).detach().cpu()
                     else:
                         out = torch.cat((out, Yp.detach().cpu()), dim=1)  # Farshid: should dim be 1 or 2?
                         obstemp = torch.cat((obstemp, yTemp), dim=1)
                         gw = torch.cat((gw, gwflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
                         ss = torch.cat((ss, ssflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
+                        ww_gw_tau = torch.cat((w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1)
+                        ww_ss_tau = torch.cat((w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1)
                 if i == 0:
                     pred = out
                     obs = obstemp
                     gw_p = gw
                     ss_p = ss
+                    weight_gw = ww_gw_tau
+                    weight_ss = ww_ss_tau
                 else:
                     pred = torch.cat((pred, out), dim=0)
                     obs = torch.cat((obs, obstemp), dim=0)
                     gw_p = torch.cat((gw_p, gw), dim=0)
                     ss_p = torch.cat((ss_p, ss), dim=0)
+                    weight_gw = torch.cat((weight_gw, ww_gw_tau), dim=0)
+                    weight_ss = torch.cat((weight_ss, ww_ss_tau), dim=0)
 
             # if type(model) in [MLP]:
             #     params = model(c_tensorTrain[iGrid])
@@ -315,12 +327,16 @@ def main(args):
             y_obs_np = obs.detach().cpu().numpy()
             gw_p_np = gw_p.detach().cpu().numpy()
             ss_p_np = ss_p.detach().cpu().numpy()
+            weight_gw_np = weight_gw.detach().cpu().numpy()
+            weight_ss_np = weight_ss.detach().cpu().numpy()
             predLst.append(y_sim_np)  # the prediction list for all the models
             obsLst.append(y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'pred.npy'), y_sim_np)
             np.save(os.path.join(args['output']['out_dir'], 'obs.npy'), y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'gw_p.npy'), gw_p_np)
             np.save(os.path.join(args['output']['out_dir'], 'ss_p.npy'), ss_p_np)
+            np.save(os.path.join(args['output']['out_dir'], 'weight_gw.npy'), weight_gw_np)
+            np.save(os.path.join(args['output']['out_dir'], 'weight_ss.npy'), weight_ss_np)
             statDictLst = [stat.statError(x.squeeze(), y.squeeze()) for (x, y) in zip(predLst, obsLst)]
             ### save this file too
             # median and STD calculation
@@ -358,6 +374,7 @@ def main(args):
             plt.rcParams['font.size'] = 12
             plt.savefig(os.path.join(args['output']['out_dir'], "Boxplot.png"))  # , dpi=500
             fig.show()
+            plt.close()
             print("END testing")
 
 
