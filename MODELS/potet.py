@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import os
 from core.read_configurations import config
-def potet_hamon(mean_air_temp, dayl, hamon_coef=0.1651):
+def potet_hamon(mean_air_temp, dayl, hamon_coef=0.0055):   # hamon_coef=0.1651
     """
     :param mean_air_temp: daily mean air temperature (celecius)
     :param dayl: seconds of sunshine(number of hours between sunshine and sunset), need to convert to hour
@@ -16,7 +16,7 @@ def potet_hamon(mean_air_temp, dayl, hamon_coef=0.1651):
     # rho is saturated water-vapor density (absolute humidity)
     rho = (216.7/(mean_air_temp + 273.3)) * e_s
 
-    PET = hamon_coef * torch.pow((dayl/3600)/12, 2) * rho * 0.0254 / 86400     # 25.4 is converting inches to m/day
+    PET = hamon_coef * torch.pow((dayl/3600)/12, 2) * rho * 0.0254 / 86400     # 25.4 is converting inches to m/s
 
     # replacing negative values with zero
     mask_PET = PET.ge(0)

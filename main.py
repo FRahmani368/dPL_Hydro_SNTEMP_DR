@@ -48,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [0, 1, 2, 3, 4]
+    seeds = [ 1, 2, 3, 4]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories

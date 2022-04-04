@@ -1,14 +1,14 @@
 ##### This is an example .yaml file for how you should make your config file
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
-randomseed: 4
+randomseed: 1
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
 #  forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_temp99%_days_99sites.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites.feather" #          no_dam_forcing_99%_days34sites.feather
-  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_415_all.feather" #          no_dam_attr_temp99%_days34sites.feather
+  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_415_all_2.feather" #          no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -20,7 +20,7 @@ optData:
 
   varC: [
     'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
-    'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE',
+    'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "stream_length_artificial",
 
     'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',     # Round1
      'GRASSNLCD06', 'WOODYWETNLCD06', 'RIP100_DEV', 'RAW_AVG_DIS_ALL_MAJ_NPDES', 'STOR_NOR_2009','SILTAVE',

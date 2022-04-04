@@ -735,15 +735,15 @@ class STREAM_TEMP_EQ(nn.Module):
             [0, 3], [-4, 4],                                            # final scale and final bias
             [0, 0.15],                                                        # albedo
             [0, 1],                                                           # solar shade factor
-            [0.01, 3],                                                       # width coefficient nominator
+            [0.01, 2],                                                       # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
             # [0.01, 1],                                                            # width A coefficient
-            [0.5, 40], #[0.01, 1],                                                           # width coefficient denominator
+            [0.5, 10], #[0.01, 1],                                                     # width coefficient denominator
             # [0.01, 40],                                                    # p
             # [0.01, 2],                                                        # q
-            [-5, 5],                     # correction factor for T_0 ()temp of water at begining in lateral flow
+            [-1, 1],                     # correction factor for T_0 ()temp of water at begining in lateral flow
             [0.01, 1],                       # cloud cover fraction
-            [0.01, 1],                        # PET_ hamon coefficient
+            [0.004, 0.008],                        # PET_ hamon coefficient
             [0.01, 1]                        # w3_shade
         ]
         # for all a and b
@@ -845,8 +845,9 @@ class STREAM_TEMP_EQ(nn.Module):
             swrad = (x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')] / 86400)
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
             slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")]  # adding the percentage, it is a watershed slope not a stream slope
-            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-            stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
+            # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+            # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
+            stream_length = x[:, :, vars.index("stream_length_artificial")]
 
 
             basin_area = x[:, :, vars.index("DRAIN_SQKM")]
@@ -945,7 +946,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0))
 
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
-                                                   q_l=obsQ / stream_length, L=stream_length, args=args,
+                                                   q_l=obsQ , L=stream_length, args=args,
                                                    T_0=T_0, Q_0=Q_0)
 
         # writing the original fortran code here
@@ -957,6 +958,6 @@ class STREAM_TEMP_EQ(nn.Module):
 
 
         # scaling and bias
-        T_w = final_scale * T_w + final_bias
+        # T_w = final_scale * T_w + final_bias
 
         return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, w_gwflow, w_ssflow
