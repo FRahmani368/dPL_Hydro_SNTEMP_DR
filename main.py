@@ -48,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [ 1, 2, 3, 4]
+    seeds = [0, 1, 2, 3, 4]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories
@@ -150,7 +150,8 @@ def main(args):
                     # Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
                     #                               args=args, x_total_raw=x_total_raw_tensor,
                     #                               time_range=args['optData']['t_train'])
-                    Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTrain_sample.transpose(0, 1),
+                    Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
+                    shade_fraction_riparian, shade_fraction_topo, top_width = Ts.forward(xTrain_sample.transpose(0, 1),
                                                                      params, iGrid, iT, ave_air_temp,
                                                                      args=args, ave_air_total=ave_air_total,
                                                                      gwflow_percentage=gwflow_percentage,
@@ -245,7 +246,8 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTemp, params, iGrid,
+                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
+                        shade_fraction_riparian, shade_fraction_topo, top_width = Ts.forward(xTemp, params, iGrid,
                                                       iT, ave_air_temp,
                                                       args=args_mod, ave_air_total=ave_air_test,
                                                       gwflow_percentage=gwflow_percentage,
@@ -263,7 +265,8 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau = Ts.forward(xTemp, params, iGrid,
+                        Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
+                        shade_fraction_riparian, shade_fraction_topo, top_width = Ts.forward(xTemp, params, iGrid,
                                                     iT, ave_air_temp,
                                                     args=args_mod, ave_air_total=ave_air_test,
                                                     gwflow_percentage=gwflow_percentage,
@@ -278,6 +281,10 @@ def main(args):
                         ss = ssflow_percentage.unsqueeze(-1).detach().cpu()
                         w_gw_tau = gw_tau.unsqueeze(-1).detach().cpu()
                         w_ss_tau = ss_tau.unsqueeze(-1).detach().cpu()
+                        PET = pet.unsqueeze(-1).detach().cpu()
+                        shade_frac_rip = shade_fraction_riparian.unsqueeze(-1).detach().cpu()
+                        shade_frac_top = shade_fraction_topo.unsqueeze(-1).detach().cpu()
+                        top_w = top_width.unsqueeze(-1).detach().cpu()
                     else:
                         out = torch.cat((out, Yp.detach().cpu()), dim=1)  # Farshid: should dim be 1 or 2?
                         obstemp = torch.cat((obstemp, yTemp), dim=1)
@@ -285,6 +292,10 @@ def main(args):
                         ss = torch.cat((ss, ssflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
                         ww_gw_tau = torch.cat((w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1)
                         ww_ss_tau = torch.cat((w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1)
+                        PET_m = torch.cat((PET, pet.unsqueeze(-1).detach().cpu()), dim=1)
+                        shade_frac_rip_m = torch.cat((shade_frac_rip, shade_fraction_riparian.unsqueeze(-1).detach().cpu()), dim=1)
+                        shade_frac_top_m = torch.cat((shade_frac_top, shade_fraction_topo.unsqueeze(-1).detach().cpu()), dim=1)
+                        top_w_m = torch.cat((top_w, top_width.unsqueeze(-1).detach().cpu()), dim=1)
                 if i == 0:
                     pred = out
                     obs = obstemp
@@ -292,6 +303,10 @@ def main(args):
                     ss_p = ss
                     weight_gw = ww_gw_tau
                     weight_ss = ww_ss_tau
+                    PET_mm = PET_m
+                    shade_frac_rip_mm = shade_frac_rip_m
+                    shade_frac_top_mm = shade_frac_top_m
+                    top_w_mm = top_w_m
                 else:
                     pred = torch.cat((pred, out), dim=0)
                     obs = torch.cat((obs, obstemp), dim=0)
@@ -299,6 +314,12 @@ def main(args):
                     ss_p = torch.cat((ss_p, ss), dim=0)
                     weight_gw = torch.cat((weight_gw, ww_gw_tau), dim=0)
                     weight_ss = torch.cat((weight_ss, ww_ss_tau), dim=0)
+                    PET_mm = torch.cat((PET_mm, PET_m), dim=0)
+                    shade_frac_rip_mm = torch.cat((shade_frac_rip_mm, shade_frac_rip_m), dim=0)
+                    shade_frac_top_mm = torch.cat((shade_frac_top_mm, shade_frac_top_m), dim=0)
+                    top_w_mm = torch.cat((top_w_mm, top_w_m), dim=0)
+
+
 
             # if type(model) in [MLP]:
             #     params = model(c_tensorTrain[iGrid])
@@ -329,6 +350,10 @@ def main(args):
             ss_p_np = ss_p.detach().cpu().numpy()
             weight_gw_np = weight_gw.detach().cpu().numpy()
             weight_ss_np = weight_ss.detach().cpu().numpy()
+            PET_mm_np = PET_mm.detach().cpu().numpy()
+            shade_frac_rip_mm_np = shade_frac_rip_mm.detach().cpu().numpy()
+            shade_frac_top_mm_np = shade_frac_top_mm.detach().cpu().numpy()
+            top_w_mm_np = top_w_mm.detach().cpu().numpy()
             predLst.append(y_sim_np)  # the prediction list for all the models
             obsLst.append(y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'pred.npy'), y_sim_np)
@@ -337,6 +362,10 @@ def main(args):
             np.save(os.path.join(args['output']['out_dir'], 'ss_p.npy'), ss_p_np)
             np.save(os.path.join(args['output']['out_dir'], 'weight_gw.npy'), weight_gw_np)
             np.save(os.path.join(args['output']['out_dir'], 'weight_ss.npy'), weight_ss_np)
+            np.save(os.path.join(args['output']['out_dir'], 'PET.npy'), PET_mm_np)
+            np.save(os.path.join(args['output']['out_dir'], 'shade_frac_rip.npy'), shade_frac_rip_mm_np)
+            np.save(os.path.join(args['output']['out_dir'], 'shade_frac_topo.npy'), shade_frac_top_mm_np)
+            np.save(os.path.join(args['output']['out_dir'], 'top_width.npy'), top_w_mm_np)
             statDictLst = [stat.statError(x.squeeze(), y.squeeze()) for (x, y) in zip(predLst, obsLst)]
             ### save this file too
             # median and STD calculation

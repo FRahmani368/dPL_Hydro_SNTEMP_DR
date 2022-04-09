@@ -728,12 +728,12 @@ class STREAM_TEMP_EQ(nn.Module):
         # restricting the params
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
-            [0.01, 4], [0.01, 4], [0.01, 5], [0.01, 5], [0.01, 12], [0.01, 12],      # a and b
+            [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
             [0, 1],                                                    # shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
             [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
             [0, 3], [-4, 4],                                            # final scale and final bias
-            [0, 0.15],                                                        # albedo
+            [0, 0.12],                                                        # albedo
             [0, 1],                                                           # solar shade factor
             [0.01, 2],                                                       # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
@@ -960,4 +960,4 @@ class STREAM_TEMP_EQ(nn.Module):
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
 
-        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, w_gwflow, w_ssflow
+        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width
