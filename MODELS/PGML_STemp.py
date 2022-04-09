@@ -960,4 +960,5 @@ class STREAM_TEMP_EQ(nn.Module):
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
 
-        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width
+        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, \
+               w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, cloud_fraction
