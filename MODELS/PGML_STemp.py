@@ -728,12 +728,13 @@ class STREAM_TEMP_EQ(nn.Module):
         # restricting the params
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
-            [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
+            # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
+            [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10],  # a and b
             [0, 1],                                                    # shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
             [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
             [0, 3], [-4, 4],                                            # final scale and final bias
-            [0, 0.12],                                                        # albedo
+            [0.1, 0.10001],                                                        # albedo
             [0, 1],                                                           # solar shade factor
             [0.01, 2],                                                       # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
@@ -891,7 +892,7 @@ class STREAM_TEMP_EQ(nn.Module):
         air_sample_sr = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
                                                args=args, ave_air_total=ave_air_total)
         w_srflow = w_srflow.permute(1, 2, 0)
-        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=sr_conv_bias)    # sr_conv_bias
+        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=None)    # bias=None, sr_conv_bias
 
         # subsurface flow
         w_ssflow = self.res_time_gamma(a=a_ssflow, b=b_ssflow, lenF=args['res_time_params']['lenF_ssflow'])
@@ -902,7 +903,7 @@ class STREAM_TEMP_EQ(nn.Module):
         air_sample_ss = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
                                                 args=args, ave_air_total=ave_air_total)
         w_ssflow = w_ssflow.permute(1, 2, 0)
-        ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=ss_conv_bias)  # ss_conv_bias
+        ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=None)  # ss_conv_bias
 
         # groundwater flow
         w_gwflow = self.res_time_gamma(a=a_gwflow, b=b_gwflow, lenF=args['res_time_params']['lenF_gwflow'])
@@ -913,7 +914,7 @@ class STREAM_TEMP_EQ(nn.Module):
         air_sample_gw = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
                                                 args=args, ave_air_total=ave_air_total)
         w_gwflow = w_gwflow.permute(1, 2, 0)
-        ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=gw_conv_bias)  # gw_conv_bias
+        ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=None)  # gw_conv_bias
 
         ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=2)
 
@@ -931,7 +932,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # if there is upstream flow, it should be weighted average temperature of all flows
         # todo: need to check T_0. in fortran code it is like below, however, I believe it should be air temperature
         #  as it is used in e_s calculation and some other equations too.
-        T_0 = T_l + lat_temp_adj
+        T_0 = T_l #+ lat_temp_adj
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, up_inflow=up_inflow, E=PET,
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
@@ -961,4 +962,5 @@ class STREAM_TEMP_EQ(nn.Module):
         # T_w = final_scale * T_w + final_bias
 
         return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, \
-               w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, cloud_fraction
+               w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
+               cloud_fraction, hamon_coef
