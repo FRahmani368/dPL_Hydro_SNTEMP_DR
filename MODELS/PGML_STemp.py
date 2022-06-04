@@ -595,19 +595,24 @@ class STREAM_TEMP_EQ(nn.Module):
         :return: temperature of lateral flow
         """
         # with torch.no_grad():
-        srflow_temp = ave_air_temp[:, :, 0]  # .clone().detach()
-        ssflow_temp = ave_air_temp[:, :, 1]  # .clone().detach()
-        gwflow_temp = ave_air_temp[:, :, 2]  # .clone().detach()
+        mask_ave_air_temp = ave_air_temp.ge(0)
+        ave_air_temp_new = ave_air_temp * mask_ave_air_temp.int().float()
+
+
+
+        srflow_temp = ave_air_temp_new[:, :, 0]  # .clone().detach()
+        ssflow_temp = ave_air_temp_new[:, :, 1]  # .clone().detach()
+        gwflow_temp = ave_air_temp_new[:, :, 2]  # .clone().detach()
 
         denom = gwflow + ssflow + srflow
         mask_denom = denom.eq(0)
         denom = denom + mask_denom.int().float()
-        T_l = ((gwflow * ave_air_temp[:, :, 2] + srflow * ave_air_temp[:, :, 0] +
-                ssflow * ave_air_temp[:, :, 1]) / denom)
+        T_l = ((gwflow * ave_air_temp_new[:, :, 2] + srflow * ave_air_temp_new[:, :, 0] +
+                ssflow * ave_air_temp_new[:, :, 1]) / denom)
 
         mask_less_zero = T_l.le(NEARZERO)
         T_l[mask_less_zero] = 0.0
-        return T_l, srflow_temp, ssflow_temp, gwflow_temp
+        return T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L, args,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01), NEARZERO=1e-10):
@@ -918,7 +923,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
         ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=2)
 
-        T_l, srflow_temp, ssflow_temp, gwflow_temp = self.lateral_flow_temperature(srflow=srflow,
+        T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
                                                                                    ave_air_temp=ave_air_temp)
@@ -961,6 +966,6 @@ class STREAM_TEMP_EQ(nn.Module):
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
 
-        return T_w, ave_air_temp, gwflow_percentage, ssflow_percentage, \
+        return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
                w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
                cloud_fraction, hamon_coef
