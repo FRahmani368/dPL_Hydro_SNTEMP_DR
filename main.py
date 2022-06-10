@@ -48,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [1,2,3, 4]
+    seeds = [0, 1, 2, 3, 4]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories mn
@@ -65,7 +65,8 @@ def main(args):
         x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
                                                                                           x_total_scaled, y_scaled)
 
-
+        vars = args["optData"]["varT"] + args["optData"]["varC"]
+        x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
         # changing the numpy to tensor
         # (x_total_raw_tensor, y_raw_tensor, c_raw_tensor,
         #  x_total_scaled_tensor, y_scaled_tensor, c_scaled_tensor,
@@ -77,8 +78,8 @@ def main(args):
 
         # ANN model to simulate parameters
         # model = MLP(args)
-        model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
-                            ny=23,
+        model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"])-1,
+                            ny=22,
                             hiddenSize=args["hyperparameters"]["hidden_size"],
                             dr=args["hyperparameters"]["dropout"])
         Ts = STREAM_TEMP_EQ()
@@ -86,7 +87,7 @@ def main(args):
         #
         # loss function
         lossFun = crit.RmseLoss()
-        optim = torch.optim.Adadelta(model.parameters(), lr=0.1)
+        optim = torch.optim.Adadelta(model.parameters())   # , lr=0.1
         # optim = torch.optim.SGD(model.parameters(), lr=10)
 
         if torch.cuda.is_available():
@@ -138,7 +139,7 @@ def main(args):
                     # iGrid = np.arange(99)
                     # iT = np.zeros(99, dtype=np.int32)
                     xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
-                    xTrain_sample_scaled = selectSubset(x_train_scaled, iGrid, iT, rho, has_grad=False)
+                    xTrain_sample_scaled = selectSubset(x_train_scaled_noccov, iGrid, iT, rho, has_grad=False) #x_train_scaled
                     ### MLP
                     if type(model) in [MLP]:
                         params = model(c_tensorTrain[iGrid])
@@ -173,7 +174,7 @@ def main(args):
                     lossEp = lossEp + loss.item()
                     # del loss
                     # del Yp
-                    print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+                    # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
                 lossEp = lossEp / nIterEp
                 # torch.cuda.synchronize()
                 logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(
@@ -212,10 +213,11 @@ def main(args):
             #Normalizing the inputs for ML part
             x_test_scaled, _, _, _, _, _ = train_val_test_split("t_test", args, time1,
                                                                                            x_total_scaled, y_raw)
+            x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
 
             np.save(os.path.join(args['output']['out_dir'], 'x.npy'), x_test)
             x_test_tensor = make_tensor(x_test, has_grad=False)
-            x_test_scaled_tensor = make_tensor(x_test_scaled, has_grad=False)
+            x_test_scaled_tensor = make_tensor(x_test_scaled_noccov, has_grad=False) #x_test_scaled
             y_test_tensor = make_tensor(y_test, has_grad=False)
 
             # iGrid = np.arange(x_test_scaled_tensor.shape[0])

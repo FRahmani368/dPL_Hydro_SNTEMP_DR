@@ -734,7 +734,8 @@ class STREAM_TEMP_EQ(nn.Module):
         NEARZERO = args["NEARZERO"]
         paramCalLst = [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10], [0.01, 10],  # a and b
+            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+            # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
             [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
@@ -748,7 +749,7 @@ class STREAM_TEMP_EQ(nn.Module):
             # [0.01, 40],                                                    # p
             # [0.01, 2],                                                        # q
             [-1, 1],                     # correction factor for T_0 ()temp of water at begining in lateral flow
-            [0.01, 1],                       # cloud cover fraction
+            # [0.01, 1],                       # cloud cover fraction
             [0.004, 0.008],                        # PET_ hamon coefficient
             [0.01, 1]                        # w3_shade
         ]
@@ -789,10 +790,10 @@ class STREAM_TEMP_EQ(nn.Module):
             # p = params[:, :, 21] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
             # q = params[:, :, 22] * (paramCalLst[22][1] - paramCalLst[22][0]) + paramCalLst[22][0]
             lat_temp_adj = params[:, :, 19] * (paramCalLst[19][1] - paramCalLst[19][0]) + paramCalLst[19][0]
-            cloud_fraction = params[:, :, 20] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
+            # cloud_fraction = params[:, :, 20] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
 
-            hamon_coef = params[:, :, 21] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
-            w3_shade = params[:, :, 22] * (paramCalLst[22][1] - paramCalLst[22][0]) + paramCalLst[22][0]
+            hamon_coef = params[:, :, 20] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
+            w3_shade = params[:, :, 21] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
         if params.dim() == 2:
             a_srflow = params[:, 0: 1] * (paramCalLst[0][1] - paramCalLst[0][0]) + paramCalLst[0][0]
             b_srflow = params[:, 1: 2] * (paramCalLst[1][1] - paramCalLst[1][0]) + paramCalLst[1][0]
@@ -854,10 +855,8 @@ class STREAM_TEMP_EQ(nn.Module):
             # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
             stream_length = x[:, :, vars.index("stream_length_artificial")]
-
-
             basin_area = x[:, :, vars.index("DRAIN_SQKM")]
-
+        cloud_fraction = x[:, :, vars.index("ccov")]
             # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
 
             # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
