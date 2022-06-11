@@ -90,3 +90,25 @@ no_basins: 415
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
+static_params_list: [11, 12, 13]
+paramCalLst: [
+            # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
+            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+            # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
+            [0, 1],                                                    # shade factor
+            [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
+            # [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
+            # [0, 3], [-4, 4],                                            # final scale and final bias
+            # [0.1, 0.10001],                                                        # albedo
+            [0, 1],                                                           # solar shade factor
+            [0.01, 2],                                                       # width coefficient nominator
+            # [0.01, 1],                                                         # width exponent
+            # [0.01, 1],                                                            # width A coefficient
+            [0.5, 10], #[0.01, 1],                                                     # width coefficient denominator
+            # [0.01, 40],                                                    # p
+            # [0.01, 2],                                                        # q
+            # [-1, 1],                     # correction factor for T_0 ()temp of water at begining in lateral flow
+            # [0.01, 1],                       # cloud cover fraction
+            [0.004, 0.008],                        # PET_ hamon coefficient
+            [0, 1]
+]
