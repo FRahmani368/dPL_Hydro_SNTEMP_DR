@@ -747,27 +747,7 @@ class STREAM_TEMP_EQ(nn.Module):
     def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total, gwflow_percentage, ssflow_percentage):
         # restricting the params
         NEARZERO = args["NEARZERO"]
-        paramCalLst = [
-            # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
-            # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
-            [0, 1],                                                    # shade factor
-            [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
-            # [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
-            # [0, 3], [-4, 4],                                            # final scale and final bias
-            # [0.1, 0.10001],                                                        # albedo
-            [0, 1],                                                           # solar shade factor
-            [0.01, 2],                                                       # width coefficient nominator
-            # [0.01, 1],                                                         # width exponent
-            # [0.01, 1],                                                            # width A coefficient
-            [0.5, 10], #[0.01, 1],                                                     # width coefficient denominator
-            # [0.01, 40],                                                    # p
-            # [0.01, 2],                                                        # q
-            # [-1, 1],                     # correction factor for T_0 ()temp of water at begining in lateral flow
-            # [0.01, 1],                       # cloud cover fraction
-            [0.004, 0.008],                        # PET_ hamon coefficient
-            [0, 1]                        # w3_shade
-        ]
+
         # for all a and b
 
         a_srflow = self.parameter_bounds(params, 0, args)
@@ -785,6 +765,7 @@ class STREAM_TEMP_EQ(nn.Module):
         width_coef_denom = self.parameter_bounds(params, 12, args)
         hamon_coef = self.parameter_bounds(params, 13, args)
         w3_shade = self.parameter_bounds(params, 14, args)
+        lat_temp_adj = self.parameter_bounds(params, 15, args)
         # # shade_fraction_riparian = params[:, :, 6] * (paramCalLst[6][1] - paramCalLst[6][0]) + paramCalLst[6][0]
         #
         #
@@ -849,7 +830,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # d = torch.pow(width_coef_nom * obsQ / (width_coef_denom * torch.pow(basin_area, width_A_coef)), width_exp)
         # top_width = 5 + p * torch.pow(d, q)
-        top_width = width_coef_nom * obsQ + width_coef_denom
+        # top_width = width_coef_nom * obsQ + width_coef_denom
+        # top_width = width_coef_nom * (obsQ ** width_coef_denom) + 0.5
+        top_width = torch.abs(width_coef_nom) * torch.pow(torch.abs(obsQ + 0.0001), torch.abs(width_coef_denom)) + 0.5
         # if p.dim() == 3:
         #     top_width = p * torch.pow(basin_area, q)
         # elif p.dim() == 2:
@@ -921,7 +904,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # if there is upstream flow, it should be weighted average temperature of all flows
         # todo: need to check T_0. in fortran code it is like below, however, I believe it should be air temperature
         #  as it is used in e_s calculation and some other equations too.
-        T_0 = T_l #+ lat_temp_adj
+        T_0 = T_l + lat_temp_adj
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, up_inflow=up_inflow, E=PET,
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
