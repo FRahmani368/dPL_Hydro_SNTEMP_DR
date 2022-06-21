@@ -351,7 +351,7 @@ class STREAM_TEMP_EQ(nn.Module):
         B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
         C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
         # Todo: need to check 10**6. it is in fortran code but it is not in the document
-        D = H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
+        D = H_f + H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
         # D = H_a + swrad + H_v + 2495 * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
 
         return A, B, C, D
@@ -465,10 +465,14 @@ class STREAM_TEMP_EQ(nn.Module):
         ave_air = torch.zeros((len(iGrid), args["hyperparameters"]["rho"],
                                lenF),
                               device=args["device"])
+        # ave_air = torch.zeros((len(iGrid), ave_air_total.shape[1],
+        #                        lenF),
+        #                       device=args["device"])
         # array = np.array([np.arange(x, y) for x, y in zip(iT, iT + rho)])
         ave_air_temp = ave_air_total[iGrid, :, 0:lenF]
         for i in range(len(iGrid)):
             ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + rho), :]
+            # ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + ave_air_total.shape[1]), :]
 
         # ave_air_temp = ave_air_total[:, iT : iT + rho, 0:lenF]
         # ave_air = ave_air_temp[iGrid, :, :]
@@ -906,7 +910,7 @@ class STREAM_TEMP_EQ(nn.Module):
         #  as it is used in e_s calculation and some other equations too.
         T_0 = T_l + lat_temp_adj
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, up_inflow=up_inflow, E=PET,
+                                         slope=slope, top_width=top_width, up_inflow=obsQ/3, E=PET,   #up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
                                          albedo=albedo,
                                          shade_total=shade_total,

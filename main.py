@@ -299,43 +299,43 @@ def main(args):
                         obstemp = torch.cat((obstemp, yTemp), dim=1)
                         gw = torch.cat((gw, gwflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
                         ss = torch.cat((ss, ssflow_percentage.unsqueeze(-1).detach().cpu()), dim=1)
-                        ww_gw_tau = torch.cat((w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1)
-                        ww_ss_tau = torch.cat((w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1)
-                        PET_m = torch.cat((PET, pet.unsqueeze(-1).detach().cpu()), dim=1)
-                        shade_frac_rip_m = torch.cat((shade_frac_rip, shade_fraction_riparian.unsqueeze(-1).detach().cpu()), dim=1)
-                        shade_frac_top_m = torch.cat((shade_frac_top, shade_fraction_topo.unsqueeze(-1).detach().cpu()), dim=1)
-                        top_w_m = torch.cat((top_w, top_width.unsqueeze(-1).detach().cpu()), dim=1)
-                        cloud_m = torch.cat((cloud, cloud_fraction.unsqueeze(-1).detach().cpu()), dim=1)
-                        hamon_co_m = torch.cat((hamon_co, hamon_coef.unsqueeze(-1).detach().cpu()), dim=1)
-                        lat_temp_m = torch.cat((lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1)
+                        w_gw_tau = torch.cat((w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1)
+                        w_ss_tau = torch.cat((w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1)
+                        PET = torch.cat((PET, pet.unsqueeze(-1).detach().cpu()), dim=1)
+                        shade_frac_rip = torch.cat((shade_frac_rip, shade_fraction_riparian.unsqueeze(-1).detach().cpu()), dim=1)
+                        shade_frac_top = torch.cat((shade_frac_top, shade_fraction_topo.unsqueeze(-1).detach().cpu()), dim=1)
+                        top_w = torch.cat((top_w, top_width.unsqueeze(-1).detach().cpu()), dim=1)
+                        cloud = torch.cat((cloud, cloud_fraction.unsqueeze(-1).detach().cpu()), dim=1)
+                        hamon_co = torch.cat((hamon_co, hamon_coef.unsqueeze(-1).detach().cpu()), dim=1)
+                        lat_temp = torch.cat((lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1)
                 if i == 0:
                     pred = out
                     obs = obstemp
                     gw_p = gw
                     ss_p = ss
-                    weight_gw = ww_gw_tau
-                    weight_ss = ww_ss_tau
-                    PET_mm = PET_m
-                    shade_frac_rip_mm = shade_frac_rip_m
-                    shade_frac_top_mm = shade_frac_top_m
-                    top_w_mm = top_w_m
-                    cloud_mm = cloud_m
-                    hamon_co_mm = hamon_co_m
-                    lat_temp_mm = lat_temp_m
+                    weight_gw = w_gw_tau
+                    weight_ss = w_ss_tau
+                    PET_mm = PET
+                    shade_frac_rip_mm = shade_frac_rip
+                    shade_frac_top_mm = shade_frac_top
+                    top_w_mm = top_w
+                    cloud_mm = cloud
+                    hamon_co_mm = hamon_co
+                    lat_temp_mm = lat_temp
                 else:
                     pred = torch.cat((pred, out), dim=0)
                     obs = torch.cat((obs, obstemp), dim=0)
                     gw_p = torch.cat((gw_p, gw), dim=0)
                     ss_p = torch.cat((ss_p, ss), dim=0)
-                    weight_gw = torch.cat((weight_gw, ww_gw_tau), dim=0)
-                    weight_ss = torch.cat((weight_ss, ww_ss_tau), dim=0)
-                    PET_mm = torch.cat((PET_mm, PET_m), dim=0)
-                    shade_frac_rip_mm = torch.cat((shade_frac_rip_mm, shade_frac_rip_m), dim=0)
-                    shade_frac_top_mm = torch.cat((shade_frac_top_mm, shade_frac_top_m), dim=0)
-                    top_w_mm = torch.cat((top_w_mm, top_w_m), dim=0)
-                    cloud_mm = torch.cat((cloud_mm, cloud_m), dim=0)
-                    hamon_co_mm = torch.cat((hamon_co_mm, hamon_co_m), dim=0)
-                    lat_temp_mm = torch.cat((lat_temp_mm, lat_temp_m), dim=0)
+                    weight_gw = torch.cat((weight_gw, w_gw_tau), dim=0)
+                    weight_ss = torch.cat((weight_ss, w_ss_tau), dim=0)
+                    PET_mm = torch.cat((PET_mm, PET), dim=0)
+                    shade_frac_rip_mm = torch.cat((shade_frac_rip_mm, shade_frac_rip), dim=0)
+                    shade_frac_top_mm = torch.cat((shade_frac_top_mm, shade_frac_top), dim=0)
+                    top_w_mm = torch.cat((top_w_mm, top_w), dim=0)
+                    cloud_mm = torch.cat((cloud_mm, cloud), dim=0)
+                    hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
+                    lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
 
 
             # if type(model) in [MLP]:
