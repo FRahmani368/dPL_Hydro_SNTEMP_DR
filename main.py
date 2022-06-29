@@ -48,7 +48,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     randomseed_config(args)
-    seeds = [1,2, 3, 4]
+    seeds = [0, 1, 2, 3, 4]
     for seed in seeds:
         args['randomseed'] = seed
         # Creating output directories mn
@@ -153,7 +153,7 @@ def main(args):
                     #                               time_range=args['optData']['t_train'])
                     Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
                     shade_fraction_riparian, shade_fraction_topo, \
-                    top_width, cloud_fraction, hamon_coef = Ts.forward(xTrain_sample.transpose(0, 1),
+                    top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
                                                                      params, iGrid, iT, ave_air_temp,
                                                                      args=args, ave_air_total=ave_air_total,
                                                                      gwflow_percentage=gwflow_percentage,
@@ -252,7 +252,7 @@ def main(args):
                         iT = np.zeros((len(iGrid)))
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
-                        top_width, cloud_fraction, hamon_coef = Ts.forward(xTemp, params, iGrid,
+                        top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
                                                       iT, ave_air_temp,
                                                       args=args_mod, ave_air_total=ave_air_test,
                                                       gwflow_percentage=gwflow_percentage,
@@ -272,7 +272,7 @@ def main(args):
                         iT = np.zeros((len(iGrid)))
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
-                        top_width, cloud_fraction, hamon_coef = Ts.forward(xTemp, params, iGrid,
+                        top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
                                                     iT, ave_air_temp,
                                                     args=args_mod, ave_air_total=ave_air_test,
                                                     gwflow_percentage=gwflow_percentage,
@@ -294,6 +294,7 @@ def main(args):
                         cloud = cloud_fraction.unsqueeze(-1).detach().cpu()
                         hamon_co = hamon_coef.unsqueeze(-1).detach().cpu()
                         lat_temp = ave_air_temp.unsqueeze(-1).detach().cpu()
+                        lat_temp_bias = lat_temp_adj.unsqueeze(-1).detach().cpu()
                     else:
                         out = torch.cat((out, Yp.detach().cpu()), dim=1)  # Farshid: should dim be 1 or 2?
                         obstemp = torch.cat((obstemp, yTemp), dim=1)
@@ -308,6 +309,7 @@ def main(args):
                         cloud = torch.cat((cloud, cloud_fraction.unsqueeze(-1).detach().cpu()), dim=1)
                         hamon_co = torch.cat((hamon_co, hamon_coef.unsqueeze(-1).detach().cpu()), dim=1)
                         lat_temp = torch.cat((lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1)
+                        lat_temp_bias = torch.cat((lat_temp_bias, lat_temp_adj.unsqueeze(-1).detach().cpu()), dim=1)
                 if i == 0:
                     pred = out
                     obs = obstemp
@@ -322,6 +324,7 @@ def main(args):
                     cloud_mm = cloud
                     hamon_co_mm = hamon_co
                     lat_temp_mm = lat_temp
+                    lat_temp_bias_m = lat_temp_bias
                 else:
                     pred = torch.cat((pred, out), dim=0)
                     obs = torch.cat((obs, obstemp), dim=0)
@@ -336,6 +339,7 @@ def main(args):
                     cloud_mm = torch.cat((cloud_mm, cloud), dim=0)
                     hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
                     lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
+                    lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
 
 
             # if type(model) in [MLP]:
@@ -389,6 +393,7 @@ def main(args):
             np.save(os.path.join(args['output']['out_dir'], 'cloud_frac.npy'), cloud_mm_np)
             np.save(os.path.join(args['output']['out_dir'], 'hamon_coef.npy'), hamon_co_mm_np)
             np.save(os.path.join(args['output']['out_dir'], 'lat_temp.npy'), lat_temp_mm_np)
+            np.save(os.path.join(args['output']['out_dir'], 'lat_temp_bias_m.npy'), lat_temp_bias_m)
             statDictLst = [stat.statError(x.squeeze(), y.squeeze()) for (x, y) in zip(predLst, obsLst)]
             ### save this file too
             # median and STD calculation

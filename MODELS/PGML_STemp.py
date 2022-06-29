@@ -940,7 +940,10 @@ class STREAM_TEMP_EQ(nn.Module):
         # if there is upstream flow, it should be weighted average temperature of all flows
         # todo: need to check T_0. in fortran code it is like below, however, I believe it should be air temperature
         #  as it is used in e_s calculation and some other equations too.
-        T_0 = T_l + lat_temp_adj
+        if args['lat_temp_adj']=="True":
+            T_0 = T_l + lat_temp_adj
+        else:
+            T_0 = T_l
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, up_inflow=obsQ/3, E=PET,   #up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
@@ -968,7 +971,11 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
-
-        return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
+        if args['lat_temp_adj'] == "True":
+            return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
                w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
-               cloud_fraction, hamon_coef
+               cloud_fraction, hamon_coef, lat_temp_adj
+        else:
+            return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
+                   w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
+                   cloud_fraction, hamon_coef

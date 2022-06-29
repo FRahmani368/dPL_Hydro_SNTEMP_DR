@@ -5,8 +5,8 @@ randomseed: 1
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
-#  forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #          no_dam_forcing_99%_days34sites.feather
-#  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_temp99%_days_99sites.feather" #          no_dam_attr_temp99%_days34sites.feather
+#  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
+#  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
   attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
 output:
@@ -20,7 +20,7 @@ optData:
 
   varC: [
     'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
-     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "stream_length_artificial", 'PPTAVG_BASIN',
+     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "NHDlength_tot(m)", 'PPTAVG_BASIN',   #stream_length_artificial
      'ELEV_MEAN_M_BASIN',
 
     'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',     # Round1
@@ -71,6 +71,7 @@ res_time_params:
   lenF_ssflow: 60   #60
   lenF_gwflow: 730 #
   lenF_srflow: 1
+lat_temp_adj: "True"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
 STemp_default_params:
@@ -94,8 +95,8 @@ potet_module: "potet_hamon"
 static_params_list: [0, 1, 2, 3, 4, 5, 11, 12, 13, 15]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-#            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
-            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
+            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+#            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
