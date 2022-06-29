@@ -462,16 +462,17 @@ class STREAM_TEMP_EQ(nn.Module):
 
     def x_sample_air_temp2(self, iGrid, iT, lenF, args, ave_air_total):
         rho = args["hyperparameters"]['rho']
-        ave_air = torch.zeros((len(iGrid), args["hyperparameters"]["rho"],
-                               lenF),
-                              device=args["device"])
-        # ave_air = torch.zeros((len(iGrid), ave_air_total.shape[1],
+        # ave_air = torch.zeros((len(iGrid), args["hyperparameters"]["rho"],
         #                        lenF),
         #                       device=args["device"])
+        a = min(ave_air_total.shape[1], args["hyperparameters"]["rho"])
+        ave_air = torch.zeros((len(iGrid), a,
+                               lenF),
+                              device=args["device"])
         # array = np.array([np.arange(x, y) for x, y in zip(iT, iT + rho)])
         ave_air_temp = ave_air_total[iGrid, :, 0:lenF]
         for i in range(len(iGrid)):
-            ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + rho), :]
+            ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + a), :]
             # ave_air[i, :, :] = ave_air_temp[i, np.arange(iT[i], iT[i] + ave_air_total.shape[1]), :]
 
         # ave_air_temp = ave_air_total[:, iT : iT + rho, 0:lenF]
@@ -588,7 +589,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
         return y
 
-    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, NEARZERO=1e-6):
+    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, args, NEARZERO=1e-6):
         """
         :param srflow: surface runoff
         :param ssflow: subsurface runoff
@@ -599,24 +600,53 @@ class STREAM_TEMP_EQ(nn.Module):
         :return: temperature of lateral flow
         """
         # with torch.no_grad():
-        mask_ave_air_temp = ave_air_temp.ge(0)
-        ave_air_temp_new = ave_air_temp * mask_ave_air_temp.int().float()
+        if args["res_time_params"]["type"] == "SNTEMP":
+            mask_ave_air_temp = ave_air_temp.ge(0)
+            ave_air_temp = ave_air_temp * mask_ave_air_temp.int().float()
 
 
 
-        srflow_temp = ave_air_temp_new[:, :, 0]  # .clone().detach()
-        ssflow_temp = ave_air_temp_new[:, :, 1]  # .clone().detach()
-        gwflow_temp = ave_air_temp_new[:, :, 2]  # .clone().detach()
+            srflow_temp = ave_air_temp[:, :, 0]  # .clone().detach()
+            ssflow_temp = ave_air_temp[:, :, 1]  # .clone().detach()
+            gwflow_temp = ave_air_temp[:, :, 2]  # .clone().detach()
+
+            lat_flow_temp = torch.cat((srflow_temp.unsqueeze(-1),
+                                       ssflow_temp.unsqueeze(-1),
+                                       gwflow_temp.unsqueeze(-1)), dim=2)
+
+        elif args["res_time_params"]["type"] == "van Vliet":
+            # look at http://dx.doi.org/10.1029/2018WR023250 page 4
+            srflow_temp = ave_air_temp[:, :, 0] - 1.5
+            mask_srflow_temp = srflow_temp.ge(0)
+            srflow_temp = srflow_temp * mask_srflow_temp.int().float()
+
+            ssflow_temp = ave_air_temp[:, :, 1]
+            mask_ssflow_temp = ssflow_temp.ge(0)
+            ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
+
+            gwflow_temp = ave_air_temp[:, :, 2]
+            mask_gwflow_temp = gwflow_temp.ge(5)
+            gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
+
+            lat_flow_temp = torch.cat((srflow_temp.unsqueeze(-1),
+                                       ssflow_temp.unsqueeze(-1),
+                                       gwflow_temp.unsqueeze(-1)), dim=2)
+        #
+        # elif args["res_time_params"]["type"] is "Meisner":
+
+
+
 
         denom = gwflow + ssflow + srflow
         mask_denom = denom.eq(0)
         denom = denom + mask_denom.int().float()
-        T_l = ((gwflow * ave_air_temp_new[:, :, 2] + srflow * ave_air_temp_new[:, :, 0] +
-                ssflow * ave_air_temp_new[:, :, 1]) / denom)
+
+        T_l = ((gwflow * gwflow_temp + srflow * srflow_temp +
+                ssflow * ssflow_temp) / denom)
 
         mask_less_zero = T_l.le(NEARZERO)
         T_l[mask_less_zero] = 0.0
-        return T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new
+        return T_l, srflow_temp, ssflow_temp, gwflow_temp, lat_flow_temp
 
     def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L, args,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01), NEARZERO=1e-10):
@@ -820,7 +850,8 @@ class STREAM_TEMP_EQ(nn.Module):
             slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")]  # adding the percentage, it is a watershed slope not a stream slope
             # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
-            stream_length = x[:, :, vars.index("stream_length_artificial")]
+            # stream_length = x[:, :, vars.index("stream_length_artificial")]
+            stream_length = x[:, :, vars.index("NHDlength_tot(m)")]
             basin_area = x[:, :, vars.index("DRAIN_SQKM")]
         cloud_fraction = x[:, :, vars.index("ccov")]
         albedo = args["STemp_default_params"]["albedo"]
@@ -897,7 +928,8 @@ class STREAM_TEMP_EQ(nn.Module):
         T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(srflow=srflow,
                                                                                    ssflow=ssflow,
                                                                                    gwflow=gwflow,
-                                                                                   ave_air_temp=ave_air_temp)
+                                                                                   ave_air_temp=ave_air_temp,
+                                                                                   args=args)
 
         # 'Correction factor to adjust the bias of the temperature of the lateral inflow'
         # Fortran code:

@@ -2,13 +2,13 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: 1
-Action: [0]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
 #  forcing_path: "/home/fzr5082/PGML_STemp_results/inputs/forcing99_synth_T_2010_new3.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "/home/fzr5082/PGML_STemp_results/inputs/attr_temp99%_days_99sites.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_2.feather" #          no_dam_attr_temp99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -46,7 +46,7 @@ optData:
 #  t_val: [20151001, 20161001]
 #  t_test: [20151001, 20161001]
   tRange: [19800101, 20200101]
-  t_train: [20101001, 20141001]
+  t_train: [20100101, 20141001]
   t_val: [20151001, 20161001]
   t_test: [20141001, 20160930]
   doNorm: [True, True]
@@ -67,8 +67,9 @@ hyperparameters:
 seq_lin_layers:
   hidden_size: 256
 res_time_params:
-  lenF_ssflow: 60
-  lenF_gwflow: 600
+  type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
+  lenF_ssflow: 60   #60
+  lenF_gwflow: 730 #
   lenF_srflow: 1
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
@@ -93,7 +94,8 @@ potet_module: "potet_hamon"
 static_params_list: [0, 1, 2, 3, 4, 5, 11, 12, 13, 15]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+#            [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
