@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from post import stat, plot
 import math
+from ruamel.yaml import YAML
 
 
 def syntheticP(args):
@@ -47,12 +48,13 @@ def syntheticP(args):
 
 def main(args):
     # setting random seeds
-    randomseed_config(args)
-    seeds = [0, 1, 2, 3, 4]
+    # randomseed_config(args)
+    seeds = args['randomseed']
     for seed in seeds:
-        args['randomseed'] = seed
+        # args['randomseed'] = seed
+        randomseed_config(seed)
         # Creating output directories mn
-        args = create_output_dirs(args)
+        args = create_output_dirs(args, seed)
         min_max_scaler = preprocessing.MinMaxScaler()
         # getting the data
         x_total_temp, y_raw, c_raw = load_df(args)

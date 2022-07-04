@@ -1,7 +1,7 @@
 ##### This is an example .yaml file for how you should make your config file
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
-randomseed: 1
+randomseed: [0, 1, 2, 3, 4]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:

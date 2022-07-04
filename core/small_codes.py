@@ -5,6 +5,8 @@ import os
 from core.read_configurations import config
 import datetime as dt
 from core import hydroDL
+from ruamel.yaml import YAML
+import json
 
 def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['device']):
 
@@ -18,7 +20,7 @@ def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['dev
             tensor_list = torch.tensor(value, requires_grad=has_grad, dtype=dtype, device=device)
     return tensor_list
 
-def create_output_dirs(args):
+def create_output_dirs(args, seed):
     # checking rho value first
     t = hydroDL.utils.time.tRange2Array(args['optData']['t_train'])
     if t.shape[0] < args['hyperparameters']['rho']:
@@ -31,10 +33,17 @@ def create_output_dirs(args):
                  '_R_' + str(args['hyperparameters']['rho']) + \
                  '_B_' + str(args['hyperparameters']['batch_size']) + \
                  '_H_' + str(args['hyperparameters']['hidden_size']) + \
-                 '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(args['randomseed'])
+                 '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(seed)
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
         os.makedirs(os.path.join(args['output']['model'], out_folder))
     args['output']['out_dir'] = os.path.join(args['output']['model'], out_folder)
+
+    # saving the args file in output directory
+    config_file = json.dumps(args)
+    f = open(os.path.join(args['output']['out_dir'], "config_file.json"), "w")
+    f.write(config_file)
+    f.close()
+
     return args
 
 
