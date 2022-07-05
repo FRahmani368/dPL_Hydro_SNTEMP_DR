@@ -351,7 +351,7 @@ class STREAM_TEMP_EQ(nn.Module):
         B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
         C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
         # Todo: need to check 10**6. it is in fortran code but it is not in the document
-        D = H_f + H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
+        D = H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
         # D = H_a + swrad + H_v + 2495 * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
 
         return A, B, C, D
@@ -945,7 +945,7 @@ class STREAM_TEMP_EQ(nn.Module):
         else:
             T_0 = T_l
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, up_inflow=obsQ/3, E=PET,   #up_inflow
+                                         slope=slope, top_width=top_width, up_inflow=obsQ, E=PET,   #up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
                                          albedo=albedo,
                                          shade_total=shade_total,
@@ -966,7 +966,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # it prevents from dividing to zero
         # T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
         #                                            q_l=Q_0, L=stream_length, args=args,
-        #                                            T_0=T_0, Q_0=obsQ)
+       #                                            T_0=T_0, Q_0=obsQ)
 
 
         # scaling and bias
@@ -978,4 +978,4 @@ class STREAM_TEMP_EQ(nn.Module):
         else:
             return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
                    w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
-                   cloud_fraction, hamon_coef
+                   cloud_fraction, hamon_coef, torch.zeros(hamon_coef.shape, device=args['device'])
