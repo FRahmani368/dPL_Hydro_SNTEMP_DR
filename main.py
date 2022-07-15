@@ -52,6 +52,7 @@ def main(args):
     seeds = args['randomseed']
     for seed in seeds:
         # args['randomseed'] = seed
+        # torch.cuda.set_per_process_memory_fraction(0.9)   # work for torch > 1.4
         randomseed_config(seed)
         # Creating output directories mn
         args = create_output_dirs(args, seed)

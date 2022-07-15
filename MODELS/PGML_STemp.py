@@ -13,6 +13,7 @@ from core.small_codes import make_tensor, tRange2Array, intersect
 from .dropout import createMask, DropMask
 from MODELS.potet import get_potet
 
+
 class CudnnLstm(torch.nn.Module):
     def __init__(self, *, inputSize, hiddenSize, dr=0.5, drMethod='drW',
                  gpu=0):
@@ -51,7 +52,6 @@ class CudnnLstm(torch.nn.Module):
         stdv = 1.0 / math.sqrt(self.hiddenSize)
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
-
 
     def forward(self, input, hx=None, cx=None, doDropMC=False, dropoutFalse=False):
         # dropoutFalse: it will ensure doDrop is false, unless doDropMC is true
@@ -114,14 +114,16 @@ class CudnnLstmModel(torch.nn.Module):
         self.ct = 0
         self.nLayer = 1
         self.linearIn = torch.nn.Linear(nx, hiddenSize)
-        self.lstm = CudnnLstm(                                           # LSTMcell_untied CudnnLstm farshid
-            inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr)          # for LSTM-untied:    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
-        #self.lstm = LSTMcell_untied(
-         #   inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
+        self.lstm = CudnnLstm(  # LSTMcell_untied CudnnLstm farshid
+            inputSize=hiddenSize, hiddenSize=hiddenSize,
+            dr=dr)  # for LSTM-untied:    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
+        # self.lstm = LSTMcell_untied(
+        #   inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
 
         self.linearOut = torch.nn.Linear(hiddenSize, ny)
         self.gpu = 1
         self.activation_sigmoid = torch.nn.Sigmoid()
+
     def forward(self, x, doDropMC=False, dropoutFalse=False):
         x0 = F.relu(self.linearIn(x))
         outLSTM, (hn, cn) = self.lstm(x0, doDropMC=doDropMC, dropoutFalse=dropoutFalse)
@@ -129,8 +131,6 @@ class CudnnLstmModel(torch.nn.Module):
         ### Farshid added this line:
         out = self.activation_sigmoid(out)
         return out
-
-
 
 
 class MLP(nn.Module):
@@ -202,7 +202,6 @@ class STREAM_TEMP_EQ(nn.Module):
     def __init__(self):
         super(STREAM_TEMP_EQ, self).__init__()
 
-
         # self.a_srflow = nn.Parameter(torch.randn(args['no_basins'],
         #                                          args["res_time_params"]["lenF_srflow"],
         #                                          1))
@@ -260,7 +259,7 @@ class STREAM_TEMP_EQ(nn.Module):
         ## Note: both jakes and stream_temp are close to each other (error less than 0.013 for 99 basins)
         return P
 
-    def atm_longwave_radiation_heat(self, T_a, e_a,  shade_total, cloud_fraction, args):
+    def atm_longwave_radiation_heat(self, T_a, e_a, shade_total, cloud_fraction, args):
         """
         :param T_a: air temperature in degree Celsius
         :param e_a: vapor pressure
@@ -276,8 +275,8 @@ class STREAM_TEMP_EQ(nn.Module):
         #         (1 - longwave_reflect_frac) * (1 - shade_total) * (1 + 0.17 * torch.pow(cloud_fraction, 2))
         #         * emissivity_air * St_Boltzman_ct * torch.pow((T_a + 273.16), 4)
         # )
-        H_a = (3.354939e-8 + 2.74995e-9 * e_a**0.5) * (1 - shade_total) \
-                * ( 1 + 0.17 * cloud_fraction**2) * (T_a + 273.16)**4
+        H_a = (3.354939e-8 + 2.74995e-9 * e_a ** 0.5) * (1 - shade_total) \
+              * (1 + 0.17 * cloud_fraction ** 2) * (T_a + 273.16) ** 4
         return H_a
 
     def stream_friction_heat(self, top_width, slope, Q):
@@ -351,7 +350,7 @@ class STREAM_TEMP_EQ(nn.Module):
         B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (K_g / delta_Z)
         C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
         # Todo: need to check 10**6. it is in fortran code but it is not in the document
-        D = H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
+        D = H_f + H_a + H_s + H_v + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
         # D = H_a + swrad + H_v + 2495 * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
 
         return A, B, C, D
@@ -479,7 +478,6 @@ class STREAM_TEMP_EQ(nn.Module):
         # ave_air = ave_air_temp[iGrid, :, :]
         return ave_air
 
-
     def ave_temp_general(self, args, x_total_raw_tensor, time_range):
         vars = args['optData']['varT'] + args['optData']['varC']
         lenF_max = np.maximum(args["res_time_params"]["lenF_srflow"],
@@ -504,7 +502,6 @@ class STREAM_TEMP_EQ(nn.Module):
             ave_air[s, :, :] = temp
 
         return ave_air
-
 
     def res_time_gamma(self, a, b, lenF):
         # UH. a [time (same all time steps), batch, var]
@@ -586,7 +583,6 @@ class STREAM_TEMP_EQ(nn.Module):
                 y = y + bias
             y = y.unsqueeze(2)
 
-
         return y
 
     def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, args, NEARZERO=1e-6):
@@ -603,8 +599,6 @@ class STREAM_TEMP_EQ(nn.Module):
         if args["res_time_params"]["type"] == "SNTEMP":
             mask_ave_air_temp = ave_air_temp.ge(0)
             ave_air_temp = ave_air_temp * mask_ave_air_temp.int().float()
-
-
 
             srflow_temp = ave_air_temp[:, :, 0]  # .clone().detach()
             ssflow_temp = ave_air_temp[:, :, 1]  # .clone().detach()
@@ -633,9 +627,23 @@ class STREAM_TEMP_EQ(nn.Module):
                                        gwflow_temp.unsqueeze(-1)), dim=2)
         #
         # elif args["res_time_params"]["type"] is "Meisner":
+        elif args["res_time_params"]["type"] == "Meisner":
+            # look at http://dx.doi.org/10.1029/2018WR023250 page 4
+            srflow_temp = ave_air_temp[:, :, 0]
+            mask_srflow_temp = srflow_temp.ge(0)
+            srflow_temp = srflow_temp * mask_srflow_temp.int().float()
 
+            ssflow_temp = ave_air_temp[:, :, 1]
+            mask_ssflow_temp = ssflow_temp.ge(0)
+            ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
 
+            gwflow_temp = ave_air_temp[:, :, 2]
+            mask_gwflow_temp = gwflow_temp.ge(0)
+            gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
 
+            lat_flow_temp = torch.cat((srflow_temp.unsqueeze(-1),
+                                       ssflow_temp.unsqueeze(-1),
+                                       gwflow_temp.unsqueeze(-1)), dim=2)
 
         denom = gwflow + ssflow + srflow
         mask_denom = denom.eq(0)
@@ -727,7 +735,6 @@ class STREAM_TEMP_EQ(nn.Module):
         # mask_final = T_w.ge(0)
         # T_w_final = T_w * mask_final.int().float()
 
-
         ###############################################
         # new method
         # for positive q_l
@@ -762,18 +769,17 @@ class STREAM_TEMP_EQ(nn.Module):
         if params.dim() == 3:
             if num in args["static_params_list"]:
                 out_temp = params[:, -1, num] * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
-                            args["paramCalLst"][num][0]
+                           args["paramCalLst"][num][0]
                 out = out_temp.view(-1, 1).repeat(1, params.shape[1]).view(params.shape[0], params.shape[1])
             else:
                 out = params[:, :, num] * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
                       args["paramCalLst"][num][0]
         elif params.dim() == 2:
             out_temp = params[:, num] * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
-                      args["paramCalLst"][num][0]
+                       args["paramCalLst"][num][0]
             out = out_temp.view(-1, 1).repeat(1, args["hyperparameters"]["rho"]).view(
                 args["hyperparameters"]["batch_size"], args["hyperparameters"]["rho"])
         return out
-
 
         # return T_w_final
 
@@ -829,17 +835,18 @@ class STREAM_TEMP_EQ(nn.Module):
         # hamon_coef = params[:, :, 13] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
         # w3_shade = params[:, :, 14] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
 
-
-        srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-        ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-        gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-
-
-
+        if args["res_time_params"]["type"] != "Meisner":
+            srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+            ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+            gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+        else:
+            srflow_percentage = srflow_portion / (srflow_portion + gwflow_portion)
+            ssflow_percentage = 0.0001 * ssflow_portion
+            gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
 
         vars = args['optData']['varT'] + args['optData']['varC']
         with torch.no_grad():
-            obsQ = x[:, :, vars.index("00060_Mean")] * 0.028316   # converting cfs to cms
+            obsQ = x[:, :, vars.index("00060_Mean")] * 0.028316  # converting cfs to cms
             up_inflow = make_tensor(torch.zeros(obsQ.size()))
             # T_0 = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
             mean_air_temp = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
@@ -847,7 +854,8 @@ class STREAM_TEMP_EQ(nn.Module):
             vp = 0.01 * x[:, :, vars.index('vp(Pa)')]  # converting to mbar
             swrad = (x[:, :, vars.index('srad(W/m2)')] * x[:, :, vars.index('dayl(s)')] / 86400)
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-            slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")]  # adding the percentage, it is a watershed slope not a stream slope
+            slope = 0.01 * x[:, :,
+                           vars.index("SLOPE_PCT")]  # adding the percentage, it is a watershed slope not a stream slope
             # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
             # stream_length = x[:, :, vars.index("stream_length_artificial")]
@@ -855,10 +863,10 @@ class STREAM_TEMP_EQ(nn.Module):
             basin_area = x[:, :, vars.index("DRAIN_SQKM")]
         cloud_fraction = x[:, :, vars.index("ccov")]
         albedo = args["STemp_default_params"]["albedo"]
-            # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
+        # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
 
-            # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
-        #hamon PET equation. We can add other methods too, such as Penman monteith
+        # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
+        # hamon PET equation. We can add other methods too, such as Penman monteith
         PET = get_potet(args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef)
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))
@@ -873,20 +881,15 @@ class STREAM_TEMP_EQ(nn.Module):
         # elif p.dim() == 2:
         #     top_width = p * torch.pow(basin_area, q)
 
-
         # total shade (solar shade) is accumulative shade of vegetation and topography
         shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
         shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
         shade_total = shade_fraction_riparian + shade_fraction_topo
 
-
-
-
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
                                                                     srflow_factor=srflow_percentage,
                                                                     ssflow_factor=ssflow_percentage,
                                                                     gwlow_factor=gwflow_percentage)
-
 
         w_srflow = self.res_time_gamma(a=a_srflow.unsqueeze(-1), b=b_srflow.unsqueeze(-1),
                                        lenF=args['res_time_params']['lenF_srflow'])
@@ -895,9 +898,9 @@ class STREAM_TEMP_EQ(nn.Module):
         #                                        args=args, x_total_raw=x_total_raw,
         #                                        time_range=time_range)
         air_sample_sr = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                                               args=args, ave_air_total=ave_air_total)
+                                                args=args, ave_air_total=ave_air_total)
         w_srflow = w_srflow.permute(1, 2, 0)
-        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=None)    # bias=None, sr_conv_bias
+        ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=None)  # bias=None, sr_conv_bias
 
         # subsurface flow
         w_ssflow = self.res_time_gamma(a=a_ssflow.unsqueeze(-1), b=b_ssflow.unsqueeze(-1),
@@ -926,10 +929,10 @@ class STREAM_TEMP_EQ(nn.Module):
         ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=2)
 
         T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(srflow=srflow,
-                                                                                   ssflow=ssflow,
-                                                                                   gwflow=gwflow,
-                                                                                   ave_air_temp=ave_air_temp,
-                                                                                   args=args)
+                                                                                                     ssflow=ssflow,
+                                                                                                     gwflow=gwflow,
+                                                                                                     ave_air_temp=ave_air_temp,
+                                                                                                     args=args)
 
         # 'Correction factor to adjust the bias of the temperature of the lateral inflow'
         # Fortran code:
@@ -940,12 +943,12 @@ class STREAM_TEMP_EQ(nn.Module):
         # if there is upstream flow, it should be weighted average temperature of all flows
         # todo: need to check T_0. in fortran code it is like below, however, I believe it should be air temperature
         #  as it is used in e_s calculation and some other equations too.
-        if args['lat_temp_adj']=="True":
+        if args['lat_temp_adj'] == "True":
             T_0 = T_l + lat_temp_adj
         else:
             T_0 = T_l
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, up_inflow=obsQ, E=PET,   #up_inflow
+                                         slope=slope, top_width=top_width, up_inflow=obsQ / 3, E=PET,  # up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
                                          albedo=albedo,
                                          shade_total=shade_total,
@@ -953,12 +956,11 @@ class STREAM_TEMP_EQ(nn.Module):
         T_e = self.Equilibrium_temperature(A=A, B=B, C=C, D=D, T_e=T_0)
         K1, K2 = self.finding_K1_K2(A=A, B=B, C=C, D=D, T_e=T_e, NEARZERO=NEARZERO, T_0=T_0)
 
-
         Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0.000001))
         # Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0))
 
         T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
-                                                   q_l=obsQ , L=stream_length, args=args,
+                                                   q_l=obsQ, L=stream_length, args=args,
                                                    T_0=T_0, Q_0=Q_0)
 
         # writing the original fortran code here
@@ -966,15 +968,14 @@ class STREAM_TEMP_EQ(nn.Module):
         # it prevents from dividing to zero
         # T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
         #                                            q_l=Q_0, L=stream_length, args=args,
-       #                                            T_0=T_0, Q_0=obsQ)
-
+        #                                            T_0=T_0, Q_0=obsQ)
 
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
         if args['lat_temp_adj'] == "True":
             return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
-               w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
-               cloud_fraction, hamon_coef, lat_temp_adj
+                   w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
+                   cloud_fraction, hamon_coef, lat_temp_adj
         else:
             return T_w, ave_air_temp_new, gwflow_percentage, ssflow_percentage, \
                    w_gwflow, w_ssflow, PET, shade_fraction_riparian, shade_fraction_topo, top_width, \
