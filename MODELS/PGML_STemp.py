@@ -527,8 +527,8 @@ class STREAM_TEMP_EQ(nn.Module):
             m = a.shape
             a1 = a.repeat(1, 1, lenF)
             b1 = b.repeat(1, 1, lenF)
-            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) # + 0.1
-            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) # + 0.5
+            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.1
+            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.5
             # x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
             x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
             if torch.cuda.is_available():
@@ -783,6 +783,64 @@ class STREAM_TEMP_EQ(nn.Module):
                 args["hyperparameters"]["batch_size"], args["hyperparameters"]["rho"])
         return out
 
+    def shade_modification(self, w1_shade, w2_shade, w3_shade, args):
+
+        w1 = torch.ones((365, 1, 40), device=args['device']) / 40
+
+        w1_shade = w1_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(w1_shade, w1, padding=40, groups=365)
+        w1_shade_mov = B[:, 0, 20:385]
+
+        w2_shade = w2_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(w2_shade, w1, padding=40, groups=365)
+        w2_shade_mov = B[:, 0, 20:385]
+
+        w3_shade = w3_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(w3_shade, w1, padding=40, groups=365)
+        no_shade_mov = B[:, 0, 20:385]  # [:, 0, 5:370]
+
+        shade_fraction_riparian = w1_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
+        shade_fraction_riparian = torch.clamp(shade_fraction_riparian, min=0.01, max=1.0)
+
+        shade_fraction_topo = w2_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
+        shade_fraction_topo = torch.clamp(shade_fraction_topo, min=0.01, max=1.0)
+        shade_total = shade_fraction_riparian + shade_fraction_topo
+        shade_total = torch.clamp(shade_total, min=0.01, max=1.0)
+
+        return shade_fraction_riparian, shade_fraction_topo, shade_total
+
+    def frac_modification(self, srflow_portion, ssflow_portion, gwflow_portion, args):
+        wsr = torch.ones((365, 1, 4), device=args['device']) / 4
+
+        sr_por = srflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(sr_por, wsr, padding=4, groups=365)
+        sr_por_mov = B[:, 0, 1:366]
+        sr_por_mov = torch.clamp(sr_por_mov, min=0.01, max=1.0)
+
+        wss = torch.ones((365, 1, 10), device=args['device']) / 10
+
+        ss_por = ssflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(ss_por, wss, padding=10, groups=365)
+        ss_por_mov = B[:, 0, 5:370]
+        ss_por_mov = torch.clamp(ss_por_mov, min=0.01, max=1.0)
+
+        wgw = torch.ones((365, 1, 30), device=args['device']) / 30
+
+        gw_por = gwflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
+        B = F.conv1d(gw_por, wgw, padding=30, groups=365)
+        gw_por_mov = B[:, 0, 10:375]
+        gw_por_mov = torch.clamp(gw_por_mov, min=0.01, max=1.0)
+
+        srflow_percentage = sr_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
+        ssflow_percentage = ss_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
+        gwflow_percentage = gw_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
+
+        srflow_percentage = torch.clamp(srflow_percentage, min=0.01, max=1.0)
+        ssflow_percentage = torch.clamp(ssflow_percentage, min=0.01, max=1.0)
+        gwflow_percentage = torch.clamp(gwflow_percentage, min=0.01, max=1.0)
+
+        return srflow_percentage, ssflow_percentage, gwflow_percentage
+
         # return T_w_final
 
     # def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range,ave_air_total):
@@ -836,15 +894,20 @@ class STREAM_TEMP_EQ(nn.Module):
         #
         # hamon_coef = params[:, :, 13] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
         # w3_shade = params[:, :, 14] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
-
-        if args["res_time_params"]["type"] != "Meisner":
-            srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-            ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-            gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+        if args["frac_smoothening"]=="True":
+            srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,
+                                                                                             ssflow_portion,
+                                                                                             gwflow_portion,
+                                                                                             args)
         else:
-            srflow_percentage = srflow_portion / (srflow_portion + gwflow_portion)
-            ssflow_percentage = 0.0001 * ssflow_portion
-            gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
+            if args["res_time_params"]["type"] != "Meisner":
+                srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+                ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+                gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+            else:
+                srflow_percentage = srflow_portion / (srflow_portion + gwflow_portion)
+                ssflow_percentage = 0.0001 * ssflow_portion
+                gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
 
         vars = args['optData']['varT'] + args['optData']['varC']
         with torch.no_grad():
@@ -884,9 +947,15 @@ class STREAM_TEMP_EQ(nn.Module):
         #     top_width = p * torch.pow(basin_area, q)
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
-        shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
-        shade_total = shade_fraction_riparian + shade_fraction_topo
+        if args["shade_smoothening"] == "True":
+            shade_fraction_riparian, shade_fraction_topo, shade_total = self.shade_modification(w1_shade,
+                                                                                                w2_shade,
+                                                                                                w3_shade,
+                                                                                                args)
+        else:
+            shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
+            shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
+            shade_total = shade_fraction_riparian + shade_fraction_topo
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
                                                                     srflow_factor=srflow_percentage,
