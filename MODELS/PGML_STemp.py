@@ -512,7 +512,8 @@ class STREAM_TEMP_EQ(nn.Module):
             b1 = b.repeat(1, lenF)
             alpha = F.relu(a1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.1
             beta = F.relu(b1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.5
-            x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
+            # x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
+            x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
             if torch.cuda.is_available():
                 x = x.cuda(a.device)
             # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
@@ -526,9 +527,10 @@ class STREAM_TEMP_EQ(nn.Module):
             m = a.shape
             a1 = a.repeat(1, 1, lenF)
             b1 = b.repeat(1, 1, lenF)
-            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.1
-            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.5
-            x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
+            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) # + 0.1
+            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) # + 0.5
+            # x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
+            x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
             if torch.cuda.is_available():
                 x = x.cuda(a.device)
             # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
