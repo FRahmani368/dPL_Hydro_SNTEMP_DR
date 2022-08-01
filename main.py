@@ -381,6 +381,7 @@ def main(args):
             cloud_mm_np = cloud_mm.detach().cpu().numpy()
             hamon_co_mm_np = hamon_co_mm.detach().cpu().numpy()
             lat_temp_mm_np = lat_temp_mm.detach().cpu().numpy()
+            lat_temp_bias_m_np = lat_temp_bias_m.detach().cpu().numpy()
             predLst.append(y_sim_np)  # the prediction list for all the models
             obsLst.append(y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'pred.npy'), y_sim_np)
@@ -396,7 +397,7 @@ def main(args):
             np.save(os.path.join(args['output']['out_dir'], 'cloud_frac.npy'), cloud_mm_np)
             np.save(os.path.join(args['output']['out_dir'], 'hamon_coef.npy'), hamon_co_mm_np)
             np.save(os.path.join(args['output']['out_dir'], 'lat_temp.npy'), lat_temp_mm_np)
-            np.save(os.path.join(args['output']['out_dir'], 'lat_temp_bias_m.npy'), lat_temp_bias_m)
+            np.save(os.path.join(args['output']['out_dir'], 'lat_temp_bias.npy'), lat_temp_bias_m_np)
             statDictLst = [stat.statError(x.squeeze(), y.squeeze()) for (x, y) in zip(predLst, obsLst)]
             ### save this file too
             # median and STD calculation
