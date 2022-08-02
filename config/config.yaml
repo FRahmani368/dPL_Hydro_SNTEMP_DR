@@ -68,12 +68,14 @@ seq_lin_layers:
   hidden_size: 256
 res_time_params:
   type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
-  lenF_ssflow: 45   #60
-  lenF_gwflow: 365 #
+  lenF_ssflow: 2   #60
+  lenF_gwflow: 50 #
   lenF_srflow: 1
 lat_temp_adj: "True"
 shade_smoothening: "True"
-frac_smoothening: "False"
+frac_smoothening:
+  mode: "True"
+  gw_filter_size: 30
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
 STemp_default_params:
