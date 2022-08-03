@@ -29,11 +29,18 @@ def create_output_dirs(args, seed):
     # checking the directory
     if not os.path.exists(args['output']['model']):
         os.makedirs(args['output']['model'])
-    out_folder = 'E_' + str(args['hyperparameters']['EPOCHS']) + \
-                 '_R_' + str(args['hyperparameters']['rho']) + \
-                 '_B_' + str(args['hyperparameters']['batch_size']) + \
-                 '_H_' + str(args['hyperparameters']['hidden_size']) + \
-                 '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(seed)
+    # out_folder = 'E_' + str(args['hyperparameters']['EPOCHS']) + \
+    #              '_R_' + str(args['hyperparameters']['rho']) + \
+    #              '_B_' + str(args['hyperparameters']['batch_size']) + \
+    #              '_H_' + str(args['hyperparameters']['hidden_size']) + \
+    #              '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(seed)
+
+    out_folder = str(args['res_time_params']['type']) + \
+                 '_gw_' + str(args['res_time_params']['lenF_gwflow']) + \
+                 '_ss_' + str(args['res_time_params']['lenF_ssflow']) + \
+                 '_adj_' + str(args['lat_temp_adj'][0]) + \
+                 '_sh_' + str(args['shade_smoothening'][0]) + \
+                 '_fr_' + str(args['frac_smoothening']['mode'][0]) + "_" + str(seed)
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
         os.makedirs(os.path.join(args['output']['model'], out_folder))
     args['output']['out_dir'] = os.path.join(args['output']['model'], out_folder)

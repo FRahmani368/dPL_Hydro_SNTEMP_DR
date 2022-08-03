@@ -1,7 +1,7 @@
 ##### This is an example .yaml file for how you should make your config file
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
-randomseed: [0, 1, 2, 3, 4]   # None means random
+randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
@@ -71,7 +71,7 @@ res_time_params:
   lenF_ssflow: 2   #60
   lenF_gwflow: 50 #
   lenF_srflow: 1
-lat_temp_adj: "True"
+lat_temp_adj: "False"
 shade_smoothening: "True"
 frac_smoothening:
   mode: "True"
