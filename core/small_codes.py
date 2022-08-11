@@ -7,6 +7,7 @@ import datetime as dt
 from core import hydroDL
 from ruamel.yaml import YAML
 import json
+import shutil
 
 def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config['device']):
 
@@ -42,6 +43,9 @@ def create_output_dirs(args, seed):
                  '_sh_' + str(args['shade_smoothening'][0]) + \
                  '_fr_' + str(args['frac_smoothening']['mode'][0]) + "_" + str(seed)
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
+        os.makedirs(os.path.join(args['output']['model'], out_folder))
+    else:
+        shutil.rmtree(os.path.join(args['output']['model'], out_folder))
         os.makedirs(os.path.join(args['output']['model'], out_folder))
     args['output']['out_dir'] = os.path.join(args['output']['model'], out_folder)
 
