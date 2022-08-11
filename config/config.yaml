@@ -7,8 +7,8 @@ device: "cuda"
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
-  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
+  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -109,7 +109,7 @@ paramCalLst: [
             # [0, 3], [-4, 4],                                            # final scale and final bias
             # [0.1, 0.10001],                                                        # albedo
             [0, 1],                                                           # solar shade factor
-            [0.1, 5] , #[0.01, 2],                                            # width coefficient nominator
+            [0.1, 3.5] , #[0.01, 2],                                            # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
             # [0.01, 1],                                                            # width A coefficient
             [0.1, 1], #[0.5, 10], #[0.01, 1],                                  # width coefficient denominator

@@ -49,13 +49,13 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP", "SNTEMP", "SNTEMP", "van Vliet", "van Vliet", "van Vliet"]
-    lenF_gwflow_list = [365, 365, 365, 365]
-    lenF_ssflow_list = [45, 45, 20, 1]
-    lat_temp_adj_list = ["False", "False", "False", "False", "False", "False"]
-    shade_smoothening_list = ["False", "True", "False", "False", "False", "True"]
-    frac_smoothening_list = ["True", "True", "True", "True", "False", "True"]
-    s = [0, 0, 0, 0, 0, 0]
+    mode_type = ["SNTEMP", "Meisner","Meisner", "Meisner", "Meisner"] #"SNTEMP", "van Vliet"
+    lenF_gwflow_list = [365, 365,365,365, 365]
+    lenF_ssflow_list = [15, 1, 1, 1, 1]
+    lat_temp_adj_list = ["True", "True","False","False", "False"]
+    shade_smoothening_list = ["True", "True","True","False", "False"]
+    frac_smoothening_list = ["True", "True","True","True", "True"]
+    s = [0, 0, 0, 0, 0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj, shade_smooth, frac_smooth in zip(s,
                                                                             mode_type,
@@ -196,7 +196,7 @@ def main(args):
                     lossEp = lossEp + loss.item()
                     # del loss
                     # del Yp
-                    # print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
+                    print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
                 lossEp = lossEp / nIterEp
                 # torch.cuda.synchronize()
                 logStr = 'Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory'.format(

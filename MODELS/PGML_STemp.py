@@ -613,15 +613,15 @@ class STREAM_TEMP_EQ(nn.Module):
         elif args["res_time_params"]["type"] == "van Vliet":
             # look at http://dx.doi.org/10.1029/2018WR023250 page 4
             srflow_temp = ave_air_temp[:, :, 0] - 1.5
-            mask_srflow_temp = srflow_temp.ge(0)
+            mask_srflow_temp = srflow_temp.ge(0.0)
             srflow_temp = srflow_temp * mask_srflow_temp.int().float()
 
             ssflow_temp = ave_air_temp[:, :, 1]
-            mask_ssflow_temp = ssflow_temp.ge(0)
+            mask_ssflow_temp = ssflow_temp.ge(0.0)
             ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
 
             gwflow_temp = ave_air_temp[:, :, 2]
-            mask_gwflow_temp = gwflow_temp.ge(5)
+            mask_gwflow_temp = gwflow_temp.ge(5.0)
             gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
 
             lat_flow_temp = torch.cat((srflow_temp.unsqueeze(-1),
@@ -636,7 +636,7 @@ class STREAM_TEMP_EQ(nn.Module):
             srflow_temp = srflow_temp * mask_srflow_temp.int().float()
 
             ssflow_temp = ave_air_temp[:, :, 1]
-            mask_ssflow_temp = ssflow_temp.ge(0)
+            mask_ssflow_temp = ssflow_temp.ge(0.0)
             ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
 
             gwflow_temp = ave_air_temp[:, :, 2]
@@ -648,11 +648,11 @@ class STREAM_TEMP_EQ(nn.Module):
                                        gwflow_temp.unsqueeze(-1)), dim=2)
 
         denom = gwflow + ssflow + srflow
-        mask_denom = denom.eq(0)
+        mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
-        T_l = ((gwflow * gwflow_temp + srflow * srflow_temp +
-                ssflow * ssflow_temp) / denom)
+        T_l = (((gwflow * gwflow_temp) + (srflow * srflow_temp) +
+                (ssflow * ssflow_temp)) / denom)
 
         mask_less_zero = T_l.le(NEARZERO)
         T_l[mask_less_zero] = 0.0
@@ -822,9 +822,13 @@ class STREAM_TEMP_EQ(nn.Module):
         gwflow_portion_new = Q_gw_por_mov / (Q_T + 0.001)  # 0.001 is for not having nan values
         gwflow_portion_new = torch.clamp(gwflow_portion_new, min=0.01, max=1.0)
         remain_frac = 1 - gwflow_portion_new
-        srflow_portion_new = srflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
-        ssflow_portion_new = ssflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
 
+        if args["res_time_params"]["type"] != "Meisner":
+            srflow_portion_new = srflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
+            ssflow_portion_new = ssflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
+        else:
+            srflow_portion_new = remain_frac
+            ssflow_portion_new = ssflow_portion * 0.0 + 0.01
         srflow_percentage = torch.clamp(srflow_portion_new, min=0.01, max=1.0)
         ssflow_percentage = torch.clamp(ssflow_portion_new, min=0.01, max=1.0)
         gwflow_percentage = torch.clamp(gwflow_portion_new, min=0.01, max=1.0)
@@ -952,6 +956,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # top_width = width_coef_nom * obsQ + width_coef_denom
         # top_width = width_coef_nom * (obsQ ** width_coef_denom) + 0.5
         top_width = torch.abs(width_coef_nom) * torch.pow(torch.abs(obsQ + 0.0001), torch.abs(width_coef_denom)) + 0.5
+        # top_width = make_tensor(torch.ones(width_coef_nom.shape) * 10.0, device=args["device"])
         # if p.dim() == 3:
         #     top_width = p * torch.pow(basin_area, q)
         # elif p.dim() == 2:
