@@ -1052,7 +1052,7 @@ class STREAM_TEMP_EQ(nn.Module):
         else:
             T_0 = T_l
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
-                                         slope=slope, top_width=top_width, up_inflow=obsQ / 3, E=PET,  # up_inflow
+                                         slope=slope, top_width=top_width, up_inflow=0.0, E=PET,  # up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
                                          albedo=albedo,
                                          shade_total=shade_total,
