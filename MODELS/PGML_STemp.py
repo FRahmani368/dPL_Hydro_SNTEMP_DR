@@ -927,6 +927,7 @@ class STREAM_TEMP_EQ(nn.Module):
         vars = args['optData']['varT'] + args['optData']['varC']
         with torch.no_grad():
             obsQ = x[:, :, vars.index("00060_Mean")] * 0.028316  # converting cfs to cms
+            precip = x[:, :, vars.index('prcp(mm/day)')]
             up_inflow = make_tensor(torch.zeros(obsQ.size()))
             # T_0 = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
             mean_air_temp = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
@@ -962,7 +963,12 @@ class STREAM_TEMP_EQ(nn.Module):
         # elif p.dim() == 2:
         #     top_width = p * torch.pow(basin_area, q)
 
-        #gw fractions smoothening
+        # masking surface runoff fraction with precipitation.
+        # if there is not any precipitaton, it cannot be more than 0.01
+        mask_precip = precip.ge(0)
+        srflow_portion = srflow_portion * mask_precip.int().float()
+        srflow_portion = torch.clamp(srflow_portion, min=0.01, max=1.0)
+        # gw fractions smoothening
         if args["frac_smoothening"]["mode"] == "True":
             srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,
                                                                                              ssflow_portion,
