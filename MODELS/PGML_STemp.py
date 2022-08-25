@@ -965,9 +965,9 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # masking surface runoff fraction with precipitation.
         # if there is not any precipitaton, it cannot be more than 0.01
-        mask_precip = precip.ge(0)
+        mask_precip = precip.ge(NEARZERO)
         srflow_portion = srflow_portion * mask_precip.int().float()
-        srflow_portion = torch.clamp(srflow_portion, min=0.01, max=1.0)
+        srflow_portion = torch.clamp(srflow_portion, min=0.00, max=1.0)
         # gw fractions smoothening
         if args["frac_smoothening"]["mode"] == "True":
             srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,
