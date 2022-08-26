@@ -836,6 +836,40 @@ class STREAM_TEMP_EQ(nn.Module):
         return srflow_percentage, ssflow_percentage, gwflow_percentage
 
 
+    def semi_static_params(self, params, param_no, interval_no=12, method="average"):
+        # seperate the piece for each interval
+        param = params[:,:, param_no]
+        no_basins, no_days = param.shape
+        interval = math.floor(no_days/interval_no)
+        remainder = no_days%interval_no
+        param_name_list = list()
+        if method == "average":
+            for i in range(interval_no):
+                if (remainder != 0) & (i == 0):
+                    param00 = torch.mean(param[:, 0: remainder],
+                                        1, keepdim=True).repeat((1, remainder))
+                    param_name_list.append(param00)
+                param_name = "param" + str(i)
+                param_name = torch.mean(param[:, ((i * interval) + remainder):(((i+1) * interval) + remainder)],
+                                        1, keepdim=True).repeat((1, interval))
+                param_name_list.append(param_name)
+        elif method == "single_val":
+            for i in range(interval_no):
+                if (remainder != 0) & (i == 0):
+                    param00 = (param[:, 0: 1]).repeat((1, remainder))
+                    param_name_list.append(param00)
+                param_name = "param" + str(i)
+                param_name = (param[:, (((i) * interval) + remainder):(((i) * interval) + remainder)+1]
+                ).repeat((1, interval))
+                param_name_list.append(param_name)
+        else:
+            print("this method is not defined yet in function semi_static_params")
+        new_param = torch.cat(param_name_list, 1)
+        return new_param
+
+
+
+
         #
         #
         # wsr = torch.ones((365, 1, 4), device=args['device']) / 4
@@ -884,15 +918,20 @@ class STREAM_TEMP_EQ(nn.Module):
         b_ssflow = self.parameter_bounds(params, 3, args)
         a_gwflow = self.parameter_bounds(params, 4, args)
         b_gwflow = self.parameter_bounds(params, 5, args)
-        w1_shade = self.parameter_bounds(params, 6, args)
+        # w1_shade = self.parameter_bounds(params, 6, args)
+        w1_shade = self.semi_static_params(params, 6, interval_no=12, method="average")
         srflow_portion = self.parameter_bounds(params, 7, args)
         ssflow_portion = self.parameter_bounds(params, 8, args)
         gwflow_portion = self.parameter_bounds(params, 9, args)
-        w2_shade = self.parameter_bounds(params, 10, args)
+        # gwflow_portion = self.semi_static_params(params, 9, interval_no=4, method="average")
+        # w2_shade = self.parameter_bounds(params, 10, args)
+        w2_shade = self.semi_static_params(params, 10, interval_no=12, method="average")
         width_coef_nom = self.parameter_bounds(params, 11, args)
         width_coef_denom = self.parameter_bounds(params, 12, args)
-        hamon_coef = self.parameter_bounds(params, 13, args)
-        w3_shade = self.parameter_bounds(params, 14, args)
+        # hamon_coef = self.parameter_bounds(params, 13, args)
+        hamon_coef = self.semi_static_params(params, 13, interval_no=12, method="average")
+        # w3_shade = self.parameter_bounds(params, 14, args)
+        w3_shade = self.semi_static_params(params, 14, interval_no=12, method="average")
         lat_temp_adj = self.parameter_bounds(params, 15, args)
         # # shade_fraction_riparian = params[:, :, 6] * (paramCalLst[6][1] - paramCalLst[6][0]) + paramCalLst[6][0]
         #

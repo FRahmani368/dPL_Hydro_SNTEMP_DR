@@ -7,8 +7,8 @@ device: "cuda"
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
-  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_40sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_40_all_3.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -59,7 +59,7 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 104
+  batch_size: 20
   EPOCHS: 800
   hidden_size: 256
   dropout: 0.5

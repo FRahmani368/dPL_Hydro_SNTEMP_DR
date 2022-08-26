@@ -53,7 +53,7 @@ def main(args):
     lenF_gwflow_list = [30,365,365,365,365]
     lenF_ssflow_list = [1,1,1,1,1]
     lat_temp_adj_list = ["True","False","True","True","True",]
-    shade_smoothening_list = ["True","True","False","True","True"]
+    shade_smoothening_list = ["False","False","False","False","False",]
     frac_smoothening_list = [ "True","False", "False","True","False"]
     s = [0,0,0,0,0]
     # seeds = args['randomseed']
