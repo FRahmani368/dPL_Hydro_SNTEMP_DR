@@ -35,13 +35,30 @@ def create_output_dirs(args, seed):
     #              '_B_' + str(args['hyperparameters']['batch_size']) + \
     #              '_H_' + str(args['hyperparameters']['hidden_size']) + \
     #              '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(seed)
+    L = len(args['static_params_list'])
+    if L > 0:
+        stat = str(args['static_params_list'][0])
+        if L > 1:
+            for i in range(1, L):
+                stat = stat + "_" + str(args['static_params_list'][i])
+
+    L = len(args['semi_static_params_list'])
+    if L > 0:
+        semi = str(args['semi_static_params_list'][0])
+        if L > 1:
+            for i in range(1, L):
+                semi = semi + "_" + str(args['semi_static_params_list'][i])
 
     out_folder = str(args['res_time_params']['type']) + \
                  '_gw_' + str(args['res_time_params']['lenF_gwflow']) + \
                  '_ss_' + str(args['res_time_params']['lenF_ssflow']) + \
                  '_adj_' + str(args['lat_temp_adj'][0]) + \
-                 '_sh_' + str(args['shade_smoothening'][0]) + \
-                 '_fr_' + str(args['frac_smoothening']['mode'][0]) + "_" + str(seed)
+                 '_fr_' + str(args['frac_smoothening']['mode'][0]) +\
+                 '_stat_' + stat + \
+                 '_semi_' + semi + "_s_" + str(seed)
+
+
+# '_sh_' + str(args['shade_smoothening'][0]) +
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
         os.makedirs(os.path.join(args['output']['model'], out_folder))
     else:
