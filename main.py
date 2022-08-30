@@ -49,26 +49,24 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["Meisner","Meisner","Meisner","Meisner","Meisner",] #"SNTEMP", "van Vliet"
-    lenF_gwflow_list = [30,365,365,365,365]
-    lenF_ssflow_list = [1,1,1,1,1]
-    lat_temp_adj_list = ["True","False","True","True","True",]
-    shade_smoothening_list = ["False","False","False","False","False",]
-    frac_smoothening_list = [ "True","False", "False","True","False"]
+    mode_type = ["SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP"] #"SNTEMP", "van Vliet"
+    lenF_gwflow_list = [365,365,365,365]
+    lenF_ssflow_list = [30,30,30,30,30]
+    lat_temp_adj_list = ["True","False","True","False"]
+    frac_smoothening_list = ["False","False", "True","True"]
     s = [0,0,0,0,0]
     # seeds = args['randomseed']
-    for seed, typ, LenF_gw, LenF_ss, adj, shade_smooth, frac_smooth in zip(s,
-                                                                            mode_type,
-                                                                            lenF_gwflow_list,
-                                                                            lenF_ssflow_list,
-                                                                            lat_temp_adj_list,
-                                                                            shade_smoothening_list,
-                                                                            frac_smoothening_list):
+    for seed, typ, LenF_gw, LenF_ss, adj,  frac_smooth in zip(s,
+                                                            mode_type,
+                                                            lenF_gwflow_list,
+                                                            lenF_ssflow_list,
+                                                            lat_temp_adj_list,
+                                                            frac_smoothening_list):
         args["res_time_params"]["type"] = typ
         args["res_time_params"]["lenF_gwflow"] = LenF_gw
         args["res_time_params"]["lenF_ssflow"] = LenF_ss
         args["lat_temp_adj"] = adj
-        args["shade_smoothening"] = shade_smooth
+        # args["shade_smoothening"] = shade_smooth
         args["frac_smoothening"]["mode"] = frac_smooth
         # args['randomseed'] = seed
         # torch.cuda.set_per_process_memory_fraction(0.9)   # work for torch > 1.4

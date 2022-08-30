@@ -773,7 +773,13 @@ class STREAM_TEMP_EQ(nn.Module):
                 out_temp = params[:, -1, num] * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
                            args["paramCalLst"][num][0]
                 out = out_temp.view(-1, 1).repeat(1, params.shape[1]).view(params.shape[0], params.shape[1])
-            else:
+            elif num in args["semi_static_params_list"]:
+                out_temp = self.semi_static_params(params, num,
+                                    interval=args["interval_for_semi_static_param"][args["semi_static_params_list"].index(num)],
+                                    method=args["method_for_semi_static_param"][args["semi_static_params_list"].index(num)])
+                out = out_temp * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
+                      args["paramCalLst"][num][0]
+            else:   #dynamic
                 out = params[:, :, num] * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0]) + \
                       args["paramCalLst"][num][0]
         elif params.dim() == 2:
@@ -836,11 +842,11 @@ class STREAM_TEMP_EQ(nn.Module):
         return srflow_percentage, ssflow_percentage, gwflow_percentage
 
 
-    def semi_static_params(self, params, param_no, interval_no=12, method="average"):
+    def semi_static_params(self, params, param_no, interval=30, method="average"):
         # seperate the piece for each interval
         param = params[:,:, param_no]
         no_basins, no_days = param.shape
-        interval = math.floor(no_days/interval_no)
+        interval_no = math.floor(no_days/interval)
         remainder = no_days%interval_no
         param_name_list = list()
         if method == "average":
@@ -918,22 +924,16 @@ class STREAM_TEMP_EQ(nn.Module):
         b_ssflow = self.parameter_bounds(params, 3, args)
         a_gwflow = self.parameter_bounds(params, 4, args)
         b_gwflow = self.parameter_bounds(params, 5, args)
-        # w1_shade = self.parameter_bounds(params, 6, args)
-        w1_shade = self.semi_static_params(params, 6, interval_no=12, method="average")
+        w1_shade = self.parameter_bounds(params, 6, args)
         srflow_portion = self.parameter_bounds(params, 7, args)
         ssflow_portion = self.parameter_bounds(params, 8, args)
         gwflow_portion = self.parameter_bounds(params, 9, args)
-        # gwflow_portion = self.semi_static_params(params, 9, interval_no=4, method="average")
-        # w2_shade = self.parameter_bounds(params, 10, args)
-        w2_shade = self.semi_static_params(params, 10, interval_no=12, method="average")
+        w2_shade = self.parameter_bounds(params, 10, args)
         width_coef_nom = self.parameter_bounds(params, 11, args)
         width_coef_denom = self.parameter_bounds(params, 12, args)
-        # hamon_coef = self.parameter_bounds(params, 13, args)
-        hamon_coef = self.semi_static_params(params, 13, interval_no=12, method="average")
-        # w3_shade = self.parameter_bounds(params, 14, args)
-        w3_shade = self.semi_static_params(params, 14, interval_no=12, method="average")
+        hamon_coef = self.parameter_bounds(params, 13, args)
+        w3_shade = self.parameter_bounds(params, 14, args)
         lat_temp_adj = self.parameter_bounds(params, 15, args)
-        # # shade_fraction_riparian = params[:, :, 6] * (paramCalLst[6][1] - paramCalLst[6][0]) + paramCalLst[6][0]
         #
         #
         # # sr_conv_bias = ((params[:, :, 10: 11]).squeeze()) * (paramCalLst[10][1] - paramCalLst[10][0]) + \
@@ -1004,9 +1004,10 @@ class STREAM_TEMP_EQ(nn.Module):
 
         # masking surface runoff fraction with precipitation.
         # if there is not any precipitaton, it cannot be more than 0.01
-        mask_precip = precip.ge(NEARZERO)
-        srflow_portion = srflow_portion * mask_precip.int().float()
-        srflow_portion = torch.clamp(srflow_portion, min=0.00, max=1.0)
+        if args["make_sr_masked_by_precip"]:
+            mask_precip = precip.ge(NEARZERO)
+            srflow_portion = srflow_portion * mask_precip.int().float()
+            srflow_portion = torch.clamp(srflow_portion, min=0.00, max=1.0)
         # gw fractions smoothening
         if args["frac_smoothening"]["mode"] == "True":
             srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,

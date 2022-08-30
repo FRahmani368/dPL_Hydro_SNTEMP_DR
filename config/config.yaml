@@ -72,10 +72,11 @@ res_time_params:
   lenF_gwflow: 30 #
   lenF_srflow: 1
 lat_temp_adj: "False"
-shade_smoothening: "True"
+shade_smoothening: "False"
 frac_smoothening:
   mode: "True"
   gw_filter_size: 30
+make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
 STemp_default_params:
@@ -96,19 +97,22 @@ no_basins: 415
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
-static_params_list: [0, 1, 2, 3, 4, 5, 11, 12, 13, 15]
+static_params_list: [0, 1, 2, 3, 4, 5, 11, 12, 15]
+semi_static_params_list: [6, 10, 13, 14]
+method_for_semi_static_param: ["average", "average", "average", "average"]
+interval_for_semi_static_param: [15,15,30,15]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
             [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11],  # a (k) and b (theta)
 #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
-            [0, 1],                                                    # shade factor
+            [0, 1],                                                    # rip shade factor
             [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
 #            [0.06, 0.85], [0.06, 0.85], [0.12, 0.88],                          # flow portions
             # [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
             # [0, 3], [-4, 4],                                            # final scale and final bias
             # [0.1, 0.10001],                                                        # albedo
-            [0, 1],                                                           # solar shade factor
+            [0, 1],                                                           # topo shade factor
             [0.1, 3.2] , #[0.01, 2],                                            # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
             # [0.01, 1],                                                            # width A coefficient
@@ -118,6 +122,6 @@ paramCalLst: [
             # [-1, 1],                     # correction factor for T_0 ()temp of water at beginning in lateral flow
             # [0.01, 1],                       # cloud cover fraction
             [0.004, 0.008],                        # PET_ hamon coefficient
-            [0, 1],
-            [-2, 2]
+            [0, 1],                             # shading
+            [-3, 5]
 ]
