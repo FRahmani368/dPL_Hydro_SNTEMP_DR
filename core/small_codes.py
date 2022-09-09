@@ -41,6 +41,10 @@ def create_output_dirs(args, seed):
         if L > 1:
             for i in range(1, L):
                 stat = stat + "_" + str(args['static_params_list'][i])
+        else:
+            stat = ""
+    else:
+        stat = ""
 
     L = len(args['semi_static_params_list'])
     if L > 0:
@@ -48,6 +52,10 @@ def create_output_dirs(args, seed):
         if L > 1:
             for i in range(1, L):
                 semi = semi + "_" + str(args['semi_static_params_list'][i])
+        else:
+            semi = ""
+    else:
+        semi = ""
 
     out_folder = str(args['res_time_params']['type']) + \
                  '_gw_' + str(args['res_time_params']['lenF_gwflow']) + \

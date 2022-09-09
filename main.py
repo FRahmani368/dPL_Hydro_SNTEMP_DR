@@ -49,12 +49,12 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP","SNTEMP","SNTEMP","SNTEMP"] #"SNTEMP", "van Vliet"
-    lenF_gwflow_list = [365,365,365,365]
-    lenF_ssflow_list = [30,30,30,30]
-    lat_temp_adj_list = ["True","False","True","False"]
-    frac_smoothening_list = ["False","False", "True","True"]
-    s = [0,0,0,0,0]
+    mode_type = ["SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP"] #["van Vliet","van Vliet","van Vliet","Meisner","Meisner"] #"SNTEMP", "van Vliet"
+    lenF_gwflow_list = [365, 365, 365, 365,365, 365, 365, 365]# [365,365,365,365, 365]
+    lenF_ssflow_list = [5,5, 5, 5, 10, 10, 10, 10]# [1,1,1,1,1]
+    lat_temp_adj_list = ["False","False","True","True","False","False","True","True"]
+    frac_smoothening_list = ["False","True", "True","False","False","True", "True","False"]
+    s = [0,0,0,0,0,0,0,0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj,  frac_smooth in zip(s,
                                                             mode_type,

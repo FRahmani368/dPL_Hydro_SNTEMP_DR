@@ -2,13 +2,13 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [ 1]   # 0:Train,   1: Test
 device: "cuda"
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
-  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_40sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_40_all_3.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_3.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -59,7 +59,7 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 20
+  batch_size: 104
   EPOCHS: 800
   hidden_size: 256
   dropout: 0.5
@@ -97,10 +97,10 @@ no_basins: 415
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
-static_params_list: [0, 1, 2, 3, 4, 5, 11, 12, 15]
-semi_static_params_list: [6, 10, 13, 14]
+static_params_list: [0,1,2,3,4,5]
+semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]
-interval_for_semi_static_param: [15,15,30,15]
+interval_for_semi_static_param: [15, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
             [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11],  # a (k) and b (theta)
