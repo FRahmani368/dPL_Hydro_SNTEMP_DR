@@ -49,12 +49,12 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP","SNTEMP"] #["van Vliet","van Vliet","van Vliet","Meisner","Meisner"] #"SNTEMP", "van Vliet"
-    lenF_gwflow_list = [365, 365, 365, 365,365, 365, 365, 365]# [365,365,365,365, 365]
-    lenF_ssflow_list = [5,5, 5, 5, 10, 10, 10, 10]# [1,1,1,1,1]
-    lat_temp_adj_list = ["False","False","True","True","False","False","True","True"]
-    frac_smoothening_list = ["False","True", "True","False","False","True", "True","False"]
-    s = [0,0,0,0,0,0,0,0]
+    mode_type = ["SNTEMP"] #["van Vliet","van Vliet","van Vliet","Meisner","Meisner"] #"SNTEMP", "van Vliet"
+    lenF_gwflow_list = [365]# [365,365,365,365, 365]
+    lenF_ssflow_list = [30]# [1,1,1,1,1]
+    lat_temp_adj_list = ["True"]
+    frac_smoothening_list = ["True"]
+    s = [0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj,  frac_smooth in zip(s,
                                                             mode_type,
@@ -80,13 +80,13 @@ def main(args):
         x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
         c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
         time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
-        x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
-                                                                                          x_total_raw, y_raw)
-        x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
-                                                                                          x_total_scaled, y_scaled)
-
+        # x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
+        #                                                                                   x_total_raw, y_raw)
+        # x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
+        #                                                                                   x_total_scaled, y_scaled)
+        #
         vars = args["optData"]["varT"] + args["optData"]["varC"]
-        x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
+        # x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
         # changing the numpy to tensor
         # (x_total_raw_tensor, y_raw_tensor, c_raw_tensor,
         #  x_total_scaled_tensor, y_scaled_tensor, c_scaled_tensor,
@@ -98,8 +98,11 @@ def main(args):
 
         # ANN model to simulate parameters
         # model = MLP(args)
+        # all parameters are going to be 3D -> [batchsize, rho, nmul]
+        no_tot_params = len(args["paramCalLst"])
+        ny = args["nmul"] * no_tot_params
         model = CudnnLstmModel(nx=len(args["optData"]["varT"] + args["optData"]["varC"])-1,
-                            ny=16,
+                            ny=ny,
                             hiddenSize=args["hyperparameters"]["hidden_size"],
                             dr=args["hyperparameters"]["dropout"])
         Ts = STREAM_TEMP_EQ()
@@ -145,6 +148,14 @@ def main(args):
         #                                 device=args["device"], dtype=torch.float32, requires_grad=False)
 
         if 0 in args['Action']:
+            x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
+                                                                                         x_total_raw, y_raw)
+            x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
+                                                                              x_total_scaled, y_scaled)
+
+            vars = args["optData"]["varT"] + args["optData"]["varC"]
+            x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
+
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
             rho = args["hyperparameters"]["rho"]
             model.zero_grad()
@@ -214,8 +225,14 @@ def main(args):
                 if epoch == args['hyperparameters']['EPOCHS']:
                     print('last epoch')
             print('end')
+            del x_train_scaled, y_train_scaled, x_train_scaled_noccov, y_train, ave_air_total, x_train
+            del gw_tau, ss_tau, pet, shade_fraction_riparian, shade_fraction_topo, \
+                top_width, cloud_fraction, hamon_coef, lat_temp_adj
 
         if 1 in args['Action']:
+            #to free up some GPU memory
+            del x_total_temp, c_raw, y_scaled, c_scaled
+
             modelFile = os.path.join(args['output']['out_dir'],
                                       'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
@@ -233,6 +250,8 @@ def main(args):
             #Normalizing the inputs for ML part
             x_test_scaled, _, _, _, _, _ = train_val_test_split("t_test", args, time1,
                                                                                            x_total_scaled, y_raw)
+
+            del x_total_raw, y_raw, x_total_scaled
             x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
 
             np.save(os.path.join(args['output']['out_dir'], 'x.npy'), x_test)
@@ -454,7 +473,10 @@ def main(args):
             fig.show()
             plt.close()
             print("END testing")
-
+            del x_total_raw_tensor, x_test_scaled_noccov, x_test_scaled
+            del gw_tau, ss_tau, pet, shade_fraction_riparian, shade_fraction_topo, \
+                top_width, cloud_fraction, hamon_coef, lat_temp_adj
+            torch.cuda.empty_cache()
 
 
 

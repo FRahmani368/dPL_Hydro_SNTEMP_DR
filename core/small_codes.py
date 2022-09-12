@@ -41,8 +41,6 @@ def create_output_dirs(args, seed):
         if L > 1:
             for i in range(1, L):
                 stat = stat + "_" + str(args['static_params_list'][i])
-        else:
-            stat = ""
     else:
         stat = ""
 
@@ -52,8 +50,6 @@ def create_output_dirs(args, seed):
         if L > 1:
             for i in range(1, L):
                 semi = semi + "_" + str(args['semi_static_params_list'][i])
-        else:
-            semi = ""
     else:
         semi = ""
 
@@ -69,14 +65,17 @@ def create_output_dirs(args, seed):
 # '_sh_' + str(args['shade_smoothening'][0]) +
     if not os.path.exists(os.path.join(args['output']['model'], out_folder)):
         os.makedirs(os.path.join(args['output']['model'], out_folder))
-    else:
-        shutil.rmtree(os.path.join(args['output']['model'], out_folder))
-        os.makedirs(os.path.join(args['output']['model'], out_folder))
+    # else:
+    #     shutil.rmtree(os.path.join(args['output']['model'], out_folder))
+    #     os.makedirs(os.path.join(args['output']['model'], out_folder))
     args['output']['out_dir'] = os.path.join(args['output']['model'], out_folder)
 
     # saving the args file in output directory
     config_file = json.dumps(args)
-    f = open(os.path.join(args['output']['out_dir'], "config_file.json"), "w")
+    config_path = os.path.join(args['output']['out_dir'], "config_file.json")
+    if os.path.exists(config_path):
+        os.remove(config_path)
+    f = open(config_path, "w")
     f.write(config_file)
     f.close()
 

@@ -2,8 +2,9 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [ 1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
+nmul: 3
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
@@ -59,11 +60,11 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 104
-  EPOCHS: 800
+  batch_size: 50
+  EPOCHS: 400
   hidden_size: 256
   dropout: 0.5
-  saveEpoch: 200
+  saveEpoch: 50
 seq_lin_layers:
   hidden_size: 256
 res_time_params:
@@ -97,13 +98,13 @@ no_basins: 415
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
-static_params_list: [0,1,2,3,4,5]
-semi_static_params_list: []
+static_params_list: [0,1,2,3,4,5, 11, 12, 15]
+semi_static_params_list: [13]
 method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [15, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11],  # a (k) and b (theta)
+            [0.1, 9], [0.1, 9], [0.1, 9], [0.1, 9], [0.01, 11], [0.01, 11],  # a (k) and b (theta)
 #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # rip shade factor
