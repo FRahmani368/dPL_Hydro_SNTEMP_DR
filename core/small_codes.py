@@ -57,9 +57,12 @@ def create_output_dirs(args, seed):
                  '_gw_' + str(args['res_time_params']['lenF_gwflow']) + \
                  '_ss_' + str(args['res_time_params']['lenF_ssflow']) + \
                  '_adj_' + str(args['lat_temp_adj'][0]) + \
-                 '_fr_' + str(args['frac_smoothening']['mode'][0]) +\
+                 '_fr_' + str(args['frac_smoothening']['mode'][0]) + \
+                 str(args['frac_smoothening']['gw_filter_size']) + \
                  '_stat_' + stat + \
-                 '_semi_' + semi + "_s_" + str(seed)
+                 '_semi_' + semi + \
+                 "_nmul_" + str(args['nmul']) + \
+                 "_s_" + str(seed)
 
 
 # '_sh_' + str(args['shade_smoothening'][0]) +
