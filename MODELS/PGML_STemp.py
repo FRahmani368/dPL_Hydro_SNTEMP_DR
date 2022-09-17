@@ -594,7 +594,7 @@ class STREAM_TEMP_EQ(nn.Module):
             y = F.conv1d(x_sample1[a], torch.flip(w, [2]), groups=groups, padding=0, stride=1, bias=bias)
             y = y.permute(1, 0, 2)
         elif UH.shape[1] > 1:
-            w = torch.flip(UH, [3])
+            w = torch.flip(UH, [2])
             y = x_sample * w
             y = y.sum(2)
             if bias is not None:

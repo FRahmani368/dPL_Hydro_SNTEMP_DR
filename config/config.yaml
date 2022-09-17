@@ -24,26 +24,26 @@ optData:
      'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "NHDlength_tot(m)", 'PPTAVG_BASIN',   #stream_length_artificial
      'ELEV_MEAN_M_BASIN',
 
-    'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'STOR_NOR_2009','SILTAVE',
-    'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS',
-    'ELEV_MAX_M_BASIN', 'ELEV_MIN_M_BASIN', 'MAJ_NDAMS_2009',
-    'T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',  'NDAMS_2009',
+#    'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'STOR_NOR_2009','SILTAVE',
+#    'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS',
+#    'ELEV_MAX_M_BASIN', 'ELEV_MIN_M_BASIN', 'MAJ_NDAMS_2009',
+#    'T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',  'NDAMS_2009',
 
-#    'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',     # Round1
-#     'GRASSNLCD06', 'WOODYWETNLCD06', 'RIP100_DEV', 'RAW_AVG_DIS_ALL_MAJ_NPDES', 'STOR_NOR_2009','SILTAVE',
-#    'FRAGUN_BASIN',  'CANALS_PCT', 'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG',
-#    'ROADS_KM_SQ_KM', 'PADCAT1_PCT_BASIN', 'PADCAT2_PCT_BASIN',
-#
-#    'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS',    # Round2
-#     'MIXEDFORNLCD06', 'SHRUBNLCD06','EMERGWETNLCD06',
-#    'ELEV_MAX_M_BASIN', 'ELEV_MIN_M_BASIN', 'MAJ_NDAMS_2009', 'MAJ_DDENS_2009','SANDAVE', 'SNOW_PCT_PRECIP',
-#    'HYDRO_DISTURB_INDX', 'GEOL_REEDBUSH_DOM_PCT','POWER_NUM_PTS', 'POWER_SUM_MW', 'ARTIFPATH_MAINSTEM_PCT',
-#
-#    'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',  'NDAMS_2009',    # Round3
-#    'DEVNLCD06',  'BARRENNLCD06', 'DECIDNLCD06',  'EVERGRNLCD06',
-#    'ELEV_MEDIAN_M_BASIN', 'ELEV_STD_M_BASIN', 'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'DDENS_2009',
-#    'PERHOR', 'CONTACT', 'MAINSTEM_SINUOUSITY', 'REACHCODE',
-#    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
+    'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',     # Round1
+     'GRASSNLCD06', 'WOODYWETNLCD06', 'RIP100_DEV', 'RAW_AVG_DIS_ALL_MAJ_NPDES', 'STOR_NOR_2009','SILTAVE',
+    'FRAGUN_BASIN',  'CANALS_PCT', 'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG',
+    'ROADS_KM_SQ_KM', 'PADCAT1_PCT_BASIN', 'PADCAT2_PCT_BASIN',
+
+    'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',  'RAW_AVG_DIS_ALLDAMS',    # Round2
+     'MIXEDFORNLCD06', 'SHRUBNLCD06','EMERGWETNLCD06',
+    'ELEV_MAX_M_BASIN', 'ELEV_MIN_M_BASIN', 'MAJ_NDAMS_2009', 'MAJ_DDENS_2009','SANDAVE', 'SNOW_PCT_PRECIP',
+    'HYDRO_DISTURB_INDX', 'GEOL_REEDBUSH_DOM_PCT','POWER_NUM_PTS', 'POWER_SUM_MW', 'ARTIFPATH_MAINSTEM_PCT',
+
+    'HIRES_LENTIC_PCT','T_AVG_BASIN', 'T_MAX_BASIN','T_MAXSTD_BASIN',  'NDAMS_2009',    # Round3
+    'DEVNLCD06',  'BARRENNLCD06', 'DECIDNLCD06',  'EVERGRNLCD06',
+    'ELEV_MEDIAN_M_BASIN', 'ELEV_STD_M_BASIN', 'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'DDENS_2009',
+    'PERHOR', 'CONTACT', 'MAINSTEM_SINUOUSITY', 'REACHCODE',
+    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
   ]
 
   target: ["00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
@@ -103,13 +103,13 @@ no_basins: 415
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
-static_params_list: []
+static_params_list: [0,1,2,3,4,5,15]
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.1, 9], [0.1, 9], [0.01, 11], [0.01, 11], [0.01, 11], [0.01, 11],  # a (k) and b (theta)
+            [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
 #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # rip shade factor
@@ -119,7 +119,7 @@ paramCalLst: [
             # [0, 3], [-4, 4],                                            # final scale and final bias
             # [0.1, 0.10001],                                                        # albedo
             [0, 1],                                                           # topo shade factor
-            [0.1, 3.2] , #[0.01, 2],                                            # width coefficient nominator
+            [0.1, 4] , #[0.01, 2],                                            # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
             # [0.01, 1],                                                            # width A coefficient
             [0.1, 1], #[0.5, 10], #[0.01, 1],                                  # width coefficient denominator

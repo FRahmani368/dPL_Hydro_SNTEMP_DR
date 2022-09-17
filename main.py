@@ -52,8 +52,8 @@ def main(args):
     mode_type = ["SNTEMP"] #["van Vliet","van Vliet","van Vliet","Meisner","Meisner"] #"SNTEMP", "van Vliet"
     lenF_gwflow_list = [365]# [365,365,365,365, 365]
     lenF_ssflow_list = [30]# [1,1,1,1,1]
-    lat_temp_adj_list = ["True"]
-    frac_smoothening_list = ["True"]
+    lat_temp_adj_list = ["False"]
+    frac_smoothening_list = ["False"]
     s = [0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj,  frac_smooth in zip(s,
