@@ -1221,7 +1221,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # T_w = final_scale * T_w + final_bias
         if args['lat_temp_adj'] == "True":
             return torch.mean(T_w, -1).squeeze(), \
-                   torch.mean(ave_air_temp_new, 3).squeeze(), \
+                   torch.mean(ave_air_temp_new, 2).squeeze(), \
                    torch.mean(gwflow_percentage, -1).squeeze(), \
                    torch.mean(ssflow_percentage, -1).squeeze(), \
                    torch.mean(w_gwflow, -1).squeeze(), \
@@ -1235,7 +1235,7 @@ class STREAM_TEMP_EQ(nn.Module):
                    torch.mean(lat_temp_adj, -1).squeeze()
         else:
             return torch.mean(T_w, -1).squeeze(), \
-                   torch.mean(ave_air_temp_new, 3).squeeze(), \
+                   torch.mean(ave_air_temp_new, 2).squeeze(), \
                    torch.mean(gwflow_percentage, -1).squeeze(), \
                    torch.mean(ssflow_percentage, -1).squeeze(), \
                    torch.mean(w_gwflow, -1).squeeze(), \
