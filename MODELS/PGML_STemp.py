@@ -893,7 +893,7 @@ class STREAM_TEMP_EQ(nn.Module):
         param = params[:,:, param_no]
         no_basins, no_days = param.shape
         interval_no = math.floor(no_days/interval)
-        remainder = no_days%interval_no
+        remainder = no_days%interval
         param_name_list = list()
         if method == "average":
             for i in range(interval_no):
@@ -925,7 +925,7 @@ class STREAM_TEMP_EQ(nn.Module):
         param = params[:, :, param_no*nmul:(param_no+1)*nmul]
         no_basins, no_days = param.shape[0], param.shape[1]
         interval_no = math.floor(no_days / interval)
-        remainder = no_days % interval_no
+        remainder = no_days % interval
         param_name_list = list()
         if method == "average":
             for i in range(interval_no):
