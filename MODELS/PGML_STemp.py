@@ -546,7 +546,7 @@ class STREAM_TEMP_EQ(nn.Module):
             b1 = b.repeat(1, 1,1, lenF)
             alpha = F.relu(a1).view(m[0], m[1], m[2], lenF).permute(3, 0, 1, 2) + 0.1
             beta = F.relu(b1).view(m[0], m[1], m[2], lenF).permute(3, 0, 1, 2) + 0.5
-            x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1, 1).repeat(1, m[0], m[1], m[2])
+            x = torch.linspace(0.001, 20, lenF).view(lenF, 1, 1, 1).repeat(1, m[0], m[1], m[2])
             if torch.cuda.is_available():
                 x = x.cuda(a.device)
             # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
@@ -603,7 +603,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
         return y
 
-    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, args, NEARZERO=1e-6):
+    def lateral_flow_temperature(self, srflow, ssflow, gwflow, ave_air_temp, args, lat_temp_adj, NEARZERO=1e-6):
         """
         :param srflow: surface runoff
         :param ssflow: subsurface runoff
@@ -667,6 +667,9 @@ class STREAM_TEMP_EQ(nn.Module):
         mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
+        if args['lat_temp_adj'] == "True":
+            gwflow_temp = gwflow_temp + lat_temp_adj
+
         T_l = (((gwflow * gwflow_temp) + (srflow * srflow_temp) +
                 (ssflow * ssflow_temp)) / denom)
 
@@ -674,12 +677,12 @@ class STREAM_TEMP_EQ(nn.Module):
         T_l[mask_less_zero] = 0.0
         return T_l, srflow_temp, ssflow_temp, gwflow_temp, lat_flow_temp
 
-    def solving_SNTEMP_ODE_second_order(self, K1, K2, T_l, T_e, ave_width, q_l, L, args,
+    def solving_SNTEMP_ODE_second_order(self, K1, K2, T_e, ave_width, q_l, L, args,
                                         T_0=make_tensor(0), Q_0=make_tensor(0.01), NEARZERO=1e-10):
         # # Note: as we assume that Q_0 is 0.01, we are always gaining flow with positive lateral flow or
         # # with zero lateral flow
-        # density = args['params']['water_density']
-        # c_w = args['params']['C_w']
+        density = args['params']['water_density']
+        c_w = args['params']['C_w']
 
         # for positive lateral flow
         # mask_pos = q_l.ge(NEARZERO)
@@ -765,6 +768,7 @@ class STREAM_TEMP_EQ(nn.Module):
         # # R
         mask_q_l = q_l.eq(0)
         q_l_pos = q_l + mask_q_l.int().float()
+        b = q_l + ((K1 * ave_width) / (density * c_w))
         # power = -(ave_width / q_l_pos)
         #
         # mask_Q_0 = Q_0.eq(0)
@@ -774,7 +778,9 @@ class STREAM_TEMP_EQ(nn.Module):
         # for headwater basins. we assume Q_0 = q_l
         # q_test = make_tensor(np.ones(q_l.size()) * 2)
         # R_0 = (5 / (-ave_width * L))
-        R_0 = torch.exp(-(ave_width * L) / q_l_pos)
+        mask_Q_0 = Q_0.eq(0)
+        Q_0_pos = Q_0 + mask_Q_0.int().float()
+        R_0 = torch.exp(-(b * L) / Q_0_pos)
         mask_K1 = K1.eq(0)
         K1_masked = K1 + mask_K1.int().float()
         denom = (1 + ((K2 / K1_masked) * (T_e - T_0) * (1 - R_0)))
@@ -1073,7 +1079,8 @@ class STREAM_TEMP_EQ(nn.Module):
             # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
             # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
             # stream_length = x[:, :, vars.index("stream_length_artificial")]
-            stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
+            # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
+            stream_length = x[:, :, vars.index("stream_length_artificial")].unsqueeze(-1).repeat(1, 1, nmul)
             basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1,1,nmul)
         albedo = args["STemp_default_params"]["albedo"]
@@ -1175,11 +1182,12 @@ class STREAM_TEMP_EQ(nn.Module):
 
         ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=3)
 
-        T_l, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(srflow=srflow,
+        T_0, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(srflow=srflow,
                                                                                                      ssflow=ssflow,
                                                                                                      gwflow=gwflow,
                                                                                                      ave_air_temp=ave_air_temp,
-                                                                                                     args=args)
+                                                                                                     args=args,
+                                                                                                     lat_temp_adj=lat_temp_adj)
 
         # 'Correction factor to adjust the bias of the temperature of the lateral inflow'
         # Fortran code:
@@ -1188,12 +1196,11 @@ class STREAM_TEMP_EQ(nn.Module):
         # ! if this is true, then there is no flow from upstream, but there is lateral inflow
         # t_o = seg_tave_lat(i) + lat_temp_adj(i, Nowmonth)
         # if there is upstream flow, it should be weighted average temperature of all flows
-        # todo: need to check T_0. in fortran code it is like below, however, I believe it should be air temperature
-        #  as it is used in e_s calculation and some other equations too.
-        if args['lat_temp_adj'] == "True":
-            T_0 = T_l + lat_temp_adj
-        else:
-            T_0 = T_l
+
+        # if args['lat_temp_adj'] == "True":
+        #     T_0 = T_l + lat_temp_adj
+        # else:
+        #     T_0 = T_l
         A, B, C, D = self.ABCD_equations(T_a=T_0, swrad=swrad, e_a=vp, elev=elev,
                                          slope=slope, top_width=top_width, up_inflow=0.0, E=PET,  # up_inflow
                                          T_g=gwflow_temp, iGrid=iGrid, shade_fraction_riparian=shade_fraction_riparian,
@@ -1206,16 +1213,16 @@ class STREAM_TEMP_EQ(nn.Module):
         Q_0 = make_tensor(np.full((obsQ.shape), 0.000001))
         # Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0))
 
-        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
-                                                   q_l=obsQ, L=stream_length, args=args,
-                                                   T_0=T_0, Q_0=Q_0)
+        # T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
+        #                                            q_l=obsQ, L=stream_length, args=args,
+        #                                            T_0=T_0, Q_0=Q_0)
 
         # writing the original fortran code here
         # they assumed if Q_upstream==0 and q_lat > 0, they assume Q_upstream=q_lat, and q_lat=0
         # it prevents from dividing to zero
-        # T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
-        #                                            q_l=Q_0, L=stream_length, args=args,
-        #                                            T_0=T_0, Q_0=obsQ)
+        T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_e, ave_width=top_width,
+                                                   q_l=Q_0, L=stream_length, args=args,
+                                                   T_0=T_0, Q_0=obsQ)
 
         # scaling and bias
         # T_w = final_scale * T_w + final_bias
