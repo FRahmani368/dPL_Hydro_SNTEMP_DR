@@ -4,14 +4,14 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 1
+nmul: 16
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
   attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_4.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
-  model: "//home//fzr5082//PGML_STemp_results//models//415_sites//SNTEMP_artlength"
+  model: "//home//fzr5082//PGML_STemp_results//models//415_sites//SNTEMP_mix_len2_free_ab"
   data: "//home//fzr5082//PGML_STemp_results//data"
 
 optData:
@@ -21,7 +21,7 @@ optData:
 
   varC: [
     'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
-     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', 'stream_length_artificial', 'PPTAVG_BASIN',   # "NHDlength_tot(m)"
+     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "NHDlength_tot(m)", 'PPTAVG_BASIN',   # "NHDlength_tot(m)"   , 'stream_length_artificial'
      'ELEV_MEAN_M_BASIN',
 
     'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'STOR_NOR_2009','SILTAVE',
@@ -99,17 +99,17 @@ params:
 NEARZERO: 1e-10
 initial_values:
   shade_fraction: 0.1
-no_basins: 415
+no_basins: 50
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
-static_params_list: [0,1,2,3,4,5,15]
+static_params_list: []
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.1, 5], [0.1, 5], [0.01, 0.011], [3, 3.01], [0.01, 0.011], [3, 3.01],  # a (k) and b (theta)
+            [0.1, 5], [0.1, 5], [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
 #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # rip shade factor

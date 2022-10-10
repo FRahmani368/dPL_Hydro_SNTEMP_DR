@@ -49,11 +49,11 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP","SNTEMP"] #["van Vliet","van Vliet","van Vliet","Meisner","Meisner"] #"SNTEMP", "van Vliet"
-    lenF_gwflow_list = [365, 365]# [365,365,365,365, 365]
-    lenF_ssflow_list = [30, 30]# [1,1,1,1,1]
+    mode_type = ["Meisner","SNTEMP"] #["van Vliet","Meisner","SNTEMP"]
+    lenF_gwflow_list = [365, 730]
+    lenF_ssflow_list = [1, 30]
     lat_temp_adj_list = ["True", "True"]
-    frac_smoothening_list = ["False","False"]
+    frac_smoothening_list = ["True","False"]
     s = [0, 0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj,  frac_smooth in zip(s,
@@ -71,7 +71,7 @@ def main(args):
         # args['randomseed'] = seed
         # torch.cuda.set_per_process_memory_fraction(0.9)   # work for torch > 1.4
         randomseed_config(seed)
-        # Creating output directories mn
+        # Creating output directories
         args = create_output_dirs(args, seed)
         min_max_scaler = preprocessing.MinMaxScaler()
         # getting the data
@@ -80,19 +80,8 @@ def main(args):
         x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
         c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
         time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
-        # x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
-        #                                                                                   x_total_raw, y_raw)
-        # x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
-        #                                                                                   x_total_scaled, y_scaled)
         #
         vars = args["optData"]["varT"] + args["optData"]["varC"]
-        # x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
-        # changing the numpy to tensor
-        # (x_total_raw_tensor, y_raw_tensor, c_raw_tensor,
-        #  x_total_scaled_tensor, y_scaled_tensor, c_scaled_tensor,
-        #  x_train_tensor, y_train_tensor) = make_tensor(x_total_raw, y_raw, c_raw,
-        #                                                x_total_scaled, y_scaled, c_scaled,
-        #                                                x_train, y_train)
         x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
 
 
@@ -123,29 +112,9 @@ def main(args):
             # moving dataset to CUDA
 
         c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False)
-        # init_shade = mlp(c_tensorTrain)
-        # model.shade_fraction[:, 0] = init_shade[:, 0]
-        # model.shade_fraction = nn.ParameterList([nn.Parameter(x) for x in init_shade])
-        # model.shade = nn.Parameter(init_shade)
-        # model.a_srflow = nn.Parameter(torch.ones(args['no_basins'], args["res_time_params"]["lenF_srflow"], 1))
-        # model.bias_srflow[:] = 0
-        # model.bias_ssflow[:] = 0
-        # model.bias_gwflow[:] = 0
 
-        # initializing the variables
-        ave_air_temp = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
-                                   device=args["device"], dtype=torch.float32, requires_grad=False)
-        shade_fraction_riparian = torch.zeros(args['hyperparameters']['batch_size'], 1,
-                                              device=args["device"], dtype=torch.float32, requires_grad=False)
 
-        gwflow_percentage = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
-                                   device=args["device"], dtype=torch.float32, requires_grad=False)
-        ssflow_percentage = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
-                                        device=args["device"], dtype=torch.float32, requires_grad=False)
-        # ss_tau = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
-        #                                 device=args["device"], dtype=torch.float32, requires_grad=False)
-        # gw_tau = torch.zeros(args['hyperparameters']['batch_size'], args["hyperparameters"]["rho"],
-        #                                 device=args["device"], dtype=torch.float32, requires_grad=False)
+
 
         if 0 in args['Action']:
             x_train, y_train, ngrid_train, nIterEp, nt, batchSize = train_val_test_split("t_train", args, time1,
@@ -161,14 +130,12 @@ def main(args):
             model.zero_grad()
             model.train()
             # training
-            # shade_fraction_riparian = init_shade.clone()
             for epoch in range(1, args['hyperparameters']['EPOCHS'] + 1):
                 lossEp = 0
                 t0 = time.time()
                 for iIter in range(1, nIterEp + 1):
                     iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
-                    # iGrid = np.arange(99)
-                    # iT = np.zeros(99, dtype=np.int32)
+
                     xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
                     xTrain_sample_scaled = selectSubset(x_train_scaled_noccov, iGrid, iT, rho, has_grad=False) #x_train_scaled
                     ### MLP
@@ -178,17 +145,12 @@ def main(args):
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
                     yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
-                    # Yp, ave_air_temp = model.forward(xTrain_sample.transpose(0, 1), iGrid, iT, ave_air_temp)
-                    # Yp, ave_air_temp = Ts.forward(xTrain_sample.transpose(0, 1), params, iGrid, iT, ave_air_temp,
-                    #                               args=args, x_total_raw=x_total_raw_tensor,
-                    #                               time_range=args['optData']['t_train'])
+
                     Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
                     shade_fraction_riparian, shade_fraction_topo, \
                     top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
-                                                                     params, iGrid, iT, ave_air_temp,
-                                                                     args=args, ave_air_total=ave_air_total,
-                                                                     gwflow_percentage=gwflow_percentage,
-                                                                     ssflow_percentage=ssflow_percentage)
+                                                                     params, iGrid, iT,
+                                                                     args=args, ave_air_total=ave_air_total)
 
                     mask_yp = Yp.ge(1e-6)
                     y_sim = Yp * mask_yp.int().float()
@@ -203,8 +165,7 @@ def main(args):
                     # print(torch.equal(c.data, b.data))
                     model.zero_grad()
                     lossEp = lossEp + loss.item()
-                    # del loss
-                    # del Yp
+
                     print(iIter, " from ", nIterEp, " in the ", epoch, "th epoch, and Loss is ", loss.item())
                 lossEp = lossEp / nIterEp
                 # torch.cuda.synchronize()
@@ -212,11 +173,7 @@ def main(args):
                     epoch, lossEp,
                     time.time() - t0, int(torch.cuda.memory_allocated() * 0.001))
                 print(logStr)
-                # if lossEp < 0.05:
-                #     torch.save(res_time, os.path.join(args['output']['data'], 'res_time' + str(lossEp) + ".pt"))
-                #     torch.save(res_time_mod, os.path.join(args['output']['data'], 'res_time_mod' + str(lossEp) + ".pt"))
-                # elif lossEp != lossEp:
-                #     print("stop")
+
                 if epoch % args['hyperparameters']['saveEpoch'] == 0:
                     # save model
                     modelFile = os.path.join(args['output']['out_dir'],
@@ -236,10 +193,7 @@ def main(args):
             modelFile = os.path.join(args['output']['out_dir'],
                                       'model_Ep' + str(args['hyperparameters']['EPOCHS']) + '.pt')
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
-            # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_1000_R_365_B_208_H_256_dr_0.5_4/model_Ep650.pt"
-            # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_50_H_100_dr_0.5/model_Ep20.pt"\
-            # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_300_R_365_B_99_H_100_dr_0.5/model_Ep80.pt"\
-            # modelFile = r"/home/fzr5082/PGML_STemp_results/models/E_1650_R_730_B_50_H_100_dr_0.5/model_Ep1700.pt"
+
             model = torch.load(modelFile)
             model.eval()
             # iGrid = np.arange(99)
@@ -259,12 +213,10 @@ def main(args):
             x_test_scaled_tensor = make_tensor(x_test_scaled_noccov, has_grad=False) #x_test_scaled
             y_test_tensor = make_tensor(y_test, has_grad=False)
 
-            # iGrid = np.arange(x_test_scaled_tensor.shape[0])
-            # iT = np.zeros(x_test_scaled_tensor.shape[1], dtype=np.int32)
-            iGrid = np.array([0])
-            iT = np.zeros((1))
+
+
             args_mod = args.copy()
-            # args_mod["hyperparameters"]["batch_size"] = args['no_basins']
+            args_mod["hyperparameters"]["batch_size"] = args['no_basins']
             # args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
             ngrid, nt, nx = x_test_scaled_tensor.shape
             rho = args['hyperparameters']['rho']
@@ -292,10 +244,7 @@ def main(args):
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
                         top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
-                                                      iT, ave_air_temp,
-                                                      args=args_mod, ave_air_total=ave_air_test,
-                                                      gwflow_percentage=gwflow_percentage,
-                                                      ssflow_percentage=ssflow_percentage)
+                                                      iT, args=args_mod, ave_air_total=ave_air_test)
 
                     else:
                         yTemp = torch.tensor(y_test_tensor[iS[i]:iE[i], j * rho:, :])
@@ -312,28 +261,23 @@ def main(args):
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
                         top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
-                                                    iT, ave_air_temp,
-                                                    args=args_mod, ave_air_total=ave_air_test,
-                                                    gwflow_percentage=gwflow_percentage,
-                                                    ssflow_percentage=ssflow_percentage)
-                        # yP, _ = model(torch.tensor(xTemp).float().cuda())
-                        # yP = model(torch.tensor(xTemp).float().cuda(), yTemp)
+                                                    iT, args=args_mod, ave_air_total=ave_air_test)
 
                     if (j == 0):
-                        out = Yp.detach().cpu()
-                        obstemp = yTemp
-                        gw = gwflow_percentage.unsqueeze(-1).detach().cpu()
-                        ss = ssflow_percentage.unsqueeze(-1).detach().cpu()
-                        w_gw_tau = gw_tau.unsqueeze(-1).detach().cpu()
-                        w_ss_tau = ss_tau.unsqueeze(-1).detach().cpu()
-                        PET = pet.unsqueeze(-1).detach().cpu()
-                        shade_frac_rip = shade_fraction_riparian.unsqueeze(-1).detach().cpu()
-                        shade_frac_top = shade_fraction_topo.unsqueeze(-1).detach().cpu()
-                        top_w = top_width.unsqueeze(-1).detach().cpu()
-                        cloud = cloud_fraction.unsqueeze(-1).detach().cpu()
-                        hamon_co = hamon_coef.unsqueeze(-1).detach().cpu()
-                        lat_temp = ave_air_temp.unsqueeze(-1).detach().cpu()
-                        lat_temp_bias = lat_temp_adj.unsqueeze(-1).detach().cpu()
+                        out = torch.clone(Yp.detach().cpu())
+                        obstemp = torch.clone(yTemp)
+                        gw = torch.clone(gwflow_percentage.unsqueeze(-1).detach().cpu())
+                        ss = torch.clone(ssflow_percentage.unsqueeze(-1).detach().cpu())
+                        w_gw_tau = torch.clone(gw_tau.unsqueeze(-1).detach().cpu())
+                        w_ss_tau = torch.clone(ss_tau.unsqueeze(-1).detach().cpu())
+                        PET = torch.clone(pet.unsqueeze(-1).detach().cpu())
+                        shade_frac_rip = torch.clone(shade_fraction_riparian.unsqueeze(-1).detach().cpu())
+                        shade_frac_top = torch.clone(shade_fraction_topo.unsqueeze(-1).detach().cpu())
+                        top_w = torch.clone(top_width.unsqueeze(-1).detach().cpu())
+                        cloud = torch.clone(cloud_fraction.unsqueeze(-1).detach().cpu())
+                        hamon_co = torch.clone(hamon_coef.unsqueeze(-1).detach().cpu())
+                        lat_temp = torch.clone(ave_air_temp.unsqueeze(-1).detach().cpu())
+                        lat_temp_bias = torch.clone(lat_temp_adj.unsqueeze(-1).detach().cpu())
                     else:
                         out = torch.cat((out, Yp.detach().cpu()), dim=1)  # Farshid: should dim be 1 or 2?
                         obstemp = torch.cat((obstemp, yTemp), dim=1)
@@ -350,20 +294,20 @@ def main(args):
                         lat_temp = torch.cat((lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1)
                         lat_temp_bias = torch.cat((lat_temp_bias, lat_temp_adj.unsqueeze(-1).detach().cpu()), dim=1)
                 if i == 0:
-                    pred = out
-                    obs = obstemp
-                    gw_p = gw
-                    ss_p = ss
-                    weight_gw = w_gw_tau
-                    weight_ss = w_ss_tau
-                    PET_mm = PET
-                    shade_frac_rip_mm = shade_frac_rip
-                    shade_frac_top_mm = shade_frac_top
-                    top_w_mm = top_w
-                    cloud_mm = cloud
-                    hamon_co_mm = hamon_co
-                    lat_temp_mm = lat_temp
-                    lat_temp_bias_m = lat_temp_bias
+                    pred = torch.clone(out)
+                    obs = torch.clone(obstemp)
+                    gw_p = torch.clone(gw)
+                    ss_p = torch.clone(ss)
+                    weight_gw = torch.clone(w_gw_tau)
+                    weight_ss = torch.clone(w_ss_tau)
+                    PET_mm = torch.clone(PET)
+                    shade_frac_rip_mm = torch.clone(shade_frac_rip)
+                    shade_frac_top_mm = torch.clone(shade_frac_top)
+                    top_w_mm = torch.clone(top_w)
+                    cloud_mm = torch.clone(cloud)
+                    hamon_co_mm = torch.clone(hamon_co)
+                    lat_temp_mm = torch.clone(lat_temp)
+                    lat_temp_bias_m = torch.clone(lat_temp_bias)
                 else:
                     pred = torch.cat((pred, out), dim=0)
                     obs = torch.cat((obs, obstemp), dim=0)
@@ -381,20 +325,7 @@ def main(args):
                     lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
 
 
-            # if type(model) in [MLP]:
-            #     params = model(c_tensorTrain[iGrid])
-            # ### CudnnLstm
-            # if type(model) in [CudnnLstmModel]:
-            #     params = model(x_test_scaled_tensor[iGrid])
-            #
-            # # params = model(c_tensorTrain)
-            # # yObs = selectSubset(y_test, iGrid, iT, rho, has_grad=False)
-            # ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_test'])
-            # # Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
-            # #                               args=args_mod, x_total_raw=x_total_raw_tensor,
-            # #                               time_range=args['optData']['t_test'])
-            # Yp, ave_air_temp = Ts.forward(x_test_tensor[iGrid], params, iGrid, iT, ave_air_temp,
-            #                               args=args_mod, ave_air_total=ave_air_total)
+
 
             mask_pred = pred.ge(0)
             y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
@@ -418,8 +349,8 @@ def main(args):
             hamon_co_mm_np = hamon_co_mm.detach().cpu().numpy()
             lat_temp_mm_np = lat_temp_mm.detach().cpu().numpy()
             lat_temp_bias_m_np = lat_temp_bias_m.detach().cpu().numpy()
-            predLst.append(y_sim_np)  # the prediction list for all the models
-            obsLst.append(y_obs_np)
+            predLst.append(y_sim_np[:,365:,:])  # the prediction list for all the models
+            obsLst.append(y_obs_np[:,365:,:])
             np.save(os.path.join(args['output']['out_dir'], 'pred.npy'), y_sim_np)
             np.save(os.path.join(args['output']['out_dir'], 'obs.npy'), y_obs_np)
             np.save(os.path.join(args['output']['out_dir'], 'gw_p.npy'), gw_p_np)

@@ -683,101 +683,9 @@ class STREAM_TEMP_EQ(nn.Module):
         # # with zero lateral flow
         density = args['params']['water_density']
         c_w = args['params']['C_w']
-
-        # for positive lateral flow
-        # mask_pos = q_l.ge(NEARZERO)
-        # mask_T_e = T_e.eq(0)
-        # T_e_masked = T_e + mask_T_e.int().float()
-        # a_pos = (q_l * mask_pos.int().float() * T_l * mask_pos.int().float()) + (((K1 * mask_pos.int().float()
-        #                                                                            * ave_width * mask_pos.int().float())
-        #                                                                           / (
-        #                                                                                   density * c_w)) * T_e_masked)
-        # b_pos1 = q_l * mask_pos.int().float() + ((K1 * mask_pos.int().float() * ave_width * mask_pos.int().float()
-        #                                           ) / (density * c_w))
-        # # to get rid of having zero denominator in the next line
-        # mask_b_pos = b_pos1.eq(0)
-        # b_pos2 = b_pos1 + mask_b_pos.int().float()     #  * NEARZERO
-        # Tprime_e_pos = a_pos / b_pos2
-        # mask_Q_0 = Q_0.eq(0)
-        # Q_0_masked = Q_0 + mask_Q_0.int().float()
-        #
-        # q_l_masked = q_l * mask_pos.int().float()
-        # mask_q_l_masked = q_l_masked.eq(0)
-        # q_l_masked2 = q_l_masked + mask_q_l_masked.int().float()
-        #
-        # R_pos = torch.pow((1 + (q_l * mask_pos.int().float() * L * mask_pos.int().float() /
-        #                         Q_0_masked)),
-        #                   -(ave_width * mask_pos.int().float() / q_l_masked2))   # q_l * mask_pos.int().float()
-        #
-        # K1_masked = K1 * mask_pos.int().float()
-        # mask_K1 = K1_masked.eq(0)
-        # K1_masked2 = K1_masked + mask_K1.int().float()
-        #
-        # mask_R_pos = R_pos.eq(1)
-        # R_pos_masked = R_pos - mask_R_pos.int().float()
-        #
-        # denom_pos = (1 + ((K2 * mask_pos.int().float() / K1_masked2) *    # K1 * mask_pos.int().float()
-        #                   (Tprime_e_pos - T_0 * mask_pos.int().float()) * (1 - R_pos_masked)))
-        # mask_denom = denom_pos.eq(0)
-        # # denom_pos2 = denom_pos + mask_denom.int().float() * 0.01
-        # denom_pos2 = denom_pos + mask_denom.int().float()   # * NEARZERO
-        # Tw_pos = Tprime_e_pos - ((Tprime_e_pos - T_0 * mask_pos.int().float()) * R_pos / denom_pos2)
-        #
-        # # for zero lateral flow
-        # mask_zero = q_l.eq(0)
-        # Q_0_masked2 = Q_0 * mask_zero.int().float()
-        # mask2_Q_0 = Q_0_masked2.eq(0)
-        # Q_0_masked3 = Q_0_masked2 + mask2_Q_0.int().float()
-        # Tprime_e_zero = T_e * mask_zero.int().float()
-        # R_zero = torch.exp(-ave_width * mask_zero.int().float() * L * mask_zero.int().float() /
-        #                    Q_0_masked3)    # Q_0 * mask_zero.int().float()
-        #
-        #
-        # K1_masked3 = K1 * mask_zero.int().float()
-        # mask2_K1 = K1_masked3.eq(0)
-        # K1_masked4 = K1_masked3 + mask2_K1.int().float()
-        #
-        # denom_zero = (1 + ((K2 * mask_zero.int().float() / K1_masked4) *    # K1 * mask_zero.int().float()
-        #                    (Tprime_e_zero - T_0 * mask_zero.int().float()) * (1 - R_zero)))
-        # mask_denom_zero = denom_zero.eq(0)
-        # # denom_zero2 = denom_zero + mask_denom_zero.int().float() * 0.01
-        # denom_zero2 = denom_zero + mask_denom_zero.int().float() * NEARZERO
-        # Tw_zero = Tprime_e_zero - ((Tprime_e_zero - T_0 * mask_zero.int().float()) * R_zero / denom_zero2)
-        #
-        # # for negative q_l
-        # mask_q_l = q_l < 0
-        # if mask_q_l.sum() > 0:
-        #     print("negative q_l")
-        #     exit()
-        # # Tw_pos and Tw_zero do not have any common cell which means, in each cell,
-        # # at least one of them is zero. That's why we can add them up.
-        # T_w = Tw_pos + Tw_zero
-        #
-        # mask_final = T_w.ge(0)
-        # T_w_final = T_w * mask_final.int().float()
-
-        ###############################################
-        # new method
-        # for positive q_l
-        # mask_q_l_pos = q_l.ge(0)
-        # a = (q_l * T_l) + (((K1 * ave_width) / (density * c_w)) * T_e)
-        # b = q_l + ((K1 * ave_width) / (density * c_w))
-        # mask_b = b.eq(0)
-        # b_masked = b + mask_b.int().float()
-        # Te_prime = a / b_masked
-        # # R
         mask_q_l = q_l.eq(0)
         q_l_pos = q_l + mask_q_l.int().float()
         b = q_l + ((K1 * ave_width) / (density * c_w))
-        # power = -(ave_width / q_l_pos)
-        #
-        # mask_Q_0 = Q_0.eq(0)
-        # Q_0_pos = Q_0 + mask_Q_0.int().float()
-        # R = torch.pow((1 + (q_l * L / Q_0_pos)), power)
-
-        # for headwater basins. we assume Q_0 = q_l
-        # q_test = make_tensor(np.ones(q_l.size()) * 2)
-        # R_0 = (5 / (-ave_width * L))
         mask_Q_0 = Q_0.eq(0)
         Q_0_pos = Q_0 + mask_Q_0.int().float()
         R_0 = torch.exp(-(b * L) / Q_0_pos)
@@ -961,43 +869,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
 
 
-        #
-        #
-        # wsr = torch.ones((365, 1, 4), device=args['device']) / 4
-        #
-        # sr_por = srflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        # B = F.conv1d(sr_por, wsr, padding=4, groups=365)
-        # sr_por_mov = B[:, 0, 1:366]
-        # sr_por_mov = torch.clamp(sr_por_mov, min=0.01, max=1.0)
-        #
-        # wss = torch.ones((365, 1, 10), device=args['device']) / 10
-        #
-        # ss_por = ssflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        # B = F.conv1d(ss_por, wss, padding=10, groups=365)
-        # ss_por_mov = B[:, 0, 5:370]
-        # ss_por_mov = torch.clamp(ss_por_mov, min=0.01, max=1.0)
-        #
-        # wgw = torch.ones((365, 1, 30), device=args['device']) / 30
-        #
-        # gw_por = gwflow_portion.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        # B = F.conv1d(gw_por, wgw, padding=30, groups=365)
-        # gw_por_mov = B[:, 0, 10:375]
-        # gw_por_mov = torch.clamp(gw_por_mov, min=0.01, max=1.0)
-        #
-        # srflow_percentage = sr_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
-        # ssflow_percentage = ss_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
-        # gwflow_percentage = gw_por_mov / (sr_por_mov + ss_por_mov + gw_por_mov)
-        #
-        # srflow_percentage = torch.clamp(srflow_percentage, min=0.01, max=1.0)
-        # ssflow_percentage = torch.clamp(ssflow_percentage, min=0.01, max=1.0)
-        # gwflow_percentage = torch.clamp(gwflow_percentage, min=0.01, max=1.0)
-        #
-        # return srflow_percentage, ssflow_percentage, gwflow_percentage
-
-        # return T_w_final
-
-    # def forward(self, x, params, iGrid, iT, ave_air_temp, args, x_total_raw, time_range,ave_air_total):
-    def forward(self, x, params, iGrid, iT, ave_air_temp, args, ave_air_total, gwflow_percentage, ssflow_percentage):
+    def forward(self, x, params, iGrid, iT, args, ave_air_total):
         # restricting the params
         NEARZERO = args["NEARZERO"]
 
@@ -1018,49 +890,6 @@ class STREAM_TEMP_EQ(nn.Module):
         hamon_coef = self.multi_comp_parameter_bounds(params, 13, args)
         w3_shade = self.multi_comp_parameter_bounds(params, 14, args)
         lat_temp_adj = self.multi_comp_parameter_bounds(params, 15, args)
-        # a_srflow = self.parameter_bounds(params, 0, args)
-        # b_srflow = self.parameter_bounds(params, 1, args)
-        # a_ssflow = self.parameter_bounds(params, 2, args)
-        # b_ssflow = self.parameter_bounds(params, 3, args)
-        # a_gwflow = self.parameter_bounds(params, 4, args)
-        # b_gwflow = self.parameter_bounds(params, 5, args)
-        # w1_shade = self.parameter_bounds(params, 6, args)
-        # srflow_portion = self.parameter_bounds(params, 7, args)
-        # ssflow_portion = self.parameter_bounds(params, 8, args)
-        # gwflow_portion = self.parameter_bounds(params, 9, args)
-        # w2_shade = self.parameter_bounds(params, 10, args)
-        # width_coef_nom = self.parameter_bounds(params, 11, args)
-        # width_coef_denom = self.parameter_bounds(params, 12, args)
-        # hamon_coef = self.parameter_bounds(params, 13, args)
-        # w3_shade = self.parameter_bounds(params, 14, args)
-        # lat_temp_adj = self.parameter_bounds(params, 15, args)
-        #
-        #
-        # # sr_conv_bias = ((params[:, :, 10: 11]).squeeze()) * (paramCalLst[10][1] - paramCalLst[10][0]) + \
-        # #                paramCalLst[10][0]
-        # # ss_conv_bias = ((params[:, :, 11: 12]).squeeze()) * (paramCalLst[11][1] - paramCalLst[11][0]) + \
-        # #                paramCalLst[11][0]
-        # # gw_conv_bias = ((params[:, :, 12: 13]).squeeze()) * (paramCalLst[12][1] - paramCalLst[12][0]) + \
-        # #                paramCalLst[12][0]
-        # # # for scaling and bias of final y_Sim
-        # # final_scale = params[:, :, 13] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
-        # # final_bias = params[:, :, 14] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
-        #
-        # # albedo = params[:, :, 15] * (paramCalLst[15][1] - paramCalLst[15][0]) + paramCalLst[15][0]
-        # # shade_fraction_topo = params[:, :, 16] * (paramCalLst[16][1] - paramCalLst[16][0]) + paramCalLst[16][0]
-        # w2_shade = params[:, :, 10] * (paramCalLst[10][1] - paramCalLst[10][0]) + paramCalLst[10][0]
-        #
-        # width_coef_nom = params[:, :, 11] * (paramCalLst[11][1] - paramCalLst[11][0]) + paramCalLst[11][0]
-        # # width_exp = params[:, :, 18] * (paramCalLst[18][1] - paramCalLst[18][0]) + paramCalLst[18][0]
-        # # width_A_coef = params[:, :, 19] * (paramCalLst[19][1] - paramCalLst[19][0]) + paramCalLst[19][0]
-        # width_coef_denom = params[:, :, 12] * (paramCalLst[12][1] - paramCalLst[12][0]) + paramCalLst[12][0]
-        # # p = params[:, :, 21] * (paramCalLst[21][1] - paramCalLst[21][0]) + paramCalLst[21][0]
-        # # q = params[:, :, 22] * (paramCalLst[22][1] - paramCalLst[22][0]) + paramCalLst[22][0]
-        # # lat_temp_adj = params[:, :, 19] * (paramCalLst[19][1] - paramCalLst[19][0]) + paramCalLst[19][0]
-        # # cloud_fraction = params[:, :, 20] * (paramCalLst[20][1] - paramCalLst[20][0]) + paramCalLst[20][0]
-        #
-        # hamon_coef = params[:, :, 13] * (paramCalLst[13][1] - paramCalLst[13][0]) + paramCalLst[13][0]
-        # w3_shade = params[:, :, 14] * (paramCalLst[14][1] - paramCalLst[14][0]) + paramCalLst[14][0]
 
         nmul = args["nmul"]
         vars = args['optData']['varT'] + args['optData']['varC']
@@ -1068,7 +897,6 @@ class STREAM_TEMP_EQ(nn.Module):
             obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1,1,nmul) * 0.028316  # converting cfs to cms
             precip = x[:, :, vars.index('prcp(mm/day)')].unsqueeze(-1).repeat(1,1,nmul)
             up_inflow = make_tensor(torch.zeros(obsQ.size()))
-            # T_0 = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
             mean_air_temp = ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2).unsqueeze(-1).repeat(1,1,nmul)
             dayl = x[:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1,1,nmul)
             vp = 0.01 * x[:, :, vars.index('vp(Pa)')].unsqueeze(-1).repeat(1,1,nmul)  # converting to mbar
@@ -1076,12 +904,12 @@ class STREAM_TEMP_EQ(nn.Module):
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")].unsqueeze(-1).repeat(1,1,nmul)
             slope = 0.01 * x[:, :,
                            vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(1,1,nmul)  # adding the percentage, it is a watershed slope not a stream slope
-            # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-            # stream_length = 1000 * stream_density * x[:, :, vars.index("DRAIN_SQKM")]
+            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+            stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
             # stream_length = x[:, :, vars.index("stream_length_artificial")]
             # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
-            stream_length = x[:, :, vars.index("stream_length_artificial")].unsqueeze(-1).repeat(1, 1, nmul)
-            basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
+            # stream_length = x[:, :, vars.index("stream_length_artificial")].unsqueeze(-1).repeat(1, 1, nmul)
+            # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1,1,nmul)
         albedo = args["STemp_default_params"]["albedo"]
         # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
@@ -1224,8 +1052,7 @@ class STREAM_TEMP_EQ(nn.Module):
                                                    q_l=Q_0, L=stream_length, args=args,
                                                    T_0=T_0, Q_0=obsQ)
 
-        # scaling and bias
-        # T_w = final_scale * T_w + final_bias
+
         if args['lat_temp_adj'] == "True":
             return torch.mean(T_w, -1).squeeze(), \
                    torch.mean(ave_air_temp_new, 2).squeeze(), \
