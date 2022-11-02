@@ -31,7 +31,8 @@ def syntheticP(args):
     x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
     model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
     if torch.cuda.is_available():
-        model = model.cuda()
+        # model = model.cuda()
+        model = model.to(args["device"])
     # initializing the variables
     ave_air_temp = torch.empty((args['hyperparameters']['batch_size'],
                                 x_train.shape[1],
@@ -50,7 +51,7 @@ def main(args):
     # setting random seeds
     # randomseed_config(args)
     mode_type = ["Meisner","SNTEMP"] #["van Vliet","Meisner","SNTEMP"]
-    lenF_gwflow_list = [365, 730]
+    lenF_gwflow_list = [730, 730]
     lenF_ssflow_list = [1, 30]
     lat_temp_adj_list = ["True", "True"]
     frac_smoothening_list = ["True","False"]
@@ -82,7 +83,7 @@ def main(args):
         time1 = hydroDL.utils.time.tRange2Array(args['optData']["tRange"])
         #
         vars = args["optData"]["varT"] + args["optData"]["varC"]
-        x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
+        x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False, device="cpu")
 
 
         # ANN model to simulate parameters
@@ -103,15 +104,18 @@ def main(args):
         # optim = torch.optim.SGD(model.parameters(), lr=10)
 
         if torch.cuda.is_available():
-            model = model.cuda()
+            # model = model.cuda()
+            model = model.to(args["device"])
             # mlp = mlp.cuda()
-            Ts = Ts.cuda()
-            lossFun = lossFun.cuda()
+            # Ts = Ts.cuda()
+            Ts = Ts.to(args["device"])
+            # lossFun = lossFun.cuda()
+            lossFun = lossFun.to(args["device"])
             torch.backends.cudnn.deterministic = True
             CUDA_LAUNCH_BLOCKING = 1
             # moving dataset to CUDA
 
-        c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False)
+        c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False, device="cpu")
 
 
 
@@ -126,6 +130,7 @@ def main(args):
             x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
 
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
+
             rho = args["hyperparameters"]["rho"]
             model.zero_grad()
             model.train()
@@ -136,21 +141,31 @@ def main(args):
                 for iIter in range(1, nIterEp + 1):
                     iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
 
-                    xTrain_sample = selectSubset(x_train, iGrid, iT, rho, has_grad=False)
-                    xTrain_sample_scaled = selectSubset(x_train_scaled_noccov, iGrid, iT, rho, has_grad=False) #x_train_scaled
+                    xTrain_sample = selectSubset(args, x_train, iGrid, iT, rho, has_grad=False)
+                    xTrain_sample_scaled = selectSubset(args, x_train_scaled_noccov, iGrid, iT, rho, has_grad=False) #x_train_scaled
+
+                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+                                                            args=args, ave_air_total=ave_air_total)
+                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+                                                            args=args, ave_air_total=ave_air_total)
+                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+                                                            args=args, ave_air_total=ave_air_total)
+
                     ### MLP
                     if type(model) in [MLP]:
                         params = model(c_tensorTrain[iGrid])
                     ### CudnnLstm
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
-                    yObs = selectSubset(y_train, iGrid, iT, rho, has_grad=False)
+                    yObs = selectSubset(args, y_train, iGrid, iT, rho, has_grad=False)
 
                     Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
                     shade_fraction_riparian, shade_fraction_topo, \
                     top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
                                                                      params, iGrid, iT,
-                                                                     args=args, ave_air_total=ave_air_total)
+                                                                     args=args, air_sample_sr=air_sample_sr,
+                                                                                     air_sample_ss=air_sample_ss,
+                                                                                     air_sample_gw=air_sample_gw)
 
                     mask_yp = Yp.ge(1e-6)
                     y_sim = Yp * mask_yp.int().float()
@@ -234,6 +249,17 @@ def main(args):
                         xTemp_scaled = x_test_scaled_tensor[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
                         xTemp = x_test_tensor[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
                         ave_air_test = ave_air_total[iS[i]:iE[i], j * rho: (j + 1) * rho, :]
+
+                        air_sample_sr = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]), lenF=args['res_time_params']['lenF_srflow'],
+                                                              args=args, ave_air_total=ave_air_test)
+                        air_sample_ss = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]), lenF=args['res_time_params']['lenF_ssflow'],
+                                                              args=args, ave_air_total=ave_air_test)
+                        air_sample_gw = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]), lenF=args['res_time_params']['lenF_gwflow'],
+                                                              args=args, ave_air_total=ave_air_test)
+
                         if type(model) in [MLP]:
                             params = model(xTemp_scaled)
                         ### CudnnLstm
@@ -244,13 +270,27 @@ def main(args):
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
                         top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
-                                                      iT, args=args_mod, ave_air_total=ave_air_test)
+                                                      iT, args=args_mod, air_sample_sr=air_sample_sr,
+                                                                                     air_sample_ss=air_sample_ss,
+                                                                                     air_sample_gw=air_sample_gw)
 
                     else:
                         yTemp = torch.tensor(y_test_tensor[iS[i]:iE[i], j * rho:, :])
                         xTemp_scaled = x_test_scaled_tensor[iS[i]:iE[i], j * rho:, :]
                         xTemp = x_test_tensor[iS[i]:iE[i], j * rho:, :]
                         ave_air_test = ave_air_total[iS[i]:iE[i], j * rho:, :]
+                        air_sample_sr = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]),
+                                                              lenF=args['res_time_params']['lenF_srflow'],
+                                                              args=args, ave_air_total=ave_air_test)
+                        air_sample_ss = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]),
+                                                              lenF=args['res_time_params']['lenF_ssflow'],
+                                                              args=args, ave_air_total=ave_air_test)
+                        air_sample_gw = Ts.x_sample_air_temp2(iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                                                              iT=np.zeros(ave_air_test.shape[0]),
+                                                              lenF=args['res_time_params']['lenF_gwflow'],
+                                                              args=args, ave_air_total=ave_air_test)
                         if type(model) in [MLP]:
                             params = model(xTemp_scaled)
                         ### CudnnLstm
@@ -261,7 +301,9 @@ def main(args):
                         Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet,\
                         shade_fraction_riparian, shade_fraction_topo, \
                         top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTemp, params, iGrid,
-                                                    iT, args=args_mod, ave_air_total=ave_air_test)
+                                                    iT, args=args_mod, air_sample_sr=air_sample_sr,
+                                                                                     air_sample_ss=air_sample_ss,
+                                                                                     air_sample_gw=air_sample_gw)
 
                     if (j == 0):
                         out = torch.clone(Yp.detach().cpu())

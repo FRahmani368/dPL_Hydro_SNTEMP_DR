@@ -3,7 +3,7 @@
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
-device: "cuda"
+device: "cuda:4"
 nmul: 16
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -11,7 +11,7 @@ dataset:
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
   attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_4.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
-  model: "//home//fzr5082//PGML_STemp_results//models//415_sites//SNTEMP_mix_len2_free_ab"
+  model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
 
 optData:
@@ -21,7 +21,7 @@ optData:
 
   varC: [
     'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
-     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "NHDlength_tot(m)", 'PPTAVG_BASIN',   # "NHDlength_tot(m)"   , 'stream_length_artificial'
+     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "stream_length_artificial", 'PPTAVG_BASIN',   # "NHDlength_tot(m)"   , 'stream_length_artificial'
      'ELEV_MEAN_M_BASIN',
 
     'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'STOR_NOR_2009','SILTAVE',
@@ -81,7 +81,7 @@ lat_temp_adj: "False"
 shade_smoothening: "False"
 frac_smoothening:
   mode: "True"
-  gw_filter_size: 30
+  gw_filter_size: 40
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
@@ -99,7 +99,7 @@ params:
 NEARZERO: 1e-10
 initial_values:
   shade_fraction: 0.1
-no_basins: 50
+no_basins: 10
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"

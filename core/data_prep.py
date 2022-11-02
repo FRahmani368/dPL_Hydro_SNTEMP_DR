@@ -60,7 +60,7 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
 
     return x, y, ngrid, nIterEp, nt, args['hyperparameters']['batch_size']
 
-def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
+def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
     nx = x.shape[-1]
     nt = x.shape[1]
     # if x.shape[0] == len(iGrid):   #hack
@@ -100,7 +100,8 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
         out = xTensor
 
     if torch.cuda.is_available() and type(out) is not tuple:
-        out = out.cuda()
+        # out = out.cuda()
+        out = out.to(args["device"])
     return out
 
 

@@ -488,7 +488,7 @@ class STREAM_TEMP_EQ(nn.Module):
         c, ind1, ind2 = np.intersect1d(tArray_sample, tArray_Total, return_indices=True)
         ave_air = torch.zeros((x_total_raw_tensor.shape[0], len(tArray_sample),
                                lenF_max),
-                              device=args["device"])
+                              device="cpu")
 
         array = np.zeros((len(ind2), lenF_max), dtype=np.int32)
         for j in range(lenF_max):
@@ -869,7 +869,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
 
 
-    def forward(self, x, params, iGrid, iT, args, ave_air_total):
+    def forward(self, x, params, iGrid, iT, args, air_sample_sr,air_sample_ss,air_sample_gw):
         # restricting the params
         NEARZERO = args["NEARZERO"]
 
@@ -904,11 +904,11 @@ class STREAM_TEMP_EQ(nn.Module):
             elev = x[:, :, vars.index("ELEV_MEAN_M_BASIN")].unsqueeze(-1).repeat(1,1,nmul)
             slope = 0.01 * x[:, :,
                            vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(1,1,nmul)  # adding the percentage, it is a watershed slope not a stream slope
-            stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-            stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
+            # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+            # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
             # stream_length = x[:, :, vars.index("stream_length_artificial")]
             # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
-            # stream_length = x[:, :, vars.index("stream_length_artificial")].unsqueeze(-1).repeat(1, 1, nmul)
+            stream_length = x[:, :, vars.index("stream_length_artificial")].unsqueeze(-1).repeat(1, 1, nmul)
             # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1,1,nmul)
         albedo = args["STemp_default_params"]["albedo"]
@@ -976,8 +976,8 @@ class STREAM_TEMP_EQ(nn.Module):
         # air_sample_sr = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
         #                                        args=args, x_total_raw=x_total_raw,
         #                                        time_range=time_range)
-        air_sample_sr = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                                                args=args, ave_air_total=ave_air_total)
+        # air_sample_sr = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+        #                                         args=args, ave_air_total=ave_air_total)
         air_sample_sr = air_sample_sr.unsqueeze(-1).repeat(1,1,1,nmul)
         w_srflow = w_srflow.permute(1, 2, 0, 3)
         ave_air_sr = self.res_time_conv(air_sample_sr, w_srflow, bias=None)  # bias=None, sr_conv_bias
@@ -989,8 +989,8 @@ class STREAM_TEMP_EQ(nn.Module):
         # air_sample_ss = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
         #                                        args=args, x_total_raw=x_total_raw,
         #                                        time_range=time_range)
-        air_sample_ss = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
-                                                args=args, ave_air_total=ave_air_total)
+        # air_sample_ss = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+        #                                         args=args, ave_air_total=ave_air_total)
         air_sample_ss = air_sample_ss.unsqueeze(-1).repeat(1, 1, 1, nmul)
         w_ssflow = w_ssflow.permute(1, 2, 0, 3)
         ave_air_ss = self.res_time_conv(air_sample_ss, w_ssflow, bias=None)  # ss_conv_bias
@@ -1002,8 +1002,8 @@ class STREAM_TEMP_EQ(nn.Module):
         # air_sample_gw = self.x_sample_air_temp(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
         #                                        args=args, x_total_raw=x_total_raw,
         #                                        time_range=time_range)
-        air_sample_gw = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
-                                                args=args, ave_air_total=ave_air_total)
+        # air_sample_gw = self.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+        #                                         args=args, ave_air_total=ave_air_total)
         air_sample_gw = air_sample_gw.unsqueeze(-1).repeat(1, 1, 1, nmul)
         w_gwflow = w_gwflow.permute(1, 2, 0, 3)
         ave_air_gw = self.res_time_conv(air_sample_gw, w_gwflow, bias=None)  # gw_conv_bias
