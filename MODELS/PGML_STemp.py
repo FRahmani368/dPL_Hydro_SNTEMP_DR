@@ -355,7 +355,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
         return A, B, C, D
 
-    def Equilibrium_temperature(self, A, B, C, D, T_e=make_tensor(20), iter=50):
+    def Equilibrium_temperature(self, A, B, C, D, T_e, iter=50):
         def F(T_e):
             return A * torch.pow((T_e + 273.16), 4) - C * torch.pow(T_e, 2) + B * T_e - D
 
@@ -369,7 +369,7 @@ class STREAM_TEMP_EQ(nn.Module):
 
         return T_e
 
-    def finding_K1_K2(self, A, B, C, D, T_e, NEARZERO, T_0=make_tensor(0)):
+    def finding_K1_K2(self, A, B, C, D, T_e, NEARZERO, T_0):
         """
         :param A: Constant coming from equilibrium temp equation
         :param B: Constant coming from equilibrium temp equation
@@ -759,10 +759,12 @@ class STREAM_TEMP_EQ(nn.Module):
         B = F.conv1d(w3_shade, w1, padding=40, groups=365)
         no_shade_mov = B[:, 0, 20:385]  # [:, 0, 5:370]
 
-        shade_fraction_riparian = w1_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
+        shade_fraction_riparian = w1_shade_mov
+        # shade_fraction_riparian = w1_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
         shade_fraction_riparian = torch.clamp(shade_fraction_riparian, min=0.01, max=1.0)
 
-        shade_fraction_topo = w2_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
+        # shade_fraction_topo = w2_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)
+        shade_fraction_topo = (1 - shade_fraction_riparian) * w2_shade_mov / (w2_shade_mov + no_shade_mov)  # + no_shade_mov
         shade_fraction_topo = torch.clamp(shade_fraction_topo, min=0.01, max=1.0)
         shade_total = shade_fraction_riparian + shade_fraction_topo
         shade_total = torch.clamp(shade_total, min=0.01, max=1.0)
@@ -946,13 +948,19 @@ class STREAM_TEMP_EQ(nn.Module):
                                                                                              args)
         else:
             if args["res_time_params"]["type"] != "Meisner":
-                srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-                ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
-                gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+                gwflow_percentage = gwflow_portion
+                srflow_percentage = ((1 - gwflow_portion) * srflow_portion) / (srflow_portion + ssflow_portion)
+                ssflow_percentage = ((1 - gwflow_portion) * ssflow_portion) / (srflow_portion + ssflow_portion)
+                # srflow_percentage = srflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+                # ssflow_percentage = ssflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
+                # gwflow_percentage = gwflow_portion / (srflow_portion + ssflow_portion + gwflow_portion)
             else:
-                srflow_percentage = srflow_portion / (srflow_portion + gwflow_portion)
+                gwflow_percentage = gwflow_portion
+                srflow_percentage = 1 - gwflow_portion
                 ssflow_percentage = 0.0001 * ssflow_portion
-                gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
+                # srflow_percentage = srflow_portion / (srflow_portion + gwflow_portion)
+                # ssflow_percentage = 0.0001 * ssflow_portion
+                # gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
         if args["shade_smoothening"] == "True":
@@ -961,9 +969,12 @@ class STREAM_TEMP_EQ(nn.Module):
                                                                                                 w3_shade,
                                                                                                 args)
         else:
-            shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
-            shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
+            shade_fraction_riparian = w1_shade
+            shade_fraction_topo = (1 - shade_fraction_riparian) * w2_shade / (w2_shade + w3_shade)
             shade_total = shade_fraction_riparian + shade_fraction_topo
+            # shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
+            # shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
+            # shade_total = shade_fraction_riparian + shade_fraction_topo
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
                                                                     srflow_factor=srflow_percentage,

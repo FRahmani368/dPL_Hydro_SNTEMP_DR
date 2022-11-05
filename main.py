@@ -50,9 +50,9 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["Meisner","SNTEMP"] #["van Vliet","Meisner","SNTEMP"]
-    lenF_gwflow_list = [730, 730]
-    lenF_ssflow_list = [1, 30]
+    mode_type = ["SNTEMP","SNTEMP"] #["van Vliet","Meisner","SNTEMP"]
+    lenF_gwflow_list = [365]
+    lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
     frac_smoothening_list = ["True","False"]
     s = [0, 0]

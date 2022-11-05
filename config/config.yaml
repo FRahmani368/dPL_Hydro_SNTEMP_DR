@@ -7,7 +7,7 @@ device: "cuda:4"
 nmul: 16
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
-#  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_3.feather" #          no_dam_attr_temp99%_days34sites.feather
+#  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_4.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
   attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_4.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
@@ -109,7 +109,7 @@ method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.1, 5], [0.1, 5], [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
+            [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
 #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
             # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
             [0, 1],                                                    # rip shade factor
