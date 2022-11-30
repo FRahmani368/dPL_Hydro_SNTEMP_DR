@@ -14,7 +14,7 @@ def load_df(args):
     A function that loads the data into a
     :return:
     """
-    df, x, y, c = master.loadData(args)
+    df, x, y, c, c_PRMS, x_PRMS = master.loadData(args)
     nx = x.shape[-1] + c.shape[-1]
     x_total = np.zeros((x.shape[0], x.shape[1], nx))
     ct = np.repeat(c, repeats=x.shape[1], axis=0)
@@ -25,7 +25,7 @@ def load_df(args):
     # streamflow values should not be negative
     # vars = args['optData']['varT'] + args['optData']['varC']
     # x_total[x_total[:, :, vars.index("00060_Mean")] < 0] = 0
-    return x_total, y, c
+    return x_total, y, c, c_PRMS, x_PRMS
 
 def scaling(args, x, y, c):
     """

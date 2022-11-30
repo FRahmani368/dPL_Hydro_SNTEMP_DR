@@ -3,6 +3,7 @@ from core.randomseed_config import randomseed_config
 from core.data_prep import load_df, scaling, train_val_test_split, randomIndex, selectSubset
 from core.small_codes import create_output_dirs
 from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, CudnnLstm, CudnnLstmModel
+from MODELS.PRMS import PRMS_pytorch
 from MODELS import crit
 from core import hydroDL
 from core.small_codes import make_tensor, tRange2Array, intersect
@@ -76,7 +77,8 @@ def main(args):
         args = create_output_dirs(args, seed)
         min_max_scaler = preprocessing.MinMaxScaler()
         # getting the data
-        x_total_temp, y_raw, c_raw = load_df(args)
+        x_total_temp, y_raw, c_raw, c_PRMS, x_PRMS = load_df(args)
+
         x_total_raw = x_total_temp.copy()
         x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
         c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
@@ -95,6 +97,7 @@ def main(args):
                             ny=ny,
                             hiddenSize=args["hyperparameters"]["hidden_size"],
                             dr=args["hyperparameters"]["dropout"])
+        PRMS = PRMS_pytorch()
         Ts = STREAM_TEMP_EQ()
         # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
         #
@@ -125,6 +128,8 @@ def main(args):
                                                                                          x_total_raw, y_raw)
             x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split("t_train", args, time1,
                                                                               x_total_scaled, y_scaled)
+            x_PRMS_train, _, _, _, _, _ = train_val_test_split("t_train", args, time1,
+                                                                                         x_PRMS, y_raw)
 
             vars = args["optData"]["varT"] + args["optData"]["varC"]
             x_train_scaled_noccov = np.delete(x_train_scaled, vars.index("ccov"), axis=2)
@@ -132,6 +137,7 @@ def main(args):
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args['optData']['t_train'])
 
             rho = args["hyperparameters"]["rho"]
+            warm_up = args["warm_up"]
             model.zero_grad()
             model.train()
             # training
@@ -139,17 +145,14 @@ def main(args):
                 lossEp = 0
                 t0 = time.time()
                 for iIter in range(1, nIterEp + 1):
-                    iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho])
+                    iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho+warm_up])
 
-                    xTrain_sample = selectSubset(args, x_train, iGrid, iT, rho, has_grad=False)
-                    xTrain_sample_scaled = selectSubset(args, x_train_scaled_noccov, iGrid, iT, rho, has_grad=False) #x_train_scaled
+                    xTrain_sample = selectSubset(args, x_train, iGrid, iT, rho+warm_up, has_grad=False)
+                    xTrain_sample_scaled = selectSubset(args, x_train_scaled_noccov, iGrid, iT, rho+warm_up, has_grad=False) #x_train_scaled
 
-                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                                                            args=args, ave_air_total=ave_air_total)
-                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
-                                                            args=args, ave_air_total=ave_air_total)
-                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
-                                                            args=args, ave_air_total=ave_air_total)
+                    x_PRMS_sample = selectSubset(args, x_PRMS_train, iGrid, iT, rho + warm_up, has_grad=False)
+                    c_PRMS_sample = torch.tensor(c_PRMS[iGrid], device=args["device"], dtype=torch.float32)
+
 
                     ### MLP
                     if type(model) in [MLP]:
@@ -157,7 +160,20 @@ def main(args):
                     ### CudnnLstm
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
-                    yObs = selectSubset(args, y_train, iGrid, iT, rho, has_grad=False)
+                    yObs = selectSubset(args, y_train, iGrid, iT, rho+warm_up, has_grad=False)
+
+
+
+                    PRMS(x_PRMS_sample.transpose(0, 1), c_PRMS_sample, params, args, warm_up)
+
+
+
+                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+                                                          args=args, ave_air_total=ave_air_total)
+                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+                                                          args=args, ave_air_total=ave_air_total)
+                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+                                                          args=args, ave_air_total=ave_air_total)
 
                     Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
                     shade_fraction_riparian, shade_fraction_topo, \

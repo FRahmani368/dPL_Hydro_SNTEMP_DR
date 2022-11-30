@@ -151,8 +151,16 @@ def loadData(args, readX=True, readY=True ):
         varLst=args['optData']['varC'],
         doNorm=args['optData']['doNorm'][0],
         rmNan=args['optData']['rmNan'][0])
+    c_PRMS = df.getDataConst(args,
+        varLst=args['optData']['varC_PRMS'],
+        doNorm=args['optData']['doNorm'][0],
+        rmNan=args['optData']['rmNan'][0])
+    x_PRMS = df.getDataTs(args,
+                     varLst=args['optData']['varT_PRMS'],
+                     doNorm=args['optData']['doNorm'][0],
+                     rmNan=args['optData']['rmNan'][0])
 
-    return df, x, y, c
+    return df, x, y, c, c_PRMS, x_PRMS
 
 
 def train(mDict):

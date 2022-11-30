@@ -3,13 +3,13 @@
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
-device: "cuda:4"
-nmul: 16
+device: "cuda"
+nmul: 2
 dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_4.feather" #          no_dam_attr_temp99%_days34sites.feather
-  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_10%_days_415sites_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_415_all_4.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+  forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_PRMS_40sites.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_PRMS_40.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -45,6 +45,13 @@ optData:
 #    'PERHOR', 'CONTACT', 'MAINSTEM_SINUOUSITY', 'REACHCODE',
 #    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
   ]
+  varT_PRMS: [
+  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month'
+  ]
+  varC_PRMS: [
+      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp(mm)', 'srain_intcp(mm)',
+      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum'
+  ]
 
   target: ["00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 #  tRange: [20101001, 20161001]
@@ -65,7 +72,7 @@ optData:
   fdcopt: False
 hyperparameters:
   rho: 365
-  batch_size: 50
+  batch_size: 20
   EPOCHS: 400
   hidden_size: 256
   dropout: 0.5
@@ -82,6 +89,7 @@ shade_smoothening: "False"
 frac_smoothening:
   mode: "True"
   gw_filter_size: 40
+warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
