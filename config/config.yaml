@@ -46,7 +46,7 @@ optData:
 #    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
   ]
   varT_PRMS: [
-  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month'
+  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
   ]
   varC_PRMS: [
       'cov_type', 'covden_sum', 'covden_win', 'snow_intcp(mm)', 'srain_intcp(mm)',
@@ -105,12 +105,14 @@ params:
   water_density: 1000
   C_w: 4184    # J/kg. K
 NEARZERO: 1e-10
+Epan_coef: 1.0
 initial_values:
   shade_fraction: 0.1
 no_basins: 10
 params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
+srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 static_params_list: []
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]

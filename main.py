@@ -164,28 +164,28 @@ def main(args):
 
 
 
-                    PRMS(x_PRMS_sample.transpose(0, 1), c_PRMS_sample, params, args, warm_up)
+                    Yp = PRMS(x_PRMS_sample.transpose(0, 1), c_PRMS_sample, params, args, warm_up)
 
 
 
-                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                                                          args=args, ave_air_total=ave_air_total)
-                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
-                                                          args=args, ave_air_total=ave_air_total)
-                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
-                                                          args=args, ave_air_total=ave_air_total)
-
-                    Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
-                    shade_fraction_riparian, shade_fraction_topo, \
-                    top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
-                                                                     params, iGrid, iT,
-                                                                     args=args, air_sample_sr=air_sample_sr,
-                                                                                     air_sample_ss=air_sample_ss,
-                                                                                     air_sample_gw=air_sample_gw)
+                    # air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
+                    # air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
+                    # air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
+                    #
+                    # Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
+                    # shade_fraction_riparian, shade_fraction_topo, \
+                    # top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
+                    #                                                  params, iGrid, iT,
+                    #                                                  args=args, air_sample_sr=air_sample_sr,
+                    #                                                                  air_sample_ss=air_sample_ss,
+                    #                                                                  air_sample_gw=air_sample_gw)
 
                     mask_yp = Yp.ge(1e-6)
                     y_sim = Yp * mask_yp.int().float()
-                    loss = lossFun(y_sim.unsqueeze(-1), yObs.transpose(1, 0))
+                    loss = lossFun(y_sim.unsqueeze(-1), yObs[warm_up:, :, :].transpose(1, 0))
                     # loss = lossFun(test_sim, test)
                     # c = list(model.parameters())[0].clone()
                     loss.backward()  # retain_graph=True
