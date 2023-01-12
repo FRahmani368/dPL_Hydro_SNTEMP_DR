@@ -11,7 +11,7 @@ class Dataframe(object):
         return self.time
 
 
-class DataModel():
+class DataModel:
     def getDataTrain(self):
         return self.x, self.y, self.c
 

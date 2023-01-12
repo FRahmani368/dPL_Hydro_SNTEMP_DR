@@ -6,20 +6,18 @@ import core.hydroDL
 
 import pandas as pd
 
-#torch.manual_seed(1)
+# torch.manual_seed(1)
 
 
-
-def saveModel(outFolder, model, epoch, modelName='model'):
-    modelFile = os.path.join(outFolder, modelName + '_Ep' + str(epoch) + '.pt')
+def saveModel(outFolder, model, epoch, modelName="model"):
+    modelFile = os.path.join(outFolder, modelName + "_Ep" + str(epoch) + ".pt")
     torch.save(model, modelFile)
 
 
-def loadModel(outFolder, epoch, modelName='model'):
-    modelFile = os.path.join(outFolder, modelName + '_Ep' + str(epoch) + '.pt')
+def loadModel(outFolder, epoch, modelName="model"):
+    modelFile = os.path.join(outFolder, modelName + "_Ep" + str(epoch) + ".pt")
     model = torch.load(modelFile)
     return model
-
 
 
 def testModelCnnCond(model, x, y, *, batchSize=None):
@@ -50,9 +48,9 @@ def testModelCnnCond(model, x, y, *, batchSize=None):
     iS = np.arange(0, ngrid, batchSize)
     iE = np.append(iS[1:], ngrid)
     for i in range(0, len(iS)):
-        xTemp = xTest[:, iS[i]:iE[i], :]
-        cTemp = cTest[:, iS[i]:iE[i], :]
-        yP[:, iS[i]:iE[i], :] = model(xTemp, cTemp)
+        xTemp = xTest[:, iS[i] : iE[i], :]
+        cTemp = cTest[:, iS[i] : iE[i], :]
+        yP[:, iS[i] : iE[i], :] = model(xTemp, cTemp)
     yOut = yP.detach().cpu().numpy().swapaxes(0, 1)
     return yOut
 
@@ -65,10 +63,10 @@ def randomSubset(x, y, dimSubset):
     iGrid = np.random.randint(0, ngrid, [batchSize])
     iT = np.random.randint(0, nt - rho, [batchSize])
     for k in range(batchSize):
-        temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-        xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
-        temp = y[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-        yTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+        temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+        xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+        temp = y[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+        yTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
     if torch.cuda.is_available():
         xTensor = xTensor.cuda()
         yTensor = yTensor.cuda()
@@ -85,8 +83,8 @@ def randomIndex(ngrid, nt, dimSubset):
 def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
     nx = x.shape[-1]
     nt = x.shape[1]
-    if x.shape[0] == len(iGrid):   #hack
-        iGrid = np.arange(0,len(iGrid))  # hack
+    if x.shape[0] == len(iGrid):  # hack
+        iGrid = np.arange(0, len(iGrid))  # hack
         if nt <= rho:
             iT.fill(0)
 
@@ -94,8 +92,8 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
         batchSize = iGrid.shape[0]
         xTensor = torch.zeros([rho, batchSize, nx], requires_grad=False)
         for k in range(batchSize):
-            temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-            xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+            temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+            xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
     else:
         if len(x.shape) == 2:
             # Used for local calibration kernel
@@ -107,11 +105,10 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
             rho = xTensor.shape[0]
     if c is not None:
         nc = c.shape[-1]
-        temp = np.repeat(
-            np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
+        temp = np.repeat(np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
         cTensor = torch.from_numpy(np.swapaxes(temp, 1, 0)).float()
 
-        if (tupleOut):
+        if tupleOut:
             if torch.cuda.is_available():
                 xTensor = xTensor.cuda()
                 cTensor = cTensor.cuda()

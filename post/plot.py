@@ -7,31 +7,47 @@ import statsmodels.api as sm
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
+
 # from hydroDL import utils
 import string
 import random
 import os
+
 # os.environ['PROJ_LIB'] = r'/home/fzr5082/anaconda3/envs/PGML_STemp/share/proj/'
 #  r'/opt/anaconda/pkgs/proj4-5.2.0-he6710b0_1/share/proj/'
 from mpl_toolkits import basemap
-from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
-                               AutoMinorLocator)
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter, AutoMinorLocator
 import matplotlib.dates as mdates
-def plotBoxFig(data,
-               label1=None,
-               label2=None,
-               #colorLst=['darkred', 'red', 'pink','darkblue', 'blue', 'deepskyblue','black', 'gray', 'lightgray'],
-               #colorLst=['darkred', 'darkblue','red', 'blue','pink', 'deepskyblue','black', 'gray', 'lightgray'],
-               #colorLst=['red', 'blue', 'black', 'darkred', 'darkblue','pink', 'deepskyblue', 'gray', 'lightgray'],
-               colorLst=[ 'darkblue', 'blue', 'deepskyblue', 'red','black', 'darkred','pink', 'gray', 'lightgray'],
-               title=None,
-               figsize=(10, 8),
-               sharey=True,
-               xticklabel=None,
-               edge_colorLst=None
-               ):
+
+
+def plotBoxFig(
+    data,
+    label1=None,
+    label2=None,
+    # colorLst=['darkred', 'red', 'pink','darkblue', 'blue', 'deepskyblue','black', 'gray', 'lightgray'],
+    # colorLst=['darkred', 'darkblue','red', 'blue','pink', 'deepskyblue','black', 'gray', 'lightgray'],
+    # colorLst=['red', 'blue', 'black', 'darkred', 'darkblue','pink', 'deepskyblue', 'gray', 'lightgray'],
+    colorLst=[
+        "darkblue",
+        "blue",
+        "deepskyblue",
+        "red",
+        "black",
+        "darkred",
+        "pink",
+        "gray",
+        "lightgray",
+    ],
+    title=None,
+    figsize=(10, 8),
+    sharey=True,
+    xticklabel=None,
+    edge_colorLst=None,
+):
     nc = len(data)
-    fig, axes = plt.subplots(ncols=nc, sharey=sharey, figsize=figsize, constrained_layout=True)
+    fig, axes = plt.subplots(
+        ncols=nc, sharey=sharey, figsize=figsize, constrained_layout=True
+    )
     # lowlim = [-1.25, 0.3, 0.3, 0.86, 0.7, 0.88, 0.75]
     # highlim = [0.76, 1.8, 1.6, 1.001, 1.001, 1.001, 1.01]
     # step = [0.25, 0.2, 0.2, 0.02, 0.025, 0.02, 0.05]
@@ -48,17 +64,19 @@ def plotBoxFig(data,
                     temp[kk] = []
         else:
             temp = temp[~np.isnan(temp)]
-        bp = ax.boxplot(temp, patch_artist=True, notch=True, showfliers=False, widths= 0.4)  #  , whis=[5, 95]
+        bp = ax.boxplot(
+            temp, patch_artist=True, notch=True, showfliers=False, widths=0.4
+        )  #  , whis=[5, 95]
 
         # for kk in range(0, len(bp['caps'])):
         #     plt.setp(bp['caps'][kk], color='blue')
         if edge_colorLst is not None:
-            for kk in range(0, len(bp['boxes'])):
-                for element in ['boxes']:
+            for kk in range(0, len(bp["boxes"])):
+                for element in ["boxes"]:
                     plt.setp(bp[element][kk], color=edge_colorLst[kk], linewidth=4)
 
-        for kk in range(0, len(bp['boxes'])):
-            plt.setp(bp['boxes'][kk], facecolor=colorLst[kk])
+        for kk in range(0, len(bp["boxes"])):
+            plt.setp(bp["boxes"][kk], facecolor=colorLst[kk])
         if label1 is not None:
             ax.set_xlabel(label1[k], fontsize=17)
         else:
@@ -70,48 +88,67 @@ def plotBoxFig(data,
         if xticklabel is None:
             ax.set_xticks([])
         else:
-            ax.set_xticks([y+1 for y in range(0,len(data[k]),2)])
+            ax.set_xticks([y + 1 for y in range(0, len(data[k]), 2)])
             ax.set_xticklabels(xticklabel)
         # ax.ticklabel_format(axis='y', style='sci')
     if label2 is not None:
         if nc == 1:
-            ax.legend(bp['boxes'], label2, loc='center', frameon=False, ncol=1, fontsize=15)
+            ax.legend(
+                bp["boxes"], label2, loc="center", frameon=False, ncol=1, fontsize=15
+            )
         else:
-            fig.legend(bp['boxes'], label2, loc='lower center', bbox_to_anchor=(0., 1.02, 1., .102), frameon=False, ncol=3, fontsize=20, borderaxespad=0.) #it was ax[-1].legend()
-           # ax.legend(bp['boxes'], label2, loc='best', frameon=False, ncol=1, fontsize=15)
+            fig.legend(
+                bp["boxes"],
+                label2,
+                loc="lower center",
+                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
+                frameon=False,
+                ncol=3,
+                fontsize=20,
+                borderaxespad=0.0,
+            )  # it was ax[-1].legend()
+        # ax.legend(bp['boxes'], label2, loc='best', frameon=False, ncol=1, fontsize=15)
     if title is not None:
         fig.suptitle(title)
     return fig
 
-def plotBoxF(data,
-               label1=None,
-               label2=None,
-               colorLst='rrbbkkggccmmyy',
-               title=None,
-               figsize=(10, 8),
-               sharey=True,
-               xticklabel=None,
-               ylabel=None,
-               subtitles=None
-               ):
+
+def plotBoxF(
+    data,
+    label1=None,
+    label2=None,
+    colorLst="rrbbkkggccmmyy",
+    title=None,
+    figsize=(10, 8),
+    sharey=True,
+    xticklabel=None,
+    ylabel=None,
+    subtitles=None,
+):
     nc = len(data)
-    fig, axes = plt.subplots(nrows=2, ncols=2, sharey=sharey, figsize=figsize, constrained_layout=True)
+    fig, axes = plt.subplots(
+        nrows=2, ncols=2, sharey=sharey, figsize=figsize, constrained_layout=True
+    )
     axes = axes.flat
     for k in range(0, nc):
         ax = axes[k] if nc > 1 else axes
-        bp = ax.boxplot(
-            data[k], patch_artist=True, notch=True, showfliers=False)
-        for kk in range(0, len(bp['boxes'])):
-            plt.setp(bp['boxes'][kk], facecolor=colorLst[0])
+        bp = ax.boxplot(data[k], patch_artist=True, notch=True, showfliers=False)
+        for kk in range(0, len(bp["boxes"])):
+            plt.setp(bp["boxes"][kk], facecolor=colorLst[0])
         if k == 2:
             yrange = ax.get_ylim()
         if k == 3:
             ax.set(ylim=yrange)
-        ax.axvline(len(data[k])-2+0.5, ymin=0, ymax=1, color='k',
-                   linestyle='dashed', linewidth=1)
-        if ylabel[k] != 'NSE':
-            ax.axhline(0, xmin=0, xmax=1,color='k',
-                       linestyle='dashed', linewidth=1)
+        ax.axvline(
+            len(data[k]) - 2 + 0.5,
+            ymin=0,
+            ymax=1,
+            color="k",
+            linestyle="dashed",
+            linewidth=1,
+        )
+        if ylabel[k] != "NSE":
+            ax.axhline(0, xmin=0, xmax=1, color="k", linestyle="dashed", linewidth=1)
 
         if label1 is not None:
             ax.set_xlabel(label1[k])
@@ -120,43 +157,55 @@ def plotBoxF(data,
         if xticklabel is None:
             ax.set_xticks([])
         else:
-            ax.set_xticks([y+1 for y in range(0,len(data[k]))])
+            ax.set_xticks([y + 1 for y in range(0, len(data[k]))])
             ax.set_xticklabels(xticklabel)
         if subtitles is not None:
-            ax.set_title(subtitles[k], loc='left')
+            ax.set_title(subtitles[k], loc="left")
         # ax.ticklabel_format(axis='y', style='sci')
     if label2 is not None:
         if nc == 1:
-            ax.legend(bp['boxes'], label2, loc='best', frameon=False, ncol=2)
+            ax.legend(bp["boxes"], label2, loc="best", frameon=False, ncol=2)
         else:
-            axes[-1].legend(bp['boxes'], label2, loc='best', frameon=False, ncol=2, fontsize=12)
+            axes[-1].legend(
+                bp["boxes"], label2, loc="best", frameon=False, ncol=2, fontsize=12
+            )
     if title is not None:
         fig.suptitle(title)
     return fig
 
-def plotMultiBoxFig(data,
-               label1=None,
-               label2=None,
-               colorLst='grbkcmy',
-               title=None,
-               figsize=(10, 8),
-               sharey=True,
-               xticklabel=None,
-               position=None,
-               ylabel=None
-               ):
+
+def plotMultiBoxFig(
+    data,
+    label1=None,
+    label2=None,
+    colorLst="grbkcmy",
+    title=None,
+    figsize=(10, 8),
+    sharey=True,
+    xticklabel=None,
+    position=None,
+    ylabel=None,
+):
     nc = len(data)
-    fig, axes = plt.subplots(ncols=nc, sharey=sharey, figsize=figsize, constrained_layout=True)
+    fig, axes = plt.subplots(
+        ncols=nc, sharey=sharey, figsize=figsize, constrained_layout=True
+    )
     nv = len(data[0])
-    #ndays = len(data[0][1])
+    # ndays = len(data[0][1])
     for k in range(0, nc):
         ax = axes[k] if nc > 1 else axes
-        bp = [None]*nv
+        bp = [None] * nv
         for ii in range(nv):
             bp[ii] = ax.boxplot(
-            data[k][ii], patch_artist=True, notch=True, showfliers=False, positions=position[ii], widths=0.2)
-            for kk in range(0, len(bp[ii]['boxes'])):
-                plt.setp(bp[ii]['boxes'][kk], facecolor=colorLst[ii])
+                data[k][ii],
+                patch_artist=True,
+                notch=True,
+                showfliers=False,
+                positions=position[ii],
+                widths=0.2,
+            )
+            for kk in range(0, len(bp[ii]["boxes"])):
+                plt.setp(bp[ii]["boxes"][kk], facecolor=colorLst[ii])
 
         if label1 is not None:
             ax.set_xlabel(label1[k])
@@ -167,47 +216,48 @@ def plotMultiBoxFig(data,
         if xticklabel is None:
             ax.set_xticks([])
         else:
-            ax.set_xticks([y for y in range(0,len(data[k][1])+1)])
+            ax.set_xticks([y for y in range(0, len(data[k][1]) + 1)])
             ax.set_xticklabels(xticklabel)
-        ax.set_xlim([-0.5, ndays+0.5])
+        ax.set_xlim([-0.5, ndays + 0.5])
         # ax.ticklabel_format(axis='y', style='sci')
-        vlabel = np.arange(0.5, len(data[k][1])+1)
+        vlabel = np.arange(0.5, len(data[k][1]) + 1)
         for xv in vlabel:
-            ax.axvline(xv, ymin=0, ymax=1, color='k',
-                       linestyle='dashed', linewidth=1)
+            ax.axvline(xv, ymin=0, ymax=1, color="k", linestyle="dashed", linewidth=1)
         yh = np.nanmedian(data[k][0][0])
-        ax.axhline(yh, xmin=0, xmax=1, color='r',
-                   linestyle='dashed', linewidth=2)
+        ax.axhline(yh, xmin=0, xmax=1, color="r", linestyle="dashed", linewidth=2)
         yh1 = np.nanmedian(data[k][1][0])
-        ax.axhline(yh1, xmin=0, xmax=1, color='b',
-                   linestyle='dashed', linewidth=2)
+        ax.axhline(yh1, xmin=0, xmax=1, color="b", linestyle="dashed", linewidth=2)
     labelhandle = list()
     for ii in range(nv):
-        labelhandle.append(bp[ii]['boxes'][0])
+        labelhandle.append(bp[ii]["boxes"][0])
     if label2 is not None:
         if nc == 1:
-            ax.legend(labelhandle, label2, loc='best', frameon=False, ncol=1)
+            ax.legend(labelhandle, label2, loc="best", frameon=False, ncol=1)
         else:
-            axes[-1].legend(labelhandle, label2, loc='best', frameon=False, ncol=1, fontsize=12)
+            axes[-1].legend(
+                labelhandle, label2, loc="best", frameon=False, ncol=1, fontsize=12
+            )
     if title is not None:
         fig.suptitle(title)
     return fig
 
 
-def plotTS(t,
-           y,
-           *,
-           ax=None,
-           tBar=None,
-           figsize=(12, 4),
-           cLst='rbkgcmy',
-           markerLst=None,
-           linespec=None,
-           legLst=None,
-           title=None,
-           linewidth=2,
-           ylabel=None,
-           figNo=None):
+def plotTS(
+    t,
+    y,
+    *,
+    ax=None,
+    tBar=None,
+    figsize=(12, 4),
+    cLst="rbkgcmy",
+    markerLst=None,
+    linespec=None,
+    legLst=None,
+    title=None,
+    linewidth=2,
+    ylabel=None,
+    figNo=None
+):
     newFig = False
     if ax is None:
         fig = plt.figure(figsize=figsize)
@@ -224,60 +274,69 @@ def plotTS(t,
             legStr = legLst[k]
         if markerLst is None:
             if True in np.isnan(yy):
-                ax.plot(tt, yy, '*', color=cLst[k], label=legStr)
+                ax.plot(tt, yy, "*", color=cLst[k], label=legStr)
             else:
-                ax.plot(
-                    tt, yy, color=cLst[k], label=legStr, linewidth=linewidth)
+                ax.plot(tt, yy, color=cLst[k], label=legStr, linewidth=linewidth)
         else:
-            if markerLst[k] == '-':
+            if markerLst[k] == "-":
                 if linespec is not None:
-                    ax.plot(tt, yy, color=cLst[k], label=legStr, linestyle=linespec[k], lw=1.15)
+                    ax.plot(
+                        tt,
+                        yy,
+                        color=cLst[k],
+                        label=legStr,
+                        linestyle=linespec[k],
+                        lw=1.15,
+                    )
                 else:
                     ax.plot(tt, yy, color=cLst[k], label=legStr, lw=1.15)
             else:
                 ax.scatter(
-                    tt, yy, color=cLst[k], label=legStr, marker=markerLst[k], s=5)
+                    tt, yy, color=cLst[k], label=legStr, marker=markerLst[k], s=5
+                )
         if ylabel is not None:
             if figNo % 2 == 0:
                 ax.set_ylabel(ylabel)
-        #ax.set_xlim([np.min(tt), np.max(tt)])
+        # ax.set_xlim([np.min(tt), np.max(tt)])
     if tBar is not None:
         ylim = ax.get_ylim()
         tBar = [tBar] if type(tBar) is not list else tBar
         for tt in tBar:
-            ax.plot([tt, tt], ylim, '-k')
+            ax.plot([tt, tt], ylim, "-k")
 
     if legLst is not None:
-        ax.legend(loc='lower right', frameon=False)
+        ax.legend(loc="lower right", frameon=False)
     if title is not None:
-        ax.set_title(title, loc='center', fontsize=10.5)
-    #ax.xaxis.set_major_locator(MultipleLocator(7))
+        ax.set_title(title, loc="center", fontsize=10.5)
+    # ax.xaxis.set_major_locator(MultipleLocator(7))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=7))
-    #ax.set_xticks([np.min(tt), np.min(tt) + 180, np.min(tt)+365, np.max(tt)], [np.min(tt), np.min(tt) + 180, np.min(tt)+365, np.max(tt)])
-    #ax.set_xticklabels( [np.min(tt), np.min(tt) + 90, np.min(tt) + 180, np.min(tt) + 270 , np.min(tt)+365, np.max(tt)], fontsize=8)
+    # ax.set_xticks([np.min(tt), np.min(tt) + 180, np.min(tt)+365, np.max(tt)], [np.min(tt), np.min(tt) + 180, np.min(tt)+365, np.max(tt)])
+    # ax.set_xticklabels( [np.min(tt), np.min(tt) + 90, np.min(tt) + 180, np.min(tt) + 270 , np.min(tt)+365, np.max(tt)], fontsize=8)
     for tick in ax.xaxis.get_major_ticks():
 
         tick.label.set_fontsize(11)
         # specify integer or one of preset strings, e.g.
         # tick.label.set_fontsize('x-small')
-        #tick.label.set_rotation('vertical')
+        # tick.label.set_rotation('vertical')
     if newFig is True:
         return fig, ax
     else:
         return ax
 
 
-def plotVS(x,
-           y,
-           *,
-           ax=None,
-           title=None,
-           xlabel=None,
-           ylabel=None,
-           titleCorr=True,
-           plot121=True,
-           doRank=False,
-           figsize=(8, 6)):
+def plotVS(
+    x,
+    y,
+    *,
+    ax=None,
+    title=None,
+    xlabel=None,
+    ylabel=None,
+    titleCorr=True,
+    plot121=True,
+    doRank=False,
+    figsize=(8, 6)
+):
     if doRank is True:
         x = scipy.stats.rankdata(x)
         y = scipy.stats.rankdata(y)
@@ -293,18 +352,18 @@ def plotVS(x,
         fig = None
     if title is not None:
         if titleCorr is True:
-            title = title + ' ' + r'$\rho$={:.2f}'.format(corr)
+            title = title + " " + r"$\rho$={:.2f}".format(corr)
         ax.set_title(title)
     else:
         if titleCorr is True:
-            ax.set_title(r'$\rho$=' + '{:.2f}'.format(corr))
+            ax.set_title(r"$\rho$=" + "{:.2f}".format(corr))
     if xlabel is not None:
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
     # corr = np.corrcoef(x, y)[0, 1]
-    ax.plot(x, y, 'b.')
-    ax.plot(xLr, yLr, 'r-')
+    ax.plot(x, y, "b.")
+    ax.plot(xLr, yLr, "r-")
 
     if plot121 is True:
         plot121Line(ax)
@@ -312,7 +371,7 @@ def plotVS(x,
     return fig, ax
 
 
-def plot121Line(ax, spec='k-'):
+def plot121Line(ax, spec="k-"):
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     vmin = np.min([xlim[0], ylim[0]])
@@ -320,21 +379,23 @@ def plot121Line(ax, spec='k-'):
     ax.plot([vmin, vmax], [vmin, vmax], spec)
 
 
-def plotMap(data,
-            *,
-            ax=None,
-            lat=None,
-            lon=None,
-            title=None,
-            cRange=None,
-            shape=None,
-            pts=None,
-            figsize=(22, 11),
-            clbar=True,
-            cRangeint=False,
-            cmap=plt.cm.jet,
-            bounding=None,
-            prj='cyl'):
+def plotMap(
+    data,
+    *,
+    ax=None,
+    lat=None,
+    lon=None,
+    title=None,
+    cRange=None,
+    shape=None,
+    pts=None,
+    figsize=(22, 11),
+    clbar=True,
+    cRangeint=False,
+    cmap=plt.cm.jet,
+    bounding=None,
+    prj="cyl"
+):
 
     if cRange is not None:
         vmin = cRange[0]
@@ -354,8 +415,12 @@ def plotMap(data,
     else:
         isGrid = True
     if bounding is None:
-        bounding = [np.min(lat)-5.4, np.max(lat)+0.5,
-                    np.min(lon)-2.1, np.max(lon)+4.5]
+        bounding = [
+            np.min(lat) - 5.4,
+            np.max(lat) + 0.5,
+            np.min(lon) - 2.1,
+            np.max(lon) + 4.5,
+        ]
 
     mm = basemap.Basemap(
         llcrnrlat=bounding[0],
@@ -363,11 +428,12 @@ def plotMap(data,
         llcrnrlon=bounding[2],
         urcrnrlon=bounding[3],
         projection=prj,
-        resolution='c',
-        ax=ax)
+        resolution="c",
+        ax=ax,
+    )
     mm.drawcoastlines()
-    mm.drawstates(linestyle='dashed')
-    mm.drawcountries(linewidth=1.0, linestyle='-.')
+    mm.drawstates(linestyle="dashed")
+    mm.drawcountries(linewidth=1.0, linestyle="-.")
     x, y = mm(lon, lat)
     if isGrid is True:
         xx, yy = np.meshgrid(x, y)
@@ -379,40 +445,32 @@ def plotMap(data,
         #     vmax=vmax,
         #     extent=[x[0], x[-1], y[0], y[-1]])
     else:
-        cs = mm.scatter(
-            x, y, c=data, s=120, cmap=cmap, vmin=vmin, vmax=vmax)
+        cs = mm.scatter(x, y, c=data, s=120, cmap=cmap, vmin=vmin, vmax=vmax)
 
     if shape is not None:
         crd = np.array(shape.points)
         par = shape.parts
         if len(par) > 1:
             for k in range(0, len(par) - 1):
-                x = crd[par[k]:par[k + 1], 0]
-                y = crd[par[k]:par[k + 1], 1]
-                mm.plot(x, y, color='r', linewidth=3)
+                x = crd[par[k] : par[k + 1], 0]
+                y = crd[par[k] : par[k + 1], 1]
+                mm.plot(x, y, color="r", linewidth=3)
         else:
             y = crd[:, 0]
             x = crd[:, 1]
-            mm.plot(x, y, color='r', linewidth=3)
+            mm.plot(x, y, color="r", linewidth=3)
     if pts is not None:
-        mm.plot(pts[1], pts[0], 'k*', markersize=4)
+        mm.plot(pts[1], pts[0], "k*", markersize=4)
         npt = len(pts[0])
         for k in range(npt):
-            plt.text(
-                pts[1][k],
-                pts[0][k],
-                string.ascii_uppercase[k],
-                fontsize=18)
+            plt.text(pts[1][k], pts[0][k], string.ascii_uppercase[k], fontsize=18)
     if clbar is True:
-        cbar = mm.colorbar(cs, pad='1%')
+        cbar = mm.colorbar(cs, pad="1%")
         cbar.ax.tick_params(labelsize=20)
     if title is not None:
         ax.set_title(title, fontsize=26)
 
-    ax.legend(handles=[cs],
-            labels=['$\ LSTM_{obsQ}$'],
-            loc='lower right',
-            fontsize=22)
+    ax.legend(handles=[cs], labels=["$\ LSTM_{obsQ}$"], loc="lower right", fontsize=22)
     if ax is None:
         return fig, ax, mm
     else:
@@ -420,70 +478,67 @@ def plotMap(data,
 
 
 def plotlocmap(
-            lat,
-            lon,
-            ax=None,
-            baclat=None,
-            baclon=None,
-            title=None,
-            shape=None,
-            txtlabel=None):
+    lat, lon, ax=None, baclat=None, baclon=None, title=None, shape=None, txtlabel=None
+):
     if ax is None:
         fig = plt.figure(figsize=(8, 4))
         ax = fig.subplots()
     mm = basemap.Basemap(
-        llcrnrlat=min(np.min(baclat),np.min(lat))-0.5,
-        urcrnrlat=max(np.max(baclat),np.max(lat))+0.5,
-        llcrnrlon=min(np.min(baclon),np.min(lon))-0.5,
-        urcrnrlon=max(np.max(baclon),np.max(lon))+0.5,
-        projection='cyl',
-        resolution='c',
-        ax=ax)
+        llcrnrlat=min(np.min(baclat), np.min(lat)) - 0.5,
+        urcrnrlat=max(np.max(baclat), np.max(lat)) + 0.5,
+        llcrnrlon=min(np.min(baclon), np.min(lon)) - 0.5,
+        urcrnrlon=max(np.max(baclon), np.max(lon)) + 0.5,
+        projection="cyl",
+        resolution="c",
+        ax=ax,
+    )
     mm.drawcoastlines()
-    mm.drawstates(linestyle='dashed')
-    mm.drawcountries(linewidth=1.0, linestyle='-.')
+    mm.drawstates(linestyle="dashed")
+    mm.drawcountries(linewidth=1.0, linestyle="-.")
     # x, y = mm(baclon, baclat)
     # bs = mm.scatter(
     #     x, y, c='k', s=30)
     x, y = mm(lon, lat)
-    ax.plot(x, y, 'k*', markersize=12)
+    ax.plot(x, y, "k*", markersize=12)
     if shape is not None:
         crd = np.array(shape.points)
         par = shape.parts
         if len(par) > 1:
             for k in range(0, len(par) - 1):
-                x = crd[par[k]:par[k + 1], 0]
-                y = crd[par[k]:par[k + 1], 1]
-                mm.plot(x, y, color='r', linewidth=3)
+                x = crd[par[k] : par[k + 1], 0]
+                y = crd[par[k] : par[k + 1], 1]
+                mm.plot(x, y, color="r", linewidth=3)
         else:
             y = crd[:, 0]
             x = crd[:, 1]
-            mm.plot(x, y, color='r', linewidth=3)
+            mm.plot(x, y, color="r", linewidth=3)
     if title is not None:
-        ax.set_title(title, loc='left')
+        ax.set_title(title, loc="left")
     if txtlabel is not None:
         for ii in range(len(lat)):
             txt = txtlabel[ii]
             xy = (x[ii], y[ii])
-            xy = (x[ii]+1.0, y[ii]-1.5)
-            ax.annotate(txt, xy, fontsize=16, fontweight='bold')
+            xy = (x[ii] + 1.0, y[ii] - 1.5)
+            ax.annotate(txt, xy, fontsize=16, fontweight="bold")
         if ax is None:
             return fig, ax, mm
         else:
             return mm
 
 
-def plotPUBloc(data,
-            *,
-            ax=None,
-            lat=None,
-            lon=None,
-            baclat=None,
-            baclon=None,
-            title=None,
-            cRange=None,
-            cRangeint=False,
-            shape=None):
+def plotPUBloc(
+    data,
+    *,
+    ax=None,
+    lat=None,
+    lon=None,
+    baclat=None,
+    baclon=None,
+    title=None,
+    cRange=None,
+    cRangeint=False,
+    shape=None
+):
     if cRange is not None:
         vmin = cRange[0]
         vmax = cRange[1]
@@ -504,40 +559,41 @@ def plotPUBloc(data,
         isGrid = True
 
     mm = basemap.Basemap(
-        llcrnrlat=min(np.min(baclat),np.min(lat))-0.5,
-        urcrnrlat=max(np.max(baclat),np.max(lat))+0.5,
-        llcrnrlon=min(np.min(baclon),np.min(lon))-0.5,
-        urcrnrlon=max(np.max(baclon),np.max(lon))+0.5,
-        projection='cyl',
-        resolution='c',
-        ax=ax)
+        llcrnrlat=min(np.min(baclat), np.min(lat)) - 0.5,
+        urcrnrlat=max(np.max(baclat), np.max(lat)) + 0.5,
+        llcrnrlon=min(np.min(baclon), np.min(lon)) - 0.5,
+        urcrnrlon=max(np.max(baclon), np.max(lon)) + 0.5,
+        projection="cyl",
+        resolution="c",
+        ax=ax,
+    )
     mm.drawcoastlines()
-    mm.drawstates(linestyle='dashed')
-    mm.drawcountries(linewidth=0.5, linestyle='-.')
+    mm.drawstates(linestyle="dashed")
+    mm.drawcountries(linewidth=0.5, linestyle="-.")
     x, y = mm(baclon, baclat)
-    bs = mm.scatter(
-        x, y, c='k', s=30)
+    bs = mm.scatter(x, y, c="k", s=30)
     x, y = mm(lon, lat)
     if isGrid is True:
         xx, yy = np.meshgrid(x, y)
         cs = mm.pcolormesh(xx, yy, data, cmap=plt.cm.jet, vmin=vmin, vmax=vmax)
     else:
         cs = mm.scatter(
-            x, y, c=data, s=100, cmap=plt.cm.jet, vmin=vmin, vmax=vmax, marker='*')
+            x, y, c=data, s=100, cmap=plt.cm.jet, vmin=vmin, vmax=vmax, marker="*"
+        )
 
     if shape is not None:
         crd = np.array(shape.points)
         par = shape.parts
         if len(par) > 1:
             for k in range(0, len(par) - 1):
-                x = crd[par[k]:par[k + 1], 0]
-                y = crd[par[k]:par[k + 1], 1]
-                mm.plot(x, y, color='r', linewidth=3)
+                x = crd[par[k] : par[k + 1], 0]
+                y = crd[par[k] : par[k + 1], 1]
+                mm.plot(x, y, color="r", linewidth=3)
         else:
             y = crd[:, 0]
             x = crd[:, 1]
-            mm.plot(x, y, color='r', linewidth=3)
-    mm.colorbar(cs, location='bottom', pad='5%')
+            mm.plot(x, y, color="r", linewidth=3)
+    mm.colorbar(cs, location="bottom", pad="5%")
     if title is not None:
         ax.set_title(title)
         if ax is None:
@@ -545,24 +601,27 @@ def plotPUBloc(data,
         else:
             return mm
 
-def plotTsMap(dataMap,
-              dataTs,
-              *,
-              lat,
-              lon,
-              t,
-              dataTs2=None,
-              tBar=None,
-              mapColor=None,
-              tsColor='krbg',
-              tsColor2='cmy',
-              mapNameLst=None,
-              tsNameLst=None,
-              tsNameLst2=None,
-              figsize=[12, 6],
-              isGrid=False,
-              multiTS=False,
-              linewidth=1):
+
+def plotTsMap(
+    dataMap,
+    dataTs,
+    *,
+    lat,
+    lon,
+    t,
+    dataTs2=None,
+    tBar=None,
+    mapColor=None,
+    tsColor="krbg",
+    tsColor2="cmy",
+    mapNameLst=None,
+    tsNameLst=None,
+    tsNameLst2=None,
+    figsize=[12, 6],
+    isGrid=False,
+    multiTS=False,
+    linewidth=1
+):
     if type(dataMap) is np.ndarray:
         dataMap = [dataMap]
     if type(dataTs) is np.ndarray:
@@ -609,14 +668,14 @@ def plotTsMap(dataMap,
     def onclick(event):
         xClick = event.xdata
         yClick = event.ydata
-        d = np.sqrt((xClick - lon)**2 + (yClick - lat)**2)
+        d = np.sqrt((xClick - lon) ** 2 + (yClick - lat) ** 2)
         ind = np.argmin(d)
         # titleStr = 'pixel %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
-#         titleStr = 'gage %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
-#         ax.clear()
-#         plotMap(data, lat=lat, lon=lon, ax=ax, cRange=cRange, title=title)
-#         ax.plot(lon[ind], lat[ind], 'k*', markersize=12)
-        titleStr = 'pixel %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
+        #         titleStr = 'gage %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
+        #         ax.clear()
+        #         plotMap(data, lat=lat, lon=lon, ax=ax, cRange=cRange, title=title)
+        #         ax.plot(lon[ind], lat[ind], 'k*', markersize=12)
+        titleStr = "pixel %d, lat %.3f, lon %.3f" % (ind, lat[ind], lon[ind])
         for ix in range(nAx):
             tsLst = list()
             for temp in dataTs[ix]:
@@ -631,7 +690,8 @@ def plotTsMap(dataMap,
                     title=titleStr,
                     cLst=tsColor,
                     linewidth=linewidth,
-                    tBar=tBar)
+                    tBar=tBar,
+                )
             else:
                 plotTS(
                     t,
@@ -640,7 +700,8 @@ def plotTsMap(dataMap,
                     legLst=tsNameLst,
                     cLst=tsColor,
                     linewidth=linewidth,
-                    tBar=tBar)
+                    tBar=tBar,
+                )
 
             if dataTs2 is not None:
                 tsLst2 = list()
@@ -654,25 +715,29 @@ def plotTsMap(dataMap,
                     legLst=tsNameLst2,
                     cLst=tsColor2,
                     lineWidth=linewidth,
-                    tBar=tBar)
+                    tBar=tBar,
+                )
             if ix != nAx - 1:
                 axTsLst[ix].set_xticklabels([])
         plt.draw()
 
-    fig.canvas.mpl_connect('button_press_event', onclick)
+    fig.canvas.mpl_connect("button_press_event", onclick)
     plt.tight_layout()
     plt.show()
 
-def plotTsMapGage(dataMap,
-              dataTs,
-              *,
-              lat,
-              lon,
-              t,
-              colorMap=None,
-              mapNameLst=None,
-              tsNameLst=None,
-              figsize=[12, 6]):
+
+def plotTsMapGage(
+    dataMap,
+    dataTs,
+    *,
+    lat,
+    lon,
+    t,
+    colorMap=None,
+    mapNameLst=None,
+    tsNameLst=None,
+    figsize=[12, 6]
+):
     if type(dataMap) is np.ndarray:
         dataMap = [dataMap]
     if type(dataTs) is np.ndarray:
@@ -698,13 +763,13 @@ def plotTsMapGage(dataMap,
     def onclick(event):
         xClick = event.xdata
         yClick = event.ydata
-        d = np.sqrt((xClick - lon)**2 + (yClick - lat)**2)
+        d = np.sqrt((xClick - lon) ** 2 + (yClick - lat) ** 2)
         ind = np.argmin(d)
         # titleStr = 'pixel %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
-        titleStr = 'gage %d, lat %.3f, lon %.3f' % (ind, lat[ind], lon[ind])
+        titleStr = "gage %d, lat %.3f, lon %.3f" % (ind, lat[ind], lon[ind])
         ax.clear()
         plotMap(data, lat=lat, lon=lon, ax=ax, cRange=cRange, title=title)
-        ax.plot(lon[ind], lat[ind], 'k*', markersize=12)
+        ax.plot(lon[ind], lat[ind], "k*", markersize=12)
         # ax.draw(renderer=None)
         tsLst = list()
         for k in range(nTs):
@@ -713,24 +778,26 @@ def plotTsMapGage(dataMap,
         plotTS(t, tsLst, ax=axTs, legLst=tsNameLst, title=titleStr)
         plt.draw()
 
-    fig.canvas.mpl_connect('button_press_event', onclick)
+    fig.canvas.mpl_connect("button_press_event", onclick)
     plt.tight_layout()
     plt.show()
 
 
-def plotCDF(xLst,
-            *,
-            ax=None,
-            title=None,
-            legendLst=None,
-            figsize=(8, 6),
-            ref='121',
-            cLst=None,
-            xlabel=None,
-            ylabel=None,
-            showDiff='RMSE',
-            xlim=None,
-            linespec=None):
+def plotCDF(
+    xLst,
+    *,
+    ax=None,
+    title=None,
+    legendLst=None,
+    figsize=(8, 6),
+    ref="121",
+    cLst=None,
+    xlabel=None,
+    ylabel=None,
+    showDiff="RMSE",
+    xlim=None,
+    linespec=None
+):
     if ax is None:
         fig = plt.figure(figsize=figsize)
         ax = fig.subplots()
@@ -742,7 +809,7 @@ def plotCDF(xLst,
         cLst = cmap(np.linspace(0, 1, len(xLst)))
 
     if title is not None:
-        ax.set_title(title, loc='left')
+        ax.set_title(title, loc="left")
     if xlabel is not None:
         ax.set_xlabel(xlabel)
     if ylabel is not None:
@@ -761,38 +828,39 @@ def plotCDF(xLst,
         else:
             legStr = legendLst[k]
         if ref is not None:
-            if ref == '121':
+            if ref == "121":
                 yRef = yRank
-            elif ref == 'norm':
+            elif ref == "norm":
                 yRef = scipy.stats.norm.cdf(xSort, 0, 1)
-            rmse = np.sqrt(((xSort - yRef)**2).mean())
+            rmse = np.sqrt(((xSort - yRef) ** 2).mean())
             ksd = np.max(np.abs(xSort - yRef))
             rmseLst.append(rmse)
             ksdLst.append(ksd)
-            if showDiff == 'RMSE':
-                legStr = legStr + ' RMSE=' + '%.3f' % rmse
-            elif showDiff == 'KS':
-                legStr = legStr + ' KS=' + '%.3f' % ksd
+            if showDiff == "RMSE":
+                legStr = legStr + " RMSE=" + "%.3f" % rmse
+            elif showDiff == "KS":
+                legStr = legStr + " KS=" + "%.3f" % ksd
         ax.plot(xSort, yRank, color=cLst[k], label=legStr, linestyle=linespec[k])
         ax.grid(b=True)
     if xlim is not None:
         ax.set(xlim=xlim)
-    if ref == '121':
-        ax.plot([0, 1], [0, 1], 'k', label='y=x')
-    if ref == 'norm':
+    if ref == "121":
+        ax.plot([0, 1], [0, 1], "k", label="y=x")
+    if ref == "norm":
         xNorm = np.linspace(-5, 5, 1000)
         normCdf = scipy.stats.norm.cdf(xNorm, 0, 1)
-        ax.plot(xNorm, normCdf, 'k', label='Gaussian')
+        ax.plot(xNorm, normCdf, "k", label="Gaussian")
     if legendLst is not None:
-        ax.legend(loc='best', frameon=False)
+        ax.legend(loc="best", frameon=False)
     # out = {'xSortLst': xSortLst, 'rmseLst': rmseLst, 'ksdLst': ksdLst}
     return fig, ax
+
 
 def flatData(x):
     xArrayTemp = x.flatten()
     xArray = xArrayTemp[~np.isnan(xArrayTemp)]
     xSort = np.sort(xArray)
-    return (xSort)
+    return xSort
 
 
 def scaleSigma(s, u, y):
@@ -816,21 +884,33 @@ def regLinear(y, x):
     return out
 
 
-def TempSeries_4_Plots(attr_path, statDictLst_res, obs, predLst, TempTarget, tRange, boxPlotName, rootOut, save_path, sites=18, Stations=None, retrained=False):
+def TempSeries_4_Plots(
+    attr_path,
+    statDictLst_res,
+    obs,
+    predLst,
+    TempTarget,
+    tRange,
+    boxPlotName,
+    rootOut,
+    save_path,
+    sites=18,
+    Stations=None,
+    retrained=False,
+):
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
     axes = axes.flat
     npred = 2  # 2  # plot the first two prediction: Base LSTM and DI(1)
-    #subtitle = ['(seg_id_nat:1450)', '(seg_id_nat:1566)', '(seg_id_nat:1718)', '(seg_id_nat:2013)']
-    txt = ['a', 'b', 'c', 'd']
-    ylabel = 'Stream Temperature ($\mathregular{deg}$ C)'
-
+    # subtitle = ['(seg_id_nat:1450)', '(seg_id_nat:1566)', '(seg_id_nat:1718)', '(seg_id_nat:2013)']
+    txt = ["a", "b", "c", "d"]
+    ylabel = "Stream Temperature ($\mathregular{deg}$ C)"
 
     seg_id_nat = []
     inputdata = pd.read_feather(attr_path)
     # tRange = [20141001, 20161001]
     gage = []
     if Stations == None:
-        seg_id_nat = inputdata['site_no'].unique()
+        seg_id_nat = inputdata["site_no"].unique()
     else:
         seg_id_nat = Stations
     if sites > len(seg_id_nat):
@@ -839,61 +919,96 @@ def TempSeries_4_Plots(attr_path, statDictLst_res, obs, predLst, TempTarget, tRa
     AA.sort()
     BB = [seg_id_nat[(x)] for x in AA]
     seg_id_nat = BB
-    #seg_id_nat.sort()
+    # seg_id_nat.sort()
     gage = [jj for jj in range(sites)]
     for i in range(math.ceil(len(gage) / 4)):
-        gageindex = gage[i * 4:(i + 1) * 4]
+        gageindex = gage[i * 4 : (i + 1) * 4]
         print(gageindex)
         t = utils.time.tRange2Array(tRange)
         fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
         axes = axes.flat
         npred = 2  # 2  # plot the first two prediction: Base LSTM and DI(1)
         if i < (math.ceil(len(gage) / 4) - 1):
-            subtitle = ['(a) (Station ID:' + str(seg_id_nat[4 * i]) + ') ',
-                        '(b) (Station ID:' + str(seg_id_nat[4 * i + 1]) + ') ',
-                        '(c) (Station ID:' + str(seg_id_nat[4 * i + 2]) + ') ',
-                        '(d) (Station ID:' + str(seg_id_nat[4 * i + 3]) + ') ']
+            subtitle = [
+                "(a) (Station ID:" + str(seg_id_nat[4 * i]) + ") ",
+                "(b) (Station ID:" + str(seg_id_nat[4 * i + 1]) + ") ",
+                "(c) (Station ID:" + str(seg_id_nat[4 * i + 2]) + ") ",
+                "(d) (Station ID:" + str(seg_id_nat[4 * i + 3]) + ") ",
+            ]
         elif i == (math.ceil(len(gage) / 4) - 1):
             if ((len(gage)) - (i * 4)) == 1:
-                subtitle = ['(Station ID:' + str(seg_id_nat[4 * i + 0]) + ')']
+                subtitle = ["(Station ID:" + str(seg_id_nat[4 * i + 0]) + ")"]
             elif ((len(gage)) - (i * 4)) == 2:
-                subtitle = ['(Station ID:' + str(seg_id_nat[4 * i + 0]) + ')'
-                    , '(Station ID:' + str(seg_id_nat[4 * i + 1]) + ')']
+                subtitle = [
+                    "(Station ID:" + str(seg_id_nat[4 * i + 0]) + ")",
+                    "(Station ID:" + str(seg_id_nat[4 * i + 1]) + ")",
+                ]
             elif ((len(gage)) - (i * 4)) == 3:
-                subtitle = ['(Station ID:' + str(seg_id_nat[4 * i + 0]) + ')'
-                    , '(Station ID:' + str(seg_id_nat[4 * i + 1]) + ')'
-                    , '(Station ID:' + str(seg_id_nat[4 * i + 2]) + ')']
-        txt = ['a', 'b', 'c', 'd']
-        ylabel = 'Stream Temperature ($\mathregular{deg}$ C)'
+                subtitle = [
+                    "(Station ID:" + str(seg_id_nat[4 * i + 0]) + ")",
+                    "(Station ID:" + str(seg_id_nat[4 * i + 1]) + ")",
+                    "(Station ID:" + str(seg_id_nat[4 * i + 2]) + ")",
+                ]
+        txt = ["a", "b", "c", "d"]
+        ylabel = "Stream Temperature ($\mathregular{deg}$ C)"
 
         for k in range(len(gageindex)):
             iGrid = AA[gageindex[k]]
-            iGrid = inputdata.index[inputdata['site_no'] == seg_id_nat[AA[gageindex[k]]]].values[0]
+            iGrid = inputdata.index[
+                inputdata["site_no"] == seg_id_nat[AA[gageindex[k]]]
+            ].values[0]
             yPlot = [obs[iGrid, :]]
             for y in predLst[0:npred]:
                 yPlot.append(y[iGrid, :])
             # get the NSE value of LSTM and DI(1) model
-            Metrics = '[' + str(np.round(statDictLst_res[0]['RMSE'][iGrid], 2)) +',\n'+str(np.round(statDictLst_res[0]['NSE'][iGrid], 2)) + ',' +str(np.round(statDictLst_res[0]['Corr'][iGrid], 2)) + ',\n' +str(np.round(statDictLst_res[0]['NSE_res'][iGrid], 2)) + ',' +str(np.round(statDictLst_res[0]['Corr_res'][iGrid], 2)) + ']'
-            subtitle1 = '[' + str(np.round(statDictLst_res[0]['RMSE'][iGrid], 2)) + ',' + str(
-                np.round(statDictLst_res[0]['NSE'][iGrid], 2)) + ',' + str(
-                np.round(statDictLst_res[0]['Corr'][iGrid], 2)) + ',' + str(
-                np.round(statDictLst_res[0]['NSE_res'][iGrid], 2)) + ','+ str(
-                np.round(statDictLst_res[0]['Corr_res'][iGrid], 2)) + ']'
-             #NSE_LSTM = [] #str(round(statDictLst[0]['NSE'][iGrid], 2))
+            Metrics = (
+                "["
+                + str(np.round(statDictLst_res[0]["RMSE"][iGrid], 2))
+                + ",\n"
+                + str(np.round(statDictLst_res[0]["NSE"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Corr"][iGrid], 2))
+                + ",\n"
+                + str(np.round(statDictLst_res[0]["NSE_res"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Corr_res"][iGrid], 2))
+                + "]"
+            )
+            subtitle1 = (
+                "["
+                + str(np.round(statDictLst_res[0]["RMSE"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["NSE"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Corr"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["NSE_res"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Corr_res"][iGrid], 2))
+                + "]"
+            )
+            # NSE_LSTM = [] #str(round(statDictLst[0]['NSE'][iGrid], 2))
             # NSE_DI1 = str(round(statDictLst[1]['NSE'][iGrid], 2))
             # plot time series
             plotTS(
                 t,
                 yPlot,
                 ax=axes[k],
-                cLst='bkrmg',
-                markerLst='o-',
-                legLst=['obs', 'Sim'], title=subtitle[k]+subtitle1, linespec=['o', '-', ':'],  #legLst=[TempTarget, 'LSTM: ' + NSE_LSTM], title=subtitle[k]
-                ylabel=ylabel)  # ['USGS', 'LSTM: '+NSE_LSTM, 'DI(1): '+NSE_DI1]
-        boxPlotName = 'Time Series simulated and observed data in testing period- values in brackets are [RMSE, NSE, Corr, NSE_res, Corr_res]'
+                cLst="bkrmg",
+                markerLst="o-",
+                legLst=["obs", "Sim"],
+                title=subtitle[k] + subtitle1,
+                linespec=[
+                    "o",
+                    "-",
+                    ":",
+                ],  # legLst=[TempTarget, 'LSTM: ' + NSE_LSTM], title=subtitle[k]
+                ylabel=ylabel,
+            )  # ['USGS', 'LSTM: '+NSE_LSTM, 'DI(1): '+NSE_DI1]
+        boxPlotName = "Time Series simulated and observed data in testing period- values in brackets are [RMSE, NSE, Corr, NSE_res, Corr_res]"
         fig.suptitle(boxPlotName, fontsize=15)
 
-        plotName = 'Fig' + str(i) + '(' + TempTarget + ')' + "Temp.png"
+        plotName = "Fig" + str(i) + "(" + TempTarget + ")" + "Temp.png"
 
         # if retrained == True:
         #    # plt.savefig(os.path.join(rootOut, out_retrained, plotName), dpi=500)
@@ -904,21 +1019,33 @@ def TempSeries_4_Plots(attr_path, statDictLst_res, obs, predLst, TempTarget, tRa
         fig.show()
 
 
-def TempSeries_4_Plots_ERL(attr_path, statDictLst_res, obs, predLst, TempTarget, tRange, boxPlotName, rootOut, save_path, sites=18, Stations=None, retrained=False):
+def TempSeries_4_Plots_ERL(
+    attr_path,
+    statDictLst_res,
+    obs,
+    predLst,
+    TempTarget,
+    tRange,
+    boxPlotName,
+    rootOut,
+    save_path,
+    sites=18,
+    Stations=None,
+    retrained=False,
+):
     # fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
     # axes = axes.flat
     npred = 2  # 2  # plot the first two prediction: Base LSTM and DI(1)
-    #subtitle = ['(seg_id_nat:1450)', '(seg_id_nat:1566)', '(seg_id_nat:1718)', '(seg_id_nat:2013)']
-    txt = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)']
-    ylabel = 'Stream Temperature ($\mathregular{deg}$ C)'
-
+    # subtitle = ['(seg_id_nat:1450)', '(seg_id_nat:1566)', '(seg_id_nat:1718)', '(seg_id_nat:2013)']
+    txt = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)"]
+    ylabel = "Stream Temperature ($\mathregular{deg}$ C)"
 
     seg_id_nat = []
     inputdata = pd.read_feather(attr_path)
     # tRange = [20141001, 20161001]
     gage = []
     if Stations == None:
-        seg_id_nat = inputdata['site_no'].unique()
+        seg_id_nat = inputdata["site_no"].unique()
     else:
         seg_id_nat = Stations
     if sites > len(seg_id_nat):
@@ -927,10 +1054,10 @@ def TempSeries_4_Plots_ERL(attr_path, statDictLst_res, obs, predLst, TempTarget,
     AA.sort()
     BB = [seg_id_nat[(x)] for x in AA]
     seg_id_nat = BB
-    #seg_id_nat.sort()
+    # seg_id_nat.sort()
     gage = [jj for jj in range(sites)]
     for i in range(1):
-        gageindex = gage  #[i * 4:(i + 1) * 4]
+        gageindex = gage  # [i * 4:(i + 1) * 4]
         print(gageindex)
         t = utils.time.tRange2Array(tRange)
         fig, axes = plt.subplots(4, 2, figsize=(10.7, 13), constrained_layout=True)
@@ -952,37 +1079,59 @@ def TempSeries_4_Plots_ERL(attr_path, statDictLst_res, obs, predLst, TempTarget,
         #         subtitle = ['(Station ID:' + str(seg_id_nat[4 * i + 0]) + ')'
         #             , '(Station ID:' + str(seg_id_nat[4 * i + 1]) + ')'
         #             , '(Station ID:' + str(seg_id_nat[4 * i + 2]) + ')']
-        #txt = ['a', 'b', 'c', 'd']
-        ylabel = 'Stream Temperature ($\mathregular{deg}$ C)'
+        # txt = ['a', 'b', 'c', 'd']
+        ylabel = "Stream Temperature ($\mathregular{deg}$ C)"
 
         for k in range(len(gageindex)):
             # iGrid = AA[gageindex[k]]
-            iGrid = inputdata.index[inputdata['site_no'] == seg_id_nat[AA[gageindex[k]]]].values[0]
+            iGrid = inputdata.index[
+                inputdata["site_no"] == seg_id_nat[AA[gageindex[k]]]
+            ].values[0]
             yPlot = [obs[iGrid, :]]
             for y in predLst[0:npred]:
                 yPlot.append(y[iGrid, :])
             # get the NSE value of LSTM and DI(1) model
             # Metrics = '[' + str(np.round(statDictLst_res[0]['RMSE'][iGrid], 2)) +',\n'+str(np.round(statDictLst_res[0]['NSE'][iGrid], 2)) + ',' +str(np.round(statDictLst_res[0]['Corr'][iGrid], 2)) + ',\n' +str(np.round(statDictLst_res[0]['NSE_res'][iGrid], 2)) + ',' +str(np.round(statDictLst_res[0]['Corr_res'][iGrid], 2)) + ']'
-            subtitle1 = txt[k] + ' (USGS streamgage: ' + str(seg_id_nat[k]) + ') ' +\
-                '[' + \
-                      str(np.round(statDictLst_res[0]['RMSE'][iGrid], 2)) + \
-                ',' + str(np.round(statDictLst_res[0]['NSE'][iGrid], 2)) + \
-                ',' + str(np.round(statDictLst_res[0]['Bias'][iGrid], 2)) + \
-                ',' + str(np.round(statDictLst_res[0]['NSE_res'][iGrid], 2)) + \
-                ',' + str(np.round(statDictLst_res[0]['Corr_res'][iGrid], 2)) + \
-                ']'
-             #NSE_LSTM = [] #str(round(statDictLst[0]['NSE'][iGrid], 2))
+            subtitle1 = (
+                txt[k]
+                + " (USGS streamgage: "
+                + str(seg_id_nat[k])
+                + ") "
+                + "["
+                + str(np.round(statDictLst_res[0]["RMSE"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["NSE"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Bias"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["NSE_res"][iGrid], 2))
+                + ","
+                + str(np.round(statDictLst_res[0]["Corr_res"][iGrid], 2))
+                + "]"
+            )
+            # NSE_LSTM = [] #str(round(statDictLst[0]['NSE'][iGrid], 2))
             # NSE_DI1 = str(round(statDictLst[1]['NSE'][iGrid], 2))
             # plot time series
             plotTS(
                 t,
                 yPlot,
                 ax=axes[k],
-                cLst='bkrmg',
-                markerLst='o---+1',
-                legLst=['obs', 'model>(10%)'], title=subtitle1, linespec=['o', '-', '-', '-', ':', '+'],  #legLst=[TempTarget, 'LSTM: ' + NSE_LSTM], title=subtitle[k]
-                ylabel=ylabel , figNo=k)  # ['USGS', 'LSTM: '+NSE_LSTM, 'DI(1): '+NSE_DI1]
-        #boxPlotName = 'Time Series simulated and observed data in testing period- values in brackets are [RMSE, NSE, Bias, NSE_res, Corr_res]'
+                cLst="bkrmg",
+                markerLst="o---+1",
+                legLst=["obs", "model>(10%)"],
+                title=subtitle1,
+                linespec=[
+                    "o",
+                    "-",
+                    "-",
+                    "-",
+                    ":",
+                    "+",
+                ],  # legLst=[TempTarget, 'LSTM: ' + NSE_LSTM], title=subtitle[k]
+                ylabel=ylabel,
+                figNo=k,
+            )  # ['USGS', 'LSTM: '+NSE_LSTM, 'DI(1): '+NSE_DI1]
+        # boxPlotName = 'Time Series simulated and observed data in testing period- values in brackets are [RMSE, NSE, Bias, NSE_res, Corr_res]'
         fig.suptitle(boxPlotName, fontsize=12.2)
 
         plotName = "TempSeries_PUB.png"
@@ -993,37 +1142,48 @@ def TempSeries_4_Plots_ERL(attr_path, statDictLst_res, obs, predLst, TempTarget,
         # else:
         #     plt.savefig(os.path.join(rootOut, save_path, plotName), dpi=200, bbox_inches='tight' )
         #     plt.savefig(os.path.join(rootOut, save_path, '-LowRes'+plotName), bbox_inches='tight' )
-        plt.savefig(os.path.join(rootOut, save_path, 'timeseries2'), dpi=300, bbox_inches='tight')
-        plt.savefig(os.path.join(rootOut, save_path, 'timeseries2' + '-LowRes'), dpi=200, bbox_inches='tight' )
+        plt.savefig(
+            os.path.join(rootOut, save_path, "timeseries2"),
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.savefig(
+            os.path.join(rootOut, save_path, "timeseries2" + "-LowRes"),
+            dpi=200,
+            bbox_inches="tight",
+        )
         fig.show()
 
 
-
-def plotMap_separate(data, ind99_dam, ind99_nodam,
-                      ind60_99_dam, ind60_99_nodam,
-                      ind10_60_dam, ind10_60_nodam,
-
-            *,
-            ax=None,
-            lat=None,
-            lon=None,
-            title=None,
-            cRange=None,
-            shape=None,
-            pts=None,
-            figsize=(22, 11),
-            clbar=True,
-            cRangeint=False,
-            cmap=plt.cm.jet,
-            bounding=None,
-            prj='cyl',
-            CMAP=plt.cm.jet,
-            dataPUB=None,
-            lat_PUB=None,
-            lon_PUB=None,
-            ind_PUB_nodam = None,
-            ind_PUB_dam = None
-                     ):
+def plotMap_separate(
+    data,
+    ind99_dam,
+    ind99_nodam,
+    ind60_99_dam,
+    ind60_99_nodam,
+    ind10_60_dam,
+    ind10_60_nodam,
+    *,
+    ax=None,
+    lat=None,
+    lon=None,
+    title=None,
+    cRange=None,
+    shape=None,
+    pts=None,
+    figsize=(22, 11),
+    clbar=True,
+    cRangeint=False,
+    cmap=plt.cm.jet,
+    bounding=None,
+    prj="cyl",
+    CMAP=plt.cm.jet,
+    dataPUB=None,
+    lat_PUB=None,
+    lon_PUB=None,
+    ind_PUB_nodam=None,
+    ind_PUB_dam=None
+):
 
     dataPUB_nodam = dataPUB[ind_PUB_nodam]
     lon_PUB_nodam = lon_PUB[ind_PUB_nodam]
@@ -1031,8 +1191,6 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
     dataPUB_dam = dataPUB[ind_PUB_dam]
     lon_PUB_dam = lon_PUB[ind_PUB_dam]
     lat_PUB_dam = lat_PUB[ind_PUB_dam]
-
-
 
     data99_dam = []
     lon99_dam = []
@@ -1044,7 +1202,7 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
     data60_99_dam = []
     lon60_99_dam = []
     lat60_99_dam = []
-    for i,j in enumerate(ind60_99_dam):
+    for i, j in enumerate(ind60_99_dam):
         data60_99_dam.append(data[j])
         lon60_99_dam.append(lon[j])
         lat60_99_dam.append(lat[j])
@@ -1078,8 +1236,6 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
         lon10_60_nodam.append(lon[j])
         lat10_60_nodam.append(lat[j])
 
-
-
     if cRange is not None:
         vmin = cRange[0]
         vmax = cRange[1]
@@ -1098,8 +1254,12 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
     else:
         isGrid = True
     if bounding is None:
-        bounding = [np.min(lat)-0.5, np.max(lat)+0.5,
-                    np.min(lon)-0.5, np.max(lon)+0.5]
+        bounding = [
+            np.min(lat) - 0.5,
+            np.max(lat) + 0.5,
+            np.min(lon) - 0.5,
+            np.max(lon) + 0.5,
+        ]
 
     mm = basemap.Basemap(
         llcrnrlat=bounding[0],
@@ -1107,13 +1267,14 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
         llcrnrlon=bounding[2],
         urcrnrlon=bounding[3],
         projection=prj,
-        resolution='c',
-        ax=ax)
+        resolution="c",
+        ax=ax,
+    )
     mm.drawcoastlines()
-    mm.drawstates(linestyle='dashed')
-    mm.drawcountries(linewidth=1.0, linestyle='-.')
+    mm.drawstates(linestyle="dashed")
+    mm.drawcountries(linewidth=1.0, linestyle="-.")
     x, y = mm(lon, lat)
-    x99_dam , y99_dam = mm(lon99_dam, lat99_dam)
+    x99_dam, y99_dam = mm(lon99_dam, lat99_dam)
     x60_99_dam, y60_99_dam = mm(lon60_99_dam, lat60_99_dam)
     x10_60_dam, y10_60_dam = mm(lon10_60_dam, lat10_60_dam)
     x99_nodam, y99_nodam = mm(lon99_nodam, lat99_nodam)
@@ -1132,67 +1293,154 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
         #     vmax=vmax,
         #     extent=[x[0], x[-1], y[0], y[-1]])
     else:
-        #markersize= np.percentile(data,10)
+        # markersize= np.percentile(data,10)
         cs = mm.scatter(x, y, data, cmap=cmap, vmin=vmin, vmax=vmax)
         cs10_60_dam = mm.scatter(
-            x10_60_dam, y10_60_dam, c=data10_60_dam, s=40, marker='o', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x10_60_dam,
+            y10_60_dam,
+            c=data10_60_dam,
+            s=40,
+            marker="o",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         cs10_60_nodam = mm.scatter(
-            x10_60_nodam, y10_60_nodam, c=data10_60_nodam, s=40, marker='s', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x10_60_nodam,
+            y10_60_nodam,
+            c=data10_60_nodam,
+            s=40,
+            marker="s",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         cs99_dam = mm.scatter(
-            x99_dam, y99_dam, c=data99_dam, s=160, marker='o', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x99_dam,
+            y99_dam,
+            c=data99_dam,
+            s=160,
+            marker="o",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         cs99_nodam = mm.scatter(
-            x99_nodam, y99_nodam, c=data99_nodam, s=160, marker='s', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x99_nodam,
+            y99_nodam,
+            c=data99_nodam,
+            s=160,
+            marker="s",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         cs60_99_dam = mm.scatter(
-            x60_99_dam, y60_99_dam, c=data60_99_dam, s=100, marker='o', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x60_99_dam,
+            y60_99_dam,
+            c=data60_99_dam,
+            s=100,
+            marker="o",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         cs60_99_nodam = mm.scatter(
-            x60_99_nodam, y60_99_nodam, c=data60_99_nodam, s=100, marker='s', cmap=CMAP, vmin=vmin, vmax=vmax)
+            x60_99_nodam,
+            y60_99_nodam,
+            c=data60_99_nodam,
+            s=100,
+            marker="s",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         csPUB_nodam = mm.scatter(
-            xPUB_nodam, yPUB_nodam, c=dataPUB_nodam, s=160, marker='P', cmap=CMAP, vmin=vmin, vmax=vmax)
+            xPUB_nodam,
+            yPUB_nodam,
+            c=dataPUB_nodam,
+            s=160,
+            marker="P",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
         csPUB_dam = mm.scatter(
-            xPUB_dam, yPUB_dam, c=dataPUB_dam, s=160, marker='X', cmap=CMAP, vmin=vmin, vmax=vmax)
+            xPUB_dam,
+            yPUB_dam,
+            c=dataPUB_dam,
+            s=160,
+            marker="X",
+            cmap=CMAP,
+            vmin=vmin,
+            vmax=vmax,
+        )
     if shape is not None:
         crd = np.array(shape.points)
         par = shape.parts
         if len(par) > 1:
             for k in range(0, len(par) - 1):
-                x = crd[par[k]:par[k + 1], 0]
-                y = crd[par[k]:par[k + 1], 1]
-                mm.plot(x, y, color='r', linewidth=3)
+                x = crd[par[k] : par[k + 1], 0]
+                y = crd[par[k] : par[k + 1], 1]
+                mm.plot(x, y, color="r", linewidth=3)
         else:
             y = crd[:, 0]
             x = crd[:, 1]
-            mm.plot(x, y, color='r', linewidth=3)
+            mm.plot(x, y, color="r", linewidth=3)
     if pts is not None:
-        mm.plot(pts[1], pts[0], 'k*', markersize=4)
+        mm.plot(pts[1], pts[0], "k*", markersize=4)
         npt = len(pts[0])
         for k in range(npt):
-            plt.text(
-                pts[1][k],
-                pts[0][k],
-                string.ascii_uppercase[k],
-                fontsize=18)
+            plt.text(pts[1][k], pts[0][k], string.ascii_uppercase[k], fontsize=18)
     if clbar is True:
-        cbar = mm.colorbar(cs10_60_dam, pad='1%')    #cs10_60_dam
+        cbar = mm.colorbar(cs10_60_dam, pad="1%")  # cs10_60_dam
         cbar.ax.tick_params(labelsize=20)
     if title is not None:
         ax.set_title(title, fontsize=26)
 
     # produce a legend with a cross section of sizes from the scatter
     #
-    #ax.legend(handles, labels, loc="lower right")
-    legend1 = ax.legend(handles=[cs99_dam, cs99_nodam,  csPUB_nodam, csPUB_dam],
-              labels=['without major dam', 'with major dam', 'PUB without major dam', 'PUB with major dam'],
-              loc=[0, 0], #'lower left',
-              fontsize=16,)
+    # ax.legend(handles, labels, loc="lower right")
+    legend1 = ax.legend(
+        handles=[cs99_dam, cs99_nodam, csPUB_nodam, csPUB_dam],
+        labels=[
+            "without major dam",
+            "with major dam",
+            "PUB without major dam",
+            "PUB with major dam",
+        ],
+        loc=[0, 0],  #'lower left',
+        fontsize=16,
+    )
     for col in range(len(legend1.legendHandles)):
-        legend1.legendHandles[col].set_color('black')
+        legend1.legendHandles[col].set_color("black")
     ax.add_artist(legend1)
-    legend2 = ax.legend(handles=[cs99_dam, cs99_nodam, cs60_99_dam, cs60_99_nodam, cs10_60_dam, cs10_60_nodam, csPUB_nodam, csPUB_dam],
-              labels=['(p>99)', '(p>99)', '(60<p<99)', '(60<p<99)', '(10<p<60)', '(10<p<60)', 'PUB<10', "PUB<10"],
-              loc= [0.87, -0.0],#'lower right',
-              fontsize=16)
+    legend2 = ax.legend(
+        handles=[
+            cs99_dam,
+            cs99_nodam,
+            cs60_99_dam,
+            cs60_99_nodam,
+            cs10_60_dam,
+            cs10_60_nodam,
+            csPUB_nodam,
+            csPUB_dam,
+        ],
+        labels=[
+            "(p>99)",
+            "(p>99)",
+            "(60<p<99)",
+            "(60<p<99)",
+            "(10<p<60)",
+            "(10<p<60)",
+            "PUB<10",
+            "PUB<10",
+        ],
+        loc=[0.87, -0.0],  #'lower right',
+        fontsize=16,
+    )
     for col in range(len(legend2.legendHandles)):
-        legend2.legendHandles[col].set_color('black')
+        legend2.legendHandles[col].set_color("black")
     ax.add_artist(legend2)
     # if dataPUB is not None:
     #     legend3 = ax.legend(handles=[csPUB_nodam],
@@ -2224,4 +2472,3 @@ def plotMap_separate(data, ind99_dam, ind99_nodam,
 #     out = sm.OLS(y, X).fit()
 #     return out
 #
-

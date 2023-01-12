@@ -6,6 +6,7 @@ import torch
 from core import hydroDL
 from core.hydroDL import master, utils
 from core.hydroDL.data.camels import initcamels, transNorm
+
 # from utils import load_dataloader
 
 
@@ -27,6 +28,7 @@ def load_df(args):
     # x_total[x_total[:, :, vars.index("00060_Mean")] < 0] = 0
     return x_total, y, c, c_PRMS, x_PRMS
 
+
 def scaling(args, x, y, c):
     """
     creates our datasets
@@ -38,27 +40,34 @@ def scaling(args, x, y, c):
     :return:  x, y, ngrid, nIterEp, nt
     """
     initcamels(args, x, y)
-    #Normalization
-    x_total_scaled = transNorm(x, args['optData']['varT']+args['optData']['varC'], toNorm=True)
-    y_scaled = transNorm(y, args['optData']['target'][0], toNorm=True)
-    c_scaled = transNorm(c, args['optData']['varC'], toNorm=True)
+    # Normalization
+    x_total_scaled = transNorm(
+        x, args["optData"]["varT"] + args["optData"]["varC"], toNorm=True
+    )
+    y_scaled = transNorm(y, args["optData"]["target"][0], toNorm=True)
+    c_scaled = transNorm(c, args["optData"]["varC"], toNorm=True)
     return x_total_scaled, y_scaled, c_scaled
 
+
 def train_val_test_split(set_name, args, time1, x_total, y_total):
-    t = hydroDL.utils.time.tRange2Array(args['optData'][set_name])
+    t = hydroDL.utils.time.tRange2Array(args["optData"][set_name])
     c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]
     ngrid, nt, nx = x.shape
-    if t.shape[0] < args['hyperparameters']['rho']:
+    if t.shape[0] < args["hyperparameters"]["rho"]:
         rho = t.shape[0]
     else:
-        rho = args['hyperparameters']['rho']
+        rho = args["hyperparameters"]["rho"]
     nIterEp = int(
-        np.ceil(np.log(0.01) / np.log(1 - args['hyperparameters']['batch_size'] * \
-                                      rho / ngrid / nt)))
+        np.ceil(
+            np.log(0.01)
+            / np.log(1 - args["hyperparameters"]["batch_size"] * rho / ngrid / nt)
+        )
+    )
 
-    return x, y, ngrid, nIterEp, nt, args['hyperparameters']['batch_size']
+    return x, y, ngrid, nIterEp, nt, args["hyperparameters"]["batch_size"]
+
 
 def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):
     nx = x.shape[-1]
@@ -72,8 +81,8 @@ def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=Fa
         batchSize = iGrid.shape[0]
         xTensor = torch.zeros([rho, batchSize, nx], requires_grad=has_grad)
         for k in range(batchSize):
-            temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-            xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+            temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+            xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
     else:
         if len(x.shape) == 2:
             # Used for local calibration kernel
@@ -85,11 +94,10 @@ def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=Fa
             rho = xTensor.shape[0]
     if c is not None:
         nc = c.shape[-1]
-        temp = np.repeat(
-            np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
+        temp = np.repeat(np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
         cTensor = torch.from_numpy(np.swapaxes(temp, 1, 0)).float()
 
-        if (tupleOut):
+        if tupleOut:
             if torch.cuda.is_available():
                 xTensor = xTensor.cuda()
                 cTensor = cTensor.cuda()
@@ -108,10 +116,10 @@ def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=Fa
 def randomIndex(ngrid, nt, dimSubset):
     batchSize, rho = dimSubset
     iGrid = np.random.randint(0, ngrid, [batchSize])
-    iT = np.random.randint(0, nt - rho, [batchSize])     # np.random.randint(0, nt - rho, [batchSize])
+    iT = np.random.randint(
+        0, nt - rho, [batchSize]
+    )  # np.random.randint(0, nt - rho, [batchSize])
     return iGrid, iT
-
-
 
 
 def create_tensor(rho, mini_batch, x, y):
@@ -162,6 +170,8 @@ def create_tensor_list(x, y):
             _var = (torch.tensor(x[i][j][:, :]), y[i, j])
             tensor_list.append(_var)
     return tensor_list
+
+
 def run_farshid(args):
     x_total, y = load_df(args)
     time1 = utils.time.tRange2Array(args.optData["tRange"])
@@ -175,17 +185,11 @@ def run_farshid(args):
     )
     x_val, y_val = x_total[:, ind1, :], y[:, ind1, :]
 
-
     c, ind1, ind2 = np.intersect1d(
         time1, utils.time.tRange2Array(args.optData["t_test"]), return_indices=True
     )
     x_test, y_test = x_total[:, ind1, :], y[:, ind1, :]
-    return (
-        x_total, y,
-        x_train, y_train,
-        x_val, y_val,
-        x_test, y_test
-    )
+    return (x_total, y, x_train, y_train, x_val, y_val, x_test, y_test)
 
 
 # TODO add batch size into calculations here

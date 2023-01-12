@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats
 
-keyLst = ['Bias', 'RMSE', 'ubRMSE', 'Corr']
+keyLst = ["Bias", "RMSE", "ubRMSE", "Corr"]
 
 
 def statError(pred, target):
@@ -43,7 +43,7 @@ def statError(pred, target):
             yy = y[ind]
             # RMSE by Farshid
             RMSE[k] = np.sqrt(np.nanmean((xx - yy) ** 2))
-            MSE[k] = (np.nanmean((xx - yy) ** 2))
+            MSE[k] = np.nanmean((xx - yy) ** 2)
             predMean = np.tile(np.nanmean(xx), (len(xx))).transpose()
             targetMean = np.tile(np.nanmean(yy), (len(yy))).transpose()
             predAnom = xx - predMean
@@ -77,8 +77,13 @@ def statError(pred, target):
                 SSRes = np.sum((yy - xx) ** 2)
                 NSE[k] = 1 - SSRes / SST
                 xxmean = xx.mean()
-                R2[k] = ((np.sum((yy - yymean) * (xx - xxmean))) / (
-                            ((np.sum((yy - yymean) ** 2)) ** 0.5) * (np.sum((xx - xxmean) ** 2)) ** 0.5)) ** 2
+                R2[k] = (
+                    (np.sum((yy - yymean) * (xx - xxmean)))
+                    / (
+                        ((np.sum((yy - yymean) ** 2)) ** 0.5)
+                        * (np.sum((xx - xxmean) ** 2)) ** 0.5
+                    )
+                ) ** 2
 
     ### use flatted pred and target to have one value for Bias, RMSE, ubRMSE
     predflat = predflat.flatten()
@@ -93,10 +98,27 @@ def statError(pred, target):
         yy = targetflat[ind]
         corrflat = scipy.stats.pearsonr(xx, yy)[0]
 
-    NSEflat = 1 - ((np.nansum((predflat - targetflat) ** 2)) / (np.nansum((targetflat - np.nanmean(targetflat)) ** 2)))
+    NSEflat = 1 - (
+        (np.nansum((predflat - targetflat) ** 2))
+        / (np.nansum((targetflat - np.nanmean(targetflat)) ** 2))
+    )
 
-    outDict = dict(Bias=Bias, RMSE=RMSE, ubRMSE=ubRMSE, Corr=Corr, R2=R2, NSE=NSE,
-                   FLV=PBiaslow, FHV=PBiashigh, PBias=PBias, Biasflat=Biasflat,
-                   absBiasflat=absBiasflat, RMSEflat=RMSEflat, ubRMSEflat=ubRMSEflat,
-                   corrflat=corrflat, NSEflat=NSEflat, MSE=MSE)  #
+    outDict = dict(
+        Bias=Bias,
+        RMSE=RMSE,
+        ubRMSE=ubRMSE,
+        Corr=Corr,
+        R2=R2,
+        NSE=NSE,
+        FLV=PBiaslow,
+        FHV=PBiashigh,
+        PBias=PBias,
+        Biasflat=Biasflat,
+        absBiasflat=absBiasflat,
+        RMSEflat=RMSEflat,
+        ubRMSEflat=ubRMSEflat,
+        corrflat=corrflat,
+        NSEflat=NSEflat,
+        MSE=MSE,
+    )  #
     return outDict

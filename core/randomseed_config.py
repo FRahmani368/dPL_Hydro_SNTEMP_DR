@@ -4,10 +4,10 @@ import random
 
 
 def randomseed_config(seed):
-    if seed is None:   # args['randomseed'] is None:
+    if seed is None:  # args['randomseed'] is None:
         # generate random seed
         randomseed = int(np.random.uniform(low=0, high=1e6))
-        print('random seed updated!')
+        print("random seed updated!")
     else:
         # randomseed = args['randomseed']
         random.seed(seed)

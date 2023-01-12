@@ -9,6 +9,7 @@ from pandas.api.types import is_numeric_dtype, is_string_dtype
 import time
 import json
 from . import Dataframe
+
 # module variable
 # tRange = [19800101, 20150101]
 # tRangeobs = [19800101, 20150101]    #[19801001, 20161001] #  streamflow observations
@@ -18,20 +19,20 @@ from . import Dataframe
 # ntobs = len(tLstobs)
 
 ###############  for a paper with two upstream node with temp data  ###############
-#forcingLst = ['Q3Tw', 'Q7Tw', 'Q3Q', 'Q5Q', 'Q7Q',
- #      'Q9Q', 'Btamean', 'V', 'Pressure', 'SkyCov', 'SR.sum', 'Precip',
+# forcingLst = ['Q3Tw', 'Q7Tw', 'Q3Q', 'Q5Q', 'Q7Q',
+#      'Q9Q', 'Btamean', 'V', 'Pressure', 'SkyCov', 'SR.sum', 'Precip',
 #       ]
 ###################################################################################
 
 ###############   for stream_temp Module  ####################
 ##forcingLst = ['basin_ccov', 'basin_humid', 'basin_rain',
-  ##     'basin_tave_air', 'basin_gwflow', 'basin_potet', 'basin_sroff',
-    ##   'basin_ssflow', 'basin_swrad', 'basin_tave_gw',
-      ## 'basin_tave_ss', 'network_width','outlet_width', 'outlet_outflow', 'gw_tau', 'ss_tau']  #, 'gw_tau', 'ss_tau' 'obs_discharge'
+##     'basin_tave_air', 'basin_gwflow', 'basin_potet', 'basin_sroff',
+##   'basin_ssflow', 'basin_swrad', 'basin_tave_gw',
+## 'basin_tave_ss', 'network_width','outlet_width', 'outlet_outflow', 'gw_tau', 'ss_tau']  #, 'gw_tau', 'ss_tau' 'obs_discharge'
 
 ##attrLstSel = ['hru_elev', 'hru_slope', 'network_elev',
-  ##     'outlet_elev', 'network_length', 'network_slope', 'outlet_slope',
-    ##   'basin_area']
+##     'outlet_elev', 'network_length', 'network_slope', 'outlet_slope',
+##   'basin_area']
 ################################################################
 
 ##############   Water Temperature for CONUS scale  ##########
@@ -66,44 +67,51 @@ from . import Dataframe
 #       'PADCAT2_PCT_BASIN']   # 'GEOL_REEDBUSH_SITE', , 'AWCAVE'
 ##############################################################################
 def readGageInfo(dirDB):
-    gageFile = os.path.join(dirDB, 'basin_timeseries_v1p2_metForcing_obsFlow',
-                            'basin_dataset_public_v1p2', 'basin_metadata',
-                            'gauge_information.txt')
+    gageFile = os.path.join(
+        dirDB,
+        "basin_timeseries_v1p2_metForcing_obsFlow",
+        "basin_dataset_public_v1p2",
+        "basin_metadata",
+        "gauge_information.txt",
+    )
 
-    data = pd.read_csv(gageFile, sep='\t', header=None, skiprows=1)
+    data = pd.read_csv(gageFile, sep="\t", header=None, skiprows=1)
     # header gives some troubles. Skip and hardcode
-    fieldLst = ['huc', 'id', 'name', 'lat', 'lon', 'area']
+    fieldLst = ["huc", "id", "name", "lat", "lon", "area"]
     out = dict()
     for s in fieldLst:
-        if s == 'name':
+        if s == "name":
             out[s] = data[fieldLst.index(s)].values.tolist()
         else:
             out[s] = data[fieldLst.index(s)].values
     return out
 
+
 def readUsgsGage(args, usgsId, forcing_data, *, readQc=False):
     ##ind = np.argwhere(gageDict['id'] == usgsId)[0][0]
     ##huc = gageDict['huc'][ind]
     ##usgsFile = os.path.join(dirDB, 'basin_timeseries_v1p2_metForcing_obsFlow',
-          ##                  'basin_dataset_public_v1p2', 'usgs_streamflow',
-        ##                    str(huc).zfill(2),
-      ##                      '%08d_streamflow_qc.txt' % (usgsId))
+    ##                  'basin_dataset_public_v1p2', 'usgs_streamflow',
+    ##                    str(huc).zfill(2),
+    ##                      '%08d_streamflow_qc.txt' % (usgsId))
     ##dataTemp = pd.read_csv(usgsFile, sep=r'\s+', header=None)
     ##obs = dataTemp[4].values
-    obs = forcing_data.loc[forcing_data['site_no'] == usgsId, args['optData']['target']].to_numpy()
+    obs = forcing_data.loc[
+        forcing_data["site_no"] == usgsId, args["optData"]["target"]
+    ].to_numpy()
     ##obs[obs < 0] = np.nan
     if readQc is True:
-        qcDict = {'A': 1, 'A:e': 2, 'M': 3}
+        qcDict = {"A": 1, "A:e": 2, "M": 3}
         qc = np.array([qcDict[x] for x in dataTemp[5]])
     if len(obs) != ntobs:
-      ##  out = np.full([ntobs], np.nan)
+        ##  out = np.full([ntobs], np.nan)
         ##dfDate = dataTemp[[1, 2, 3]]
         ##dfDate.columns = ['year', 'month', 'day']
         ##date = pd.to_datetime(dfDate).values.astype('datetime64[D]')
-        if 'datetime' in forcing_data.columns:
-            date = forcing_data.loc[forcing_data['site_no']==usgsId, 'datetime']
-        elif 'date' in forcing_data.columns:
-            date = forcing_data.loc[forcing_data['site_no']==usgsId, 'date']
+        if "datetime" in forcing_data.columns:
+            date = forcing_data.loc[forcing_data["site_no"] == usgsId, "datetime"]
+        elif "date" in forcing_data.columns:
+            date = forcing_data.loc[forcing_data["site_no"] == usgsId, "date"]
         [C, ind1, ind2] = np.intersect1d(date, tLstobs, return_indices=True)
         out[ind2] = obs
         if readQc is True:
@@ -130,24 +138,24 @@ def readUsgs(args, usgsIdLst, dfMain):
     return y
 
 
-def readForcingGage(usgsId, forcing_data, varLst, *, dataset='nldas'):
+def readForcingGage(usgsId, forcing_data, varLst, *, dataset="nldas"):
     # dataset = daymet or maurer or nldas
     ##forcingLst = ['dayl', 'prcp', 'srad', 'swe', 'tmax', 'tmin', 'vp']
     ##ind = np.argwhere(gageDict['id'] == usgsId)[0][0]
     ##huc = gageDict['huc'][ind]
 
     ##dataFolder = os.path.join(
-      ##  dirDB, 'basin_timeseries_v1p2_metForcing_obsFlow',
-        ##'basin_dataset_public_v1p2', 'basin_mean_forcing')
-    if dataset == 'daymet':
-        tempS = 'cida'
+    ##  dirDB, 'basin_timeseries_v1p2_metForcing_obsFlow',
+    ##'basin_dataset_public_v1p2', 'basin_mean_forcing')
+    if dataset == "daymet":
+        tempS = "cida"
     else:
         tempS = dataset
-   ## dataFile = os.path.join(dataFolder, dataset,
-     ##                       str(huc).zfill(2),
-       ##                     '%08d_lump_%s_forcing_leap.txt' % (usgsId, tempS))
+    ## dataFile = os.path.join(dataFolder, dataset,
+    ##                       str(huc).zfill(2),
+    ##                     '%08d_lump_%s_forcing_leap.txt' % (usgsId, tempS))
     ##dataTemp = pd.read_csv(dataFile, sep=r'\s+', header=None, skiprows=4)
-    dataTemp = forcing_data.loc[forcing_data['site_no']==usgsId]
+    dataTemp = forcing_data.loc[forcing_data["site_no"] == usgsId]
     nf = len(varLst)
     out = np.empty([nt, nf])
     for k in range(nf):
@@ -158,7 +166,7 @@ def readForcingGage(usgsId, forcing_data, varLst, *, dataset='nldas'):
     return out
 
 
-def readForcing(usgsIdLst,dfMain, varLst):
+def readForcing(usgsIdLst, dfMain, varLst):
     t0 = time.time()
 
     x = np.empty([len(usgsIdLst), nt, len(varLst)])
@@ -171,22 +179,21 @@ def readForcing(usgsIdLst,dfMain, varLst):
 
 
 def readAttrAll(*, saveDict=False):
-    dataFolder = os.path.join(dirDB, 'camels_attributes_v2.0',
-                              'camels_attributes_v2.0')
+    dataFolder = os.path.join(dirDB, "camels_attributes_v2.0", "camels_attributes_v2.0")
     fDict = dict()  # factorize dict
     varDict = dict()
     varLst = list()
     outLst = list()
-    keyLst = ['topo', 'clim', 'hydro', 'vege', 'soil', 'geol']
+    keyLst = ["topo", "clim", "hydro", "vege", "soil", "geol"]
 
     for key in keyLst:
-        dataFile = os.path.join(dataFolder, 'camels_' + key + '.txt')
-        dataTemp = pd.read_csv(dataFile, sep=';')
+        dataFile = os.path.join(dataFolder, "camels_" + key + ".txt")
+        dataTemp = pd.read_csv(dataFile, sep=";")
         varLstTemp = list(dataTemp.columns[1:])
         varDict[key] = varLstTemp
         varLst.extend(varLstTemp)
         k = 0
-        nGage = len(gageDict['id'])
+        nGage = len(gageDict["id"])
         outTemp = np.full([nGage, len(varLstTemp)], np.nan)
         for field in varLstTemp:
             if is_string_dtype(dataTemp[field]):
@@ -199,11 +206,11 @@ def readAttrAll(*, saveDict=False):
         outLst.append(outTemp)
     out = np.concatenate(outLst, 1)
     if saveDict is True:
-        fileName = os.path.join(dataFolder, 'dictFactorize.json')
-        with open(fileName, 'w') as fp:
+        fileName = os.path.join(dataFolder, "dictFactorize.json")
+        with open(fileName, "w") as fp:
             json.dump(fDict, fp, indent=4)
-        fileName = os.path.join(dataFolder, 'dictAttribute.json')
-        with open(fileName, 'w') as fp:
+        fileName = os.path.join(dataFolder, "dictAttribute.json")
+        with open(fileName, "w") as fp:
             json.dump(varDict, fp, indent=4)
     return out, varLst
 
@@ -213,7 +220,7 @@ def readAttr(usgsIdLst, varLst):
     indVar = list()
     for var in varLst:
         indVar.append(varLstAll.index(var))
-    idLstAll = gageDict['id']
+    idLstAll = gageDict["id"]
     C, indGrid, ind2 = np.intersect1d(idLstAll, usgsIdLst, return_indices=True)
     temp = attrAll[indGrid, :]
     out = temp[:, indVar]
@@ -232,11 +239,14 @@ def calStat(x):
         std = 1
     return [p10, p90, mean, std]
 
+
 def calStatgamma(x):  # for daily streamflow and precipitation
     a = x.flatten()
-    bb = a[~np.isnan(a)] # kick out Nan
+    bb = a[~np.isnan(a)]  # kick out Nan
     b = bb[bb != (-999999)]
-    b = np.log10(np.sqrt(b)+0.1) # do some tranformation to change gamma characteristics
+    b = np.log10(
+        np.sqrt(b) + 0.1
+    )  # do some tranformation to change gamma characteristics
     p10 = np.percentile(b, 10).astype(float)
     p90 = np.percentile(b, 90).astype(float)
     mean = np.mean(b).astype(float)
@@ -250,13 +260,23 @@ def read_attr_data(args, idLst=None):
     """
     to read attribute file with respect to ID list (site_no)
     """
-    if args.dataType == 'csv':
-        inputfiles = os.path.join(os.path.sep, os.getcwd(), args.dir_data_root, args.dataset_name,
-                                  'CAMELSattr.' + args.dataType)  # forcing
+    if args.dataType == "csv":
+        inputfiles = os.path.join(
+            os.path.sep,
+            os.getcwd(),
+            args.dir_data_root,
+            args.dataset_name,
+            "CAMELSattr." + args.dataType,
+        )  # forcing
         attr = pd.read_csv(inputfiles)
-    elif args.dataType == 'feather':
-        inputfiles = os.path.join(os.path.sep, os.getcwd(), args.dir_data_root, args.dataset_name,
-                                  'CAMELSattr.' + args.dataType)  # forcing
+    elif args.dataType == "feather":
+        inputfiles = os.path.join(
+            os.path.sep,
+            os.getcwd(),
+            args.dir_data_root,
+            args.dataset_name,
+            "CAMELSattr." + args.dataType,
+        )  # forcing
         attr = pd.read_csv(inputfiles)
     else:
         print("Error: data file is not supported")
@@ -264,12 +284,13 @@ def read_attr_data(args, idLst=None):
     if idLst is None:
         out = attr
     else:
-        out = attr.loc[attr['site_no'].isin(idLst)]
+        out = attr.loc[attr["site_no"].isin(idLst)]
     return out
 
 
-
-def calStatbasinnorm(y, x, args):  # for daily streamflow normalized by basin area and precipitation
+def calStatbasinnorm(
+    y, x, args
+):  # for daily streamflow normalized by basin area and precipitation
     """
 
     :param y: parameter that wantes to be normalized
@@ -279,22 +300,26 @@ def calStatbasinnorm(y, x, args):  # for daily streamflow normalized by basin ar
     """
     y[y == (-999)] = np.nan
     y[y < 0] = 0
-    force_attr_list = args['optData']['varT'] + args['optData']['varC']
+    force_attr_list = args["optData"]["varT"] + args["optData"]["varC"]
     # attr_data = read_attr_data(args, idLst=idLst)
-    basinarea = x[:, :, force_attr_list.index('DRAIN_SQKM')]    #  'DRAIN_SQKM'
-    meanprep = x[:, :, force_attr_list.index('PPTAVG_BASIN')]        #   'PPTAVG_BASIN'
+    basinarea = x[:, :, force_attr_list.index("DRAIN_SQKM")]  #  'DRAIN_SQKM'
+    meanprep = x[:, :, force_attr_list.index("PPTAVG_BASIN")]  #   'PPTAVG_BASIN'
     # basinarea = attr_data['DRAIN_SQKM']
-   ## meanprep = readAttr(gageDict['id'], ['PPTAVG_BASIN'])
-    #meanprep = attr_data['PPTAVG_BASIN'] #  anual average precipitation
+    ## meanprep = readAttr(gageDict['id'], ['PPTAVG_BASIN'])
+    # meanprep = attr_data['PPTAVG_BASIN'] #  anual average precipitation
     # meanprep = readAttr(gageDict['id'], ['q_mean'])
     # temparea = np.tile(basinarea, ( x.shape[1], 1)).transpose()
     # tempprep = np.tile(meanprep, ( x.shape[1],1)).transpose()
     temparea = np.expand_dims(basinarea, axis=2)
     tempprep = np.expand_dims(meanprep, axis=2)
-    flowua = (y * 0.0283168 * 3600 * 24) / ((temparea * (10 ** 6)) * (tempprep * 10 ** (-2))/365) # unit (m^3/day)/(m^3/day)
+    flowua = (y * 0.0283168 * 3600 * 24) / (
+        (temparea * (10**6)) * (tempprep * 10 ** (-2)) / 365
+    )  # unit (m^3/day)/(m^3/day)
     a = flowua.flatten()
-    b = a[~np.isnan(a)] # kick out Nan
-    b = np.log10(np.sqrt(b)+0.1) # do some tranformation to change gamma characteristics plus 0.1 for 0 values
+    b = a[~np.isnan(a)]  # kick out Nan
+    b = np.log10(
+        np.sqrt(b) + 0.1
+    )  # do some tranformation to change gamma characteristics plus 0.1 for 0 values
     p10 = np.percentile(b, 10).astype(float)
     p90 = np.percentile(b, 90).astype(float)
     mean = np.mean(b).astype(float)
@@ -325,23 +350,23 @@ def calStatAll(args, x, y):
     # y = readUsgs(args, idLst, dfMain)
     # # statDict['usgsFlow'] = calStatgamma(y)
     # ##statDict['00060_Mean'] = calStatbasinnorm(y)
-    if args['optData']['target'] == ['00060_Mean']:
-        statDict['00060_Mean'] = calStatbasinnorm(y, x, args)
+    if args["optData"]["target"] == ["00060_Mean"]:
+        statDict["00060_Mean"] = calStatbasinnorm(y, x, args)
     # elif args['optData']['target'] == ['combine_discharge']:
     #     statDict['00060_Mean'] = calStatbasinnorm(y, idLst)
     else:
-        statDict[args['optData']['target'][0]] = calStat(y)
+        statDict[args["optData"]["target"][0]] = calStat(y)
     # USGS streamflow
     # statDict['00060_Mean'] = calStatbasinnorm(y, x, args)
     # forcing
-    forcingLst = args['optData']['varT'] + args['optData']['varC']
+    forcingLst = args["optData"]["varT"] + args["optData"]["varC"]
     # x = readForcing(idLst, dfMain, varLst=forcingLst)
     for k in range(len(forcingLst)):
         var = forcingLst[k]
-        if var == 'prcp(mm/day)':
+        if var == "prcp(mm/day)":
             statDict[var] = calStatgamma(x[:, :, k])
-        elif (var == '00060_Mean') or (var == 'combine_discharge'):
-            statDict[var] = calStatbasinnorm(x[:, :, k:k+1], x, args)
+        elif (var == "00060_Mean") or (var == "combine_discharge"):
+            statDict[var] = calStatbasinnorm(x[:, :, k : k + 1], x, args)
         else:
             statDict[var] = calStat(x[:, :, k])
     # const attribute
@@ -353,8 +378,10 @@ def calStatAll(args, x, y):
     # for k in range(len(attrLst)):
     #     var = attrLst[k]
     #     statDict[var] = calStat(attrData[:, k])
-    statFile = os.path.join(os.path.dirname(args['dataset']['forcing_path']), 'Statistics_basinnorm.json')
-    with open(statFile, 'w') as fp:
+    statFile = os.path.join(
+        os.path.dirname(args["dataset"]["forcing_path"]), "Statistics_basinnorm.json"
+    )
+    with open(statFile, "w") as fp:
         json.dump(statDict, fp, indent=4)
 
 
@@ -369,88 +396,113 @@ def transNorm(x, varLst, *, toNorm):
         stat = statDict[var]
         if toNorm is True:
             if len(x.shape) == 3:
-                if var == 'prcp(mm/day)' or var == '00060_Mean' or var == 'combine_discharge':
+                if (
+                    var == "prcp(mm/day)"
+                    or var == "00060_Mean"
+                    or var == "combine_discharge"
+                ):
                     x[:, :, k] = np.log10(np.sqrt(x[:, :, k]) + 0.1)
 
                 out[:, :, k] = (x[:, :, k] - stat[2]) / stat[3]
             elif len(x.shape) == 2:
-                if var == 'prcp(mm/day)' or var == '00060_Mean' or var == 'combine_discharge':
+                if (
+                    var == "prcp(mm/day)"
+                    or var == "00060_Mean"
+                    or var == "combine_discharge"
+                ):
                     x[:, k] = np.log10(np.sqrt(x[:, k]) + 0.1)
                 out[:, k] = (x[:, k] - stat[2]) / stat[3]
         else:
             if len(x.shape) == 3:
                 out[:, :, k] = x[:, :, k] * stat[3] + stat[2]
-                if var == 'prcp(mm/day)' or var == '00060_Mean' or var == 'combine_discharge':
+                if (
+                    var == "prcp(mm/day)"
+                    or var == "00060_Mean"
+                    or var == "combine_discharge"
+                ):
                     out[:, :, k] = (np.power(10, out[:, :, k]) - 0.1) ** 2
 
             elif len(x.shape) == 2:
                 out[:, k] = x[:, k] * stat[3] + stat[2]
-                if var == 'prcp(mm/day)' or var == '00060_Mean' or var == 'combine_discharge':
+                if (
+                    var == "prcp(mm/day)"
+                    or var == "00060_Mean"
+                    or var == "combine_discharge"
+                ):
                     out[:, k] = (np.power(10, out[:, k]) - 0.1) ** 2
-
 
     return out
 
+
 def basinNorm(x, gageid, toNorm):
     # for regional training, gageid should be numpyarray
-    #if type(gageid) is str:
-       # if gageid == 'All':
-         #   gageid = gageDict['id']
+    # if type(gageid) is str:
+    # if gageid == 'All':
+    #   gageid = gageDict['id']
     nd = len(x.shape)
-    meanprep = attr_data['PPTAVG_BASIN']      # 'PPTAVG_BASIN'
-    basinarea = attr_data['DRAIN_SQKM']         #   'DRAIN_SQKM'
+    meanprep = attr_data["PPTAVG_BASIN"]  # 'PPTAVG_BASIN'
+    basinarea = attr_data["DRAIN_SQKM"]  #   'DRAIN_SQKM'
 
-   # basinarea = readAttr(gageid, ['DRAIN_SQKM'])
-  #  meanprep = readAttr(gageid, ['PPTAVG_BASIN'])
-   # # meanprep = readAttr(gageid, ['q_mean'])  #this line was ponded from the beginning
+    # basinarea = readAttr(gageid, ['DRAIN_SQKM'])
+    #  meanprep = readAttr(gageid, ['PPTAVG_BASIN'])
+    # # meanprep = readAttr(gageid, ['q_mean'])  #this line was ponded from the beginning
     if nd == 3 and x.shape[2] == 1:
-        x = x[:,:,0] # unsqueeze the original 3 dimension matrix
-    temparea = np.tile(basinarea, ( x.shape[1], 1)).transpose()
+        x = x[:, :, 0]  # unsqueeze the original 3 dimension matrix
+    temparea = np.tile(basinarea, (x.shape[1], 1)).transpose()
     tempprep = np.tile(meanprep, (x.shape[1], 1)).transpose()
     if toNorm is True:
-        flow = (x * 0.0283168 * 3600 * 24) / ((temparea * (10 ** 6)) * (tempprep * 10 ** (-2))/365) # (m^3/day)/(m^3/day)
+        flow = (x * 0.0283168 * 3600 * 24) / (
+            (temparea * (10**6)) * (tempprep * 10 ** (-2)) / 365
+        )  # (m^3/day)/(m^3/day)
     else:
 
-        flow = x * ((temparea * (10 ** 6)) * (tempprep * 10 ** (-2))/365)/(0.0283168 * 3600 * 24)
+        flow = (
+            x
+            * ((temparea * (10**6)) * (tempprep * 10 ** (-2)) / 365)
+            / (0.0283168 * 3600 * 24)
+        )
     if nd == 3:
         flow = np.expand_dims(flow, axis=2)
     return flow
 
+
 def createSubsetAll(opt, **kw):
-    if opt == 'all':
-        idLst = gageDict['id']
-        subsetFile = os.path.join(dirDB, 'Subset', 'all.csv')
-        np.savetxt(subsetFile, idLst, delimiter=',', fmt='%d')
+    if opt == "all":
+        idLst = gageDict["id"]
+        subsetFile = os.path.join(dirDB, "Subset", "all.csv")
+        np.savetxt(subsetFile, idLst, delimiter=",", fmt="%d")
+
 
 # Define and initialize module variables
-if os.path.isdir(pathCamels['DB']):
-    dirDB = pathCamels['DB']
+if os.path.isdir(pathCamels["DB"]):
+    dirDB = pathCamels["DB"]
     gageDict = readGageInfo(dirDB)
-    statFile = os.path.join(dirDB, 'Statistics_basinnorm.json')
+    statFile = os.path.join(dirDB, "Statistics_basinnorm.json")
     if not os.path.isfile(statFile):
         calStatAll()
-    with open(statFile, 'r') as fp:
+    with open(statFile, "r") as fp:
         statDict = json.load(fp)
 else:
     dirDB = None
     gageDict = None
     statDict = None
 
+
 def initcamels(args, x, y):
     # reinitialize module variable
     global dirDB, gageDict, statDict, forcing_data, attr_data, TempTarget
-    stats_directory = os.path.dirname(args['dataset']['forcing_path'])
-    statFile = os.path.join(stats_directory, 'Statistics_basinnorm.json')
+    stats_directory = os.path.dirname(args["dataset"]["forcing_path"])
+    statFile = os.path.join(stats_directory, "Statistics_basinnorm.json")
     if not os.path.isfile(statFile):
         calStatAll(args, x, y)
-    with open(statFile, 'r') as fp:
+    with open(statFile, "r") as fp:
         statDict = json.load(fp)
 
 
 class DataframeCamels(Dataframe):
-    def __init__(self, *, subset='All', tRange):
+    def __init__(self, *, subset="All", tRange):
         self.subset = subset
-        self.time = utils.time.tRange2Array(tRange)        
+        self.time = utils.time.tRange2Array(tRange)
 
     def getGeo(self):
         return self.crd
@@ -460,37 +512,39 @@ class DataframeCamels(Dataframe):
 
     def getDataObs(self, args, *, doNorm=False, rmNan=False, basinnorm=False):
 
-        inputfile = os.path.join(os.path.realpath(args['dataset']['forcing_path']))
-        if inputfile.endswith('.csv'):
+        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfiles)
-        elif inputfile.endswith('.feather'):
+        elif inputfile.endswith(".feather"):
             dfMain = pd.read_feather(inputfile)
         else:
-            print('data type is not supported')
+            print("data type is not supported")
             exit()
-        sites = dfMain['site_no'].unique()
-        tLst = utils.time.tRange2Array(args['optData']['tRange'])
-        tLstobs = utils.time.tRange2Array(args['optData']['tRange'])
+        sites = dfMain["site_no"].unique()
+        tLst = utils.time.tRange2Array(args["optData"]["tRange"])
+        tLstobs = utils.time.tRange2Array(args["optData"]["tRange"])
         # nt = len(tLst)
         ntobs = len(tLstobs)
         nNodes = len(sites)
         y = np.empty([nNodes, ntobs])
 
         for k, kk in enumerate(sites):
-            data = dfMain.loc[dfMain['site_no'] == kk, args['optData']['target']].to_numpy().squeeze()
+            data = (
+                dfMain.loc[dfMain["site_no"] == kk, args["optData"]["target"]]
+                .to_numpy()
+                .squeeze()
+            )
             y[k, :] = data
 
         data = y
 
-
-
-        #data = readUsgs(self.usgsId)
-     #   if basinnorm is True:
+        # data = readUsgs(self.usgsId)
+        #   if basinnorm is True:
         #    for k in range(len(varLst)):
-           #     var = varLst[k]
-                #    stat = statDict[var]
+        #     var = varLst[k]
+        #    stat = statDict[var]
 
-     #       data = basinNorm(data, gageid=self.usgsId, toNorm=True)
+        #       data = basinNorm(data, gageid=self.usgsId, toNorm=True)
         data = np.expand_dims(data, axis=2)
         C, ind1, ind2 = np.intersect1d(self.time, tLstobs, return_indices=True)
         data = data[:, ind2, :]
@@ -498,33 +552,31 @@ class DataframeCamels(Dataframe):
         #     data = transNorm(data, TempTarget, toNorm=True)
         # if rmNan is True:
         #     data[np.where(np.isnan(data))] = 0
-            # data[np.where(np.isnan(data))] = -99
+        # data[np.where(np.isnan(data))] = -99
         return data
 
-    def getDataTs(self,args, *, varLst, doNorm=True, rmNan=True):
+    def getDataTs(self, args, *, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args['dataset']['forcing_path']))
-        if inputfile.endswith('.csv'):
+        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfiles)
-        elif inputfile.endswith('.feather'):
+        elif inputfile.endswith(".feather"):
             dfMain = pd.read_feather(inputfile)
         else:
-            print('data type is not supported')
+            print("data type is not supported")
             exit()
-        sites = dfMain['site_no'].unique()
-        tLst = utils.time.tRange2Array(args['optData']['tRange'])
-        tLstobs = utils.time.tRange2Array(args['optData']['tRange'])
+        sites = dfMain["site_no"].unique()
+        tLst = utils.time.tRange2Array(args["optData"]["tRange"])
+        tLstobs = utils.time.tRange2Array(args["optData"]["tRange"])
         # nt = len(tLst)
         ntobs = len(tLstobs)
         nNodes = len(sites)
         x = np.empty([nNodes, ntobs, len(varLst)])
 
         for k, kk in enumerate(sites):
-            data = dfMain.loc[dfMain['site_no']==kk, varLst].to_numpy()
+            data = dfMain.loc[dfMain["site_no"] == kk, varLst].to_numpy()
             x[k, :, :] = data
-
-
 
         data = x
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
@@ -543,24 +595,28 @@ class DataframeCamels(Dataframe):
     def getDataConst(self, args, *, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args['dataset']['forcing_path']))
-        if inputfile.endswith('.csv'):
+        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfile)
-            inputfile2 = os.path.join(os.path.realpath(args['dataset']['attr_path']))       #   attr
+            inputfile2 = os.path.join(
+                os.path.realpath(args["dataset"]["attr_path"])
+            )  #   attr
             dfC = pd.read_csv(inputfile2)
-        elif inputfile.endswith('.feather'):
+        elif inputfile.endswith(".feather"):
             dfMain = pd.read_feather(inputfile)
-            inputfile2 = os.path.join(os.path.realpath(args['dataset']['attr_path']))       #   attr
+            inputfile2 = os.path.join(
+                os.path.realpath(args["dataset"]["attr_path"])
+            )  #   attr
             dfC = pd.read_feather(inputfile2)
         else:
-            print('data type is not supported')
+            print("data type is not supported")
             exit()
-        sites = dfMain['site_no'].unique()
+        sites = dfMain["site_no"].unique()
         nNodes = len(sites)
         c = np.empty([nNodes, len(varLst)])
 
         for k, kk in enumerate(sites):
-            data = dfC.loc[dfC['site_no']==kk, varLst].to_numpy().squeeze()
+            data = dfC.loc[dfC["site_no"] == kk, varLst].to_numpy().squeeze()
             c[k, :] = data
 
         data = c

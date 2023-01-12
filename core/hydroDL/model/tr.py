@@ -6,18 +6,20 @@ import hydroDL
 from hydroDL.model import rnn
 import pandas as pd
 
-#torch.manual_seed(1)
-def trainModel(model,
-               x,
-               y,
-               c,
-               lossFun,
-               *,
-               nEpoch=500,
-               miniBatch=[100, 30],
-               saveEpoch=100,
-               saveFolder=None,
-               mode='seq2seq'):
+# torch.manual_seed(1)
+def trainModel(
+    model,
+    x,
+    y,
+    c,
+    lossFun,
+    *,
+    nEpoch=500,
+    miniBatch=[100, 30],
+    saveEpoch=100,
+    saveFolder=None,
+    mode="seq2seq"
+):
     batchSize, rho = miniBatch
     # x- input; z - additional input; y - target; c - constant input
     if type(x) is tuple or type(x) is list:
@@ -25,14 +27,14 @@ def trainModel(model,
     ngrid, nt, nx = x.shape
     if c is not None:
         nx = nx + c.shape[-1]
-    nIterEp = int(
-        np.ceil(np.log(0.01) / np.log(1 - batchSize * rho / ngrid / nt)))
-    if hasattr(model, 'ctRm'):
+    nIterEp = int(np.ceil(np.log(0.01) / np.log(1 - batchSize * rho / ngrid / nt)))
+    if hasattr(model, "ctRm"):
         if model.ctRm is True:
             nIterEp = int(
                 np.ceil(
-                    np.log(0.01) / np.log(1 - batchSize *
-                                          (rho - model.ct) / ngrid / nt)))
+                    np.log(0.01) / np.log(1 - batchSize * (rho - model.ct) / ngrid / nt)
+                )
+            )
 
     if torch.cuda.is_available():
         lossFun = lossFun.cuda()
@@ -41,14 +43,18 @@ def trainModel(model,
     optim = torch.optim.Adadelta(model.parameters())
     model.zero_grad()
     if saveFolder is not None:
-        runFile = os.path.join(saveFolder, 'run.csv')
-        rf = open(runFile, 'w+')
+        runFile = os.path.join(saveFolder, "run.csv")
+        rf = open(runFile, "w+")
     for iEpoch in range(1, nEpoch + 1):
         lossEp = 0
         t0 = time.time()
         for iIter in range(0, nIterEp):
             # training iterations
-            if type(model) in [rnn.CudnnLstmModel, rnn.AnnModel, rnn.CpuLstmModel]:   # What does it mean?
+            if type(model) in [
+                rnn.CudnnLstmModel,
+                rnn.AnnModel,
+                rnn.CpuLstmModel,
+            ]:  # What does it mean?
                 iGrid, iT = randomIndex(ngrid, nt, [batchSize, rho])
                 xTrain = selectSubset(x, iGrid, iT, rho, c=c)
                 # xTrain = rho/time * Batchsize * Ninput_var
@@ -61,8 +67,14 @@ def trainModel(model,
                 xTrain = selectSubset(x, iGrid, iT, rho, c=c, tupleOut=True)
                 yTrain = selectSubset(y, iGrid, iT, rho)
                 yP, Param_R2P = model(xTrain)
-            if type(model) in [rnn.LstmCloseModel, rnn.AnnCloseModel, rnn.CNN1dLSTMmodel, rnn.CNN1dLSTMInmodel,
-                               rnn.CNN1dLCmodel, rnn.CNN1dLCInmodel]:
+            if type(model) in [
+                rnn.LstmCloseModel,
+                rnn.AnnCloseModel,
+                rnn.CNN1dLSTMmodel,
+                rnn.CNN1dLSTMInmodel,
+                rnn.CNN1dLCmodel,
+                rnn.CNN1dLCInmodel,
+            ]:
                 iGrid, iT = randomIndex(ngrid, nt, [batchSize, rho])
                 xTrain = selectSubset(x, iGrid, iT, rho, c=c)
                 yTrain = selectSubset(y, iGrid, iT, rho)
@@ -88,8 +100,10 @@ def trainModel(model,
                 iGrid, iT = randomIndex(ngrid, nt, [batchSize, rho])
                 xTrain = selectSubset(x, iGrid, iT, rho, c=c, tupleOut=True)
                 yTrain = selectSubset(y, iGrid, iT, rho)
-                yP1, Param_R2P = model(xTrain,yTrain) # will also send in the y for inversion generator
-                yP = [yP1,Param_R2P]
+                yP1, Param_R2P = model(
+                    xTrain, yTrain
+                )  # will also send in the y for inversion generator
+                yP = [yP1, Param_R2P]
 
             # if type(model) in [hydroDL.model.rnn.LstmCnnCond]:
             #     iGrid, iT = randomIndex(ngrid, nt, [batchSize, rho])
@@ -104,7 +118,7 @@ def trainModel(model,
             #     zTrain = selectSubset(z, iGrid, iT, rho)
             #     yP = model(xTrain, zTrain)
             else:
-                Exception('unknown model')
+                Exception("unknown model")
             loss = lossFun(yP, yTrain)
             loss.backward()
             optim.step()
@@ -112,35 +126,44 @@ def trainModel(model,
             lossEp = lossEp + loss.item()
         # print loss
         lossEp = lossEp / nIterEp
-        logStr = 'Epoch {} Loss {:.6f} time {:.2f}'.format(
-            iEpoch, lossEp,
-            time.time() - t0)
+        logStr = "Epoch {} Loss {:.6f} time {:.2f}".format(
+            iEpoch, lossEp, time.time() - t0
+        )
         print(logStr)
         # save model and loss
         if saveFolder is not None:
-            rf.write(logStr + '\n')
+            rf.write(logStr + "\n")
             if iEpoch % saveEpoch == 0:
                 # save model
-                modelFile = os.path.join(saveFolder,
-                                         'model_Ep' + str(iEpoch) + '.pt')
+                modelFile = os.path.join(saveFolder, "model_Ep" + str(iEpoch) + ".pt")
                 torch.save(model, modelFile)
     if saveFolder is not None:
         rf.close()
     return model
 
 
-def saveModel(outFolder, model, epoch, modelName='model'):
-    modelFile = os.path.join(outFolder, modelName + '_Ep' + str(epoch) + '.pt')
+def saveModel(outFolder, model, epoch, modelName="model"):
+    modelFile = os.path.join(outFolder, modelName + "_Ep" + str(epoch) + ".pt")
     torch.save(model, modelFile)
 
 
-def loadModel(outFolder, epoch, modelName='model'):
-    modelFile = os.path.join(outFolder, modelName + '_Ep' + str(epoch) + '.pt')
+def loadModel(outFolder, epoch, modelName="model"):
+    modelFile = os.path.join(outFolder, modelName + "_Ep" + str(epoch) + ".pt")
     model = torch.load(modelFile)
     return model
 
 
-def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outModel=None, savePath=None):
+def testModel(
+    model,
+    x,
+    c,
+    *,
+    batchSize=None,
+    filePathLst=None,
+    doMC=False,
+    outModel=None,
+    savePath=None
+):
     # outModel, savePath: only for R2P-hymod model, for other models always set None
     if type(x) is tuple or type(x) is list:
         x, z = x
@@ -160,7 +183,7 @@ def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outM
         model = model.cuda()
 
     model.train(mode=False)
-    if hasattr(model, 'ctRm'):
+    if hasattr(model, "ctRm"):
         if model.ctRm is True:
             nt = nt - model.ct
     # yP = torch.zeros([nt, ngrid, ny])
@@ -169,69 +192,76 @@ def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outM
 
     # deal with file name to save
     if filePathLst is None:
-        filePathLst = ['out' + str(x) for x in range(ny)]
+        filePathLst = ["out" + str(x) for x in range(ny)]
     fLst = list()
     for filePath in filePathLst:
         if os.path.exists(filePath):
             os.remove(filePath)
-        f = open(filePath, 'a')
+        f = open(filePath, "a")
         fLst.append(f)
 
     # forward for each batch
     for i in range(0, len(iS)):
-        print('batch {}'.format(i))
-        xTemp = x[iS[i]:iE[i], :, :]
+        print("batch {}".format(i))
+        xTemp = x[iS[i] : iE[i], :, :]
         if c is not None:
             cTemp = np.repeat(
-                np.reshape(c[iS[i]:iE[i], :], [iE[i] - iS[i], 1, nc]), nt, axis=1)
+                np.reshape(c[iS[i] : iE[i], :], [iE[i] - iS[i], 1, nc]), nt, axis=1
+            )
             xTest = torch.from_numpy(
-                np.swapaxes(np.concatenate([xTemp, cTemp], 2), 1, 0)).float()
+                np.swapaxes(np.concatenate([xTemp, cTemp], 2), 1, 0)
+            ).float()
         else:
-            xTest = torch.from_numpy(
-                np.swapaxes(xTemp, 1, 0)).float()
+            xTest = torch.from_numpy(np.swapaxes(xTemp, 1, 0)).float()
         if torch.cuda.is_available():
             xTest = xTest.cuda()
         if z is not None:
             if type(model) in [rnn.CNN1dLCmodel, rnn.CNN1dLCInmodel]:
-                zTest = torch.from_numpy(z[iS[i]:iE[i], :]).float()
+                zTest = torch.from_numpy(z[iS[i] : iE[i], :]).float()
             else:
-                zTemp = z[iS[i]:iE[i], :, :]
+                zTemp = z[iS[i] : iE[i], :, :]
                 zTest = torch.from_numpy(np.swapaxes(zTemp, 1, 0)).float()
             if torch.cuda.is_available():
                 zTest = zTest.cuda()
         if type(model) in [rnn.CudnnLstmModel, rnn.AnnModel, rnn.CpuLstmModel]:
-             if z is not None:
-                 xTest = torch.cat((xTest, zTest), dim=2)
-             yP = model(xTest)
-             if doMC is not False:
+            if z is not None:
+                xTest = torch.cat((xTest, zTest), dim=2)
+            yP = model(xTest)
+            if doMC is not False:
                 ySS = np.zeros(yP.shape)
-                yPnp=yP.detach().cpu().numpy()
+                yPnp = yP.detach().cpu().numpy()
                 for k in range(doMC):
                     # print(k)
                     yMC = model(xTest, doDropMC=True).detach().cpu().numpy()
-                    ySS = ySS+np.square(yMC-yPnp)
-                ySS = np.sqrt(ySS)/doMC
-        if type(model) in [rnn.LstmCloseModel, rnn.AnnCloseModel, rnn.CNN1dLSTMmodel, rnn.CNN1dLSTMInmodel,
-                           rnn.CNN1dLCmodel, rnn.CNN1dLCInmodel]:
+                    ySS = ySS + np.square(yMC - yPnp)
+                ySS = np.sqrt(ySS) / doMC
+        if type(model) in [
+            rnn.LstmCloseModel,
+            rnn.AnnCloseModel,
+            rnn.CNN1dLSTMmodel,
+            rnn.CNN1dLSTMInmodel,
+            rnn.CNN1dLCmodel,
+            rnn.CNN1dLCInmodel,
+        ]:
             yP = model(xTest, zTest)
         if type(model) in [hydroDL.model.rnn.LstmCnnForcast]:
             yP = model(xTest, zTest)
         if type(model) in [rnn.CudnnLstmModel_R2P]:
-            xTemp = torch.from_numpy(np.swapaxes(xTemp,1,0)).float()
-            cTemp = torch.from_numpy(np.swapaxes(cTemp,1,0)).float()
+            xTemp = torch.from_numpy(np.swapaxes(xTemp, 1, 0)).float()
+            cTemp = torch.from_numpy(np.swapaxes(cTemp, 1, 0)).float()
             xTemp = xTemp.cuda()
             cTemp = cTemp.cuda()
             xTest_tuple = (xTemp, cTemp)
             if outModel is None:
-                yP, Param_R2P = model(xTest_tuple, outModel = outModel)
+                yP, Param_R2P = model(xTest_tuple, outModel=outModel)
                 Parameters_R2P = Param_R2P.detach().cpu().numpy().swapaxes(0, 1)
             else:
-                Param_R2P = model(xTest_tuple, outModel = outModel)
+                Param_R2P = model(xTest_tuple, outModel=outModel)
                 Parameters_R2P = Param_R2P.detach().cpu().numpy()
                 hymod_forcing = xTemp.detach().cpu().numpy().swapaxes(0, 1)
 
-                runFile = os.path.join(savePath, 'hymod_run.csv')
-                rf = open(runFile, 'a+')
+                runFile = os.path.join(savePath, "hymod_run.csv")
+                rf = open(runFile, "a+")
 
                 q = torch.zeros(hymod_forcing.shape[0], hymod_forcing.shape[1])
                 evap = torch.zeros(hymod_forcing.shape[0], hymod_forcing.shape[1])
@@ -241,16 +271,33 @@ def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outM
                     #         rs=Parameters_R2P[pix,0,4], s=Parameters_R2P[pix,0,5],\
                     #             slow=Parameters_R2P[pix,0,6],\
                     #                 fast=[Parameters_R2P[pix,0,7], Parameters_R2P[pix,0,8], Parameters_R2P[pix,0,9]])
-                    model_hymod = rnn.hymod(a=Parameters_R2P[pix,0], b=Parameters_R2P[pix,1],\
-                        cmax=Parameters_R2P[pix,2], rq=Parameters_R2P[pix,3],\
-                            rs=Parameters_R2P[pix,4], s=Parameters_R2P[pix,5],\
-                                slow=Parameters_R2P[pix,6],\
-                                    fast=[Parameters_R2P[pix,7], Parameters_R2P[pix,8], Parameters_R2P[pix,9]])
+                    model_hymod = rnn.hymod(
+                        a=Parameters_R2P[pix, 0],
+                        b=Parameters_R2P[pix, 1],
+                        cmax=Parameters_R2P[pix, 2],
+                        rq=Parameters_R2P[pix, 3],
+                        rs=Parameters_R2P[pix, 4],
+                        s=Parameters_R2P[pix, 5],
+                        slow=Parameters_R2P[pix, 6],
+                        fast=[
+                            Parameters_R2P[pix, 7],
+                            Parameters_R2P[pix, 8],
+                            Parameters_R2P[pix, 9],
+                        ],
+                    )
                     for hymod_t in range(hymod_forcing.shape[1]):
-                        q[pix, hymod_t], evap[pix, hymod_t] = model_hymod.advance(hymod_forcing[pix,hymod_t,0],hymod_forcing[pix,hymod_t,1])
-                        nstepsLst = '{:.5f} {:.5f} {:.5f} {:.5f}'.format(hymod_forcing[pix,hymod_t,0], hymod_forcing[pix,hymod_t,1], q[pix,hymod_t], evap[pix,hymod_t])
+                        q[pix, hymod_t], evap[pix, hymod_t] = model_hymod.advance(
+                            hymod_forcing[pix, hymod_t, 0],
+                            hymod_forcing[pix, hymod_t, 1],
+                        )
+                        nstepsLst = "{:.5f} {:.5f} {:.5f} {:.5f}".format(
+                            hymod_forcing[pix, hymod_t, 0],
+                            hymod_forcing[pix, hymod_t, 1],
+                            q[pix, hymod_t],
+                            evap[pix, hymod_t],
+                        )
                         print(nstepsLst)
-                        rf.write(nstepsLst + '\n')
+                        rf.write(nstepsLst + "\n")
 
         # CP-- marks the beginning of problematic merge
         yOut = yP.detach().cpu().numpy().swapaxes(0, 1)
@@ -263,9 +310,8 @@ def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outM
             pd.DataFrame(yOut[:, :, k]).to_csv(f, header=False, index=False)
         if doMC is not False:
             for k in range(ny):
-                f = fLst[ny+k]
-                pd.DataFrame(yOutMC[:, :, k]).to_csv(
-                    f, header=False, index=False)
+                f = fLst[ny + k]
+                pd.DataFrame(yOutMC[:, :, k]).to_csv(f, header=False, index=False)
 
         model.zero_grad()
         torch.cuda.empty_cache()
@@ -285,6 +331,7 @@ def testModel(model, x, c, *, batchSize=None, filePathLst=None, doMC=False, outM
                 return q, evap, Parameters_R2P
         else:
             return yOut
+
 
 def testModelCnnCond(model, x, y, *, batchSize=None):
     ngrid, nt, nx = x.shape
@@ -314,9 +361,9 @@ def testModelCnnCond(model, x, y, *, batchSize=None):
     iS = np.arange(0, ngrid, batchSize)
     iE = np.append(iS[1:], ngrid)
     for i in range(0, len(iS)):
-        xTemp = xTest[:, iS[i]:iE[i], :]
-        cTemp = cTest[:, iS[i]:iE[i], :]
-        yP[:, iS[i]:iE[i], :] = model(xTemp, cTemp)
+        xTemp = xTest[:, iS[i] : iE[i], :]
+        cTemp = cTest[:, iS[i] : iE[i], :]
+        yP[:, iS[i] : iE[i], :] = model(xTemp, cTemp)
     yOut = yP.detach().cpu().numpy().swapaxes(0, 1)
     return yOut
 
@@ -329,10 +376,10 @@ def randomSubset(x, y, dimSubset):
     iGrid = np.random.randint(0, ngrid, [batchSize])
     iT = np.random.randint(0, nt - rho, [batchSize])
     for k in range(batchSize):
-        temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-        xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
-        temp = y[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-        yTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+        temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+        xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+        temp = y[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+        yTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
     if torch.cuda.is_available():
         xTensor = xTensor.cuda()
         yTensor = yTensor.cuda()
@@ -349,8 +396,8 @@ def randomIndex(ngrid, nt, dimSubset):
 def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
     nx = x.shape[-1]
     nt = x.shape[1]
-    if x.shape[0] == len(iGrid):   #hack
-        iGrid = np.arange(0,len(iGrid))  # hack
+    if x.shape[0] == len(iGrid):  # hack
+        iGrid = np.arange(0, len(iGrid))  # hack
         if nt <= rho:
             iT.fill(0)
 
@@ -358,8 +405,8 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
         batchSize = iGrid.shape[0]
         xTensor = torch.zeros([rho, batchSize, nx], requires_grad=False)
         for k in range(batchSize):
-            temp = x[iGrid[k]:iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-            xTensor[:, k:k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+            temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
+            xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
     else:
         if len(x.shape) == 2:
             # Used for local calibration kernel
@@ -371,11 +418,10 @@ def selectSubset(x, iGrid, iT, rho, *, c=None, tupleOut=False):
             rho = xTensor.shape[0]
     if c is not None:
         nc = c.shape[-1]
-        temp = np.repeat(
-            np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
+        temp = np.repeat(np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
         cTensor = torch.from_numpy(np.swapaxes(temp, 1, 0)).float()
 
-        if (tupleOut):
+        if tupleOut:
             if torch.cuda.is_available():
                 xTensor = xTensor.cuda()
                 cTensor = cTensor.cuda()

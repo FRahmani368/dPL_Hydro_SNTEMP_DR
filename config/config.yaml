@@ -50,7 +50,7 @@ optData:
   ]
   varC_PRMS: [
       'cov_type', 'covden_sum', 'covden_win', 'snow_intcp(mm)', 'srain_intcp(mm)',
-      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum'
+      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum', "Smidx_coef", "Smidx_exp"
   ]
 
   target: ["00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
