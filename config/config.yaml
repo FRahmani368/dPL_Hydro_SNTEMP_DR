@@ -50,7 +50,8 @@ optData:
   ]
   varC_PRMS: [
       'cov_type', 'covden_sum', 'covden_win', 'snow_intcp(mm)', 'srain_intcp(mm)',
-      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum', "Smidx_coef", "Smidx_exp"
+      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum', "Smidx_coef", "Smidx_exp",
+      'DRAIN_SQKM'
   ]
 
   target: ["00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
@@ -113,6 +114,7 @@ params_calibrated:
   shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
+Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
 static_params_list: []
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]

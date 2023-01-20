@@ -324,9 +324,17 @@ class PRMS_pytorch(torch.nn.Module):
                 xinit = x[:, 0:warm_up, :]
                 paramsinit = params[:, 0:warm_up, :]
                 warm_up_model = PRMS_pytorch()
-                intcpstor, infil, Imperv_stor, pkwater_equiv, MELTWATER, Srp, Soil_moist = warm_up_model(
-                    xinit, c_PRMS, paramsinit, args, warm_up=0, init=True
-                )
+                (
+                    intcpstor,
+                    infil,
+                    Imperv_stor,
+                    pkwater_equiv,
+                    MELTWATER,
+                    Srp,
+                    Soil_moist,
+                    Dprst_vol_open,
+                    Dprst_vol_clos
+                ) = warm_up_model(xinit, c_PRMS, paramsinit, args, warm_up=0, init=True)
         else:
             # zero for initializiation [No_basins, nmul]
             intcpstor = torch.zeros(
@@ -351,7 +359,13 @@ class PRMS_pytorch(torch.nn.Module):
             Soil_moist = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             )
-
+            # Storage volume in open surface depressions for each HRU
+            Dprst_vol_open = torch.zeros(
+                [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
+            )
+            Dprst_vol_clos = torch.zeros(
+                [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
+            )
 
         # potet_sublim can be one of the parameters. between 0.1-0.75
         potet_sublim = params[:, warm_up:, 0:nmul]
@@ -368,18 +382,51 @@ class PRMS_pytorch(torch.nn.Module):
         dayl = x[:, warm_up:, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
         mean_air_temp = (Tmaxf + Tminf) / 2
         Ngrid, Ndays = Precip.shape[0], Precip.shape[1]
+
         # attributes. [no_basins, nmul]
+        harea = c_PRMS[:, vars_c_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, nmul)
         hru_percent_imperv = (
             c_PRMS[:, vars_c_PRMS.index("hru_percent_imperv")]
             .unsqueeze(-1)
             .repeat(1, nmul)
         )
-        Smidx_coef = c_PRMS[:, vars_c_PRMS.index("Smidx_coef")]
-            .unsqueeze(-1)
-            .repeat(1, nmul)
-        Smidx_exp = c_PRMS[:, vars_c_PRMS.index("Smidx_exp")]
-            .unsqueeze(-1)
-            .repeat(1, nmul)
+        Smidx_coef = (
+            c_PRMS[:, vars_c_PRMS.index("Smidx_coef")].unsqueeze(-1).repeat(1, nmul)
+        )
+        Smidx_exp = (
+            c_PRMS[:, vars_c_PRMS.index("Smidx_exp")].unsqueeze(-1).repeat(1, nmul)
+        )
+        hruarea_imperv = hru_percent_imperv * harea   # hruarea_imperv = hru_imperv
+        hruarea_perv = harea - hruarea_imperv      #  hruarea_perv = hru_perv
+        #Dprst_frac: Fraction of each HRU area that has surface depressions
+        Dprst_frac = (
+            c_PRMS[:, vars_c_PRMS.index("dprst_frac")].unsqueeze(-1).repeat(1, nmul)
+        )
+        Dprst_frac = torch.clamp(Dprst_frac, min=0.0, max=1.0)  # just to make sure it is in the range
+        Dprst_area_max = Dprst_frac * harea
+
+        Dprst_frac_open = (
+            c_PRMS[:, vars_c_PRMS.index("dprst_frac_open")].unsqueeze(-1).repeat(1, nmul)
+        )
+        # from lines 396 - 399 basin.f90
+        Dprst_area_open_max = torch.where(Dprst_area_max > 0.0,
+                                          Dprst_area_max * Dprst_frac_open,
+                                          torch.zeros(Dprst_frac_open.shape, dtype=torch.float32, device=args["device"]))
+        Dprst_area_clos_max = torch.where(Dprst_area_max > 0.0,
+                                          Dprst_area_max - Dprst_area_open_max,
+                                          torch.zeros(Dprst_frac_open.shape, dtype=torch.float32,
+                                                      device=args["device"]))
+        Dprst_frac_clos = torch.where(Dprst_area_max > 0.0,
+                                          1.0 - Dprst_frac_open,
+                                          torch.zeros(Dprst_frac_open.shape, dtype=torch.float32,
+                                                      device=args["device"]))
+
+        # from lines1092-1095 of srunoff.f90
+        Dprst_depth_avg = (
+            c_PRMS[:, vars_c_PRMS.index("dprst_depth_avg")].unsqueeze(-1).repeat(1, nmul)
+        )
+        Dprst_vol_open_max = Dprst_area_open_max * Dprst_depth_avg
+        Dprst_vol_clos_max = Dprst_area_clos_max * Dprst_depth_avg
 
         # snow and rain temperature thresholds
         Tmax_allsnow_f = torch.zeros(
@@ -502,7 +549,8 @@ class PRMS_pytorch(torch.nn.Module):
                 Net_ppt=Precip_day,
                 Imperv_Stor=Imperv_stor,
                 Intcp_changeover=Intcp_changeover,
-                Imperv_stor_max=0.05 * 0.0254,  # 0.05 inches constant for all --> converted to mm
+                Imperv_stor_max=0.05
+                * 0.0254,  # 0.05 inches constant for all --> converted to mm
                 snowmelt=0.01,
                 snowinfil_max=2.0 * 25.4,  # based on tm6b9 --> converted to mm
                 Net_snow=snow_day,
@@ -512,14 +560,34 @@ class PRMS_pytorch(torch.nn.Module):
                 Srp=Srp,
                 Soil_moist=Soil_moist,
                 Smidx_coef=Smidx_coef,
-                Smidx_exp=Smidx_exp
+                Smidx_exp=Smidx_exp,
+                hruarea_imperv=hruarea_imperv,
+                hruarea_perv=hruarea_perv,
+                Dprst_area_max=Dprst_area_max,
+                harea=harea,
+                Dprst_area_open_max=Dprst_area_open_max,
+                Dprst_area_cllos_max=Dprst_area_clos_max,
+                Dprst_vol_open_max=Dprst_vol_open_max,
+                Dprst_vol_clos_max=Dprst_vol_clos_max,
+                Dprst_vol_open=Dprst_vol_open,
+                Dprst_vol_clos=Dprst_vol_clos
             )
 
             Q_sim[:, t, :] = intcpstor
 
             # print("END")
         if init == True:
-            return intcpstor, infil, Imperv_stor, pkwater_equiv, MELTWATER, Srp, Soil_moist
+            return (
+                intcpstor,
+                infil,
+                Imperv_stor,
+                pkwater_equiv,
+                MELTWATER,
+                Srp,
+                Soil_moist,
+                Dprst_vol_open,
+                Dprst_vol_clos
+            )
         elif init == False:
             return Q_sim * PET
 
