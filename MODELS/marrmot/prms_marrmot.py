@@ -6,7 +6,7 @@ from MODELS.potet import get_potet
 
 class prms_marrmot(torch.nn.Module):
     def __init__(self):
-        super(PRMS_pytorch, self).__init__()
+        super(prms_marrmot, self).__init__()
 
     def smoothThreshold_temperature_logistic(self, T, Tt, r = 0.01):
         # By transforming the equation above to Sf = f(P,T,Tt,r)
@@ -50,7 +50,7 @@ class prms_marrmot(torch.nn.Module):
                           1 / (1 + torch.exp((S - Smax + r * e * Smax) / (r * Smax))))
         return out
 
-    def interception_1(self, In, S, Smax, varargin_r=0.01, varargin_e=5.0):
+    def interception_1(self, args, In, S, Smax, varargin_r=0.01, varargin_e=5.0):
         # inputs:
         # In   - incoming flux [mm/d]
         # S    - current storage [mm]
@@ -58,7 +58,7 @@ class prms_marrmot(torch.nn.Module):
         # varargin_r - smoothing variable r (default 0.01)
         # varargin_e - smoothing variable e (default 5.00)
 
-        out = In * (1 - self.smoothThreshold_storage_logistic(S, Smax, varargin_r, varargin_e))
+        out = In * (1 - self.smoothThreshold_storage_logistic(args, S, Smax, varargin_r, varargin_e))
         return out
 
     def melt_1(self, p1, p2, T, S, dt):
@@ -73,14 +73,14 @@ class prms_marrmot(torch.nn.Module):
         out = torch.clamp(out, min=0.0)
         return out
 
-    def saturation_1(self, In, S, Smax, varargin_r=0.01, varargin_e=5.0):
+    def saturation_1(self, args, In, S, Smax, varargin_r=0.01, varargin_e=5.0):
         # inputs:
         # In   - incoming flux [mm/d]
         # S    - current storage [mm]
         # Smax - maximum storage [mm]
         # varargin_r - smoothing variable r (default 0.01)
         # varargin_e - smoothing variable e (default 5.00)
-        out = In * (1 - smoothThreshold_storage_logistic(S, Smax, varargin_r, varargin_e))
+        out = In * (1 - self.smoothThreshold_storage_logistic(args, S, Smax, varargin_r, varargin_e))
         return out
 
     def saturation_8(self, p1, p2, S, Smax, In):
@@ -163,7 +163,7 @@ class prms_marrmot(torch.nn.Module):
         out = torch.min(S / Smax * Ep, S / dt)
         return out
 
-    def evap_15(self, Ep, S1, S1max, S2, S2min, dt):
+    def evap_15(self, args, Ep, S1, S1max, S2, S2min, dt):
         # Description:  Scaled evaporation if another store is below a threshold
         #  Constraints:  f <= S1/dt
         # inputs:
@@ -175,7 +175,7 @@ class prms_marrmot(torch.nn.Module):
         # dt    - time step size [d]
 
         # this needs to be checked because in MATLAB version there is a min function that does not make sense to me
-        out = (S1 / S1max * Ep) * self.smoothThreshold_storage_logistic(S2, S2min, S1 / dt)
+        out = (S1 / S1max * Ep) * self.smoothThreshold_storage_logistic(args, S2, S2min, S1 / dt)
         return out
 
     def multi_comp_semi_static_params(
@@ -230,40 +230,45 @@ class prms_marrmot(torch.nn.Module):
 
     def multi_comp_parameter_bounds(self, params, num, args):
         nmul = args["nmul"]
-        if num in args["static_params_list"]:
+        if num in args["static_params_list_prms"]:
             out_temp = (
                 params[:, -1, num * nmul : (num + 1) * nmul]
-                * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0])
-                + args["paramCalLst"][num][0]
+                * (args["marrmot_paramCalLst"][num][1] - args["marrmot_paramCalLst"][num][0])
+                + args["marrmot_paramCalLst"][num][0]
             )
             out = out_temp.repeat(1, params.shape[1]).reshape(
                 params.shape[0], params.shape[1], nmul
             )
 
-        elif num in args["semi_static_params_list"]:
+        elif num in args["semi_static_params_list_prms"]:
             out_temp = self.multi_comp_semi_static_params(
                 params,
                 num,
                 args,
-                interval=args["interval_for_semi_static_param"][
-                    args["semi_static_params_list"].index(num)
+                interval=args["interval_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
                 ],
-                method=args["method_for_semi_static_param"][
-                    args["semi_static_params_list"].index(num)
+                method=args["method_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
                 ],
             )
             out = (
-                out_temp * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0])
-                + args["paramCalLst"][num][0]
+                out_temp * (args["marrmot_paramCalLst"][num][1] - args["marrmot_paramCalLst"][num][0])
+                + args["marrmot_paramCalLst"][num][0]
             )
 
         else:  # dynamic
             out = (
                 params[:, :, num * nmul : (num + 1) * nmul]
-                * (args["paramCalLst"][num][1] - args["paramCalLst"][num][0])
-                + args["paramCalLst"][num][0]
+                * (args["marrmot_paramCalLst"][num][1] - args["marrmot_paramCalLst"][num][0])
+                + args["marrmot_paramCalLst"][num][0]
             )
         return out
+
+    def ODE_approx_IE(args, t, S1_old, S2_old, S3_old, S4_old, S5_old, S6_old, S7_old,
+                      delta_S1, delta_S2, delta_S3, delta_S4, delta_S5, delta_S6, delta_S7):
+        return S1_old
+
 
     def forward(self, x, c_PRMS, params, args, warm_up=0, init=False):
         NEARZERO = args["NEARZERO"]
@@ -279,105 +284,113 @@ class prms_marrmot(torch.nn.Module):
         else:
             S1 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S2 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S3 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S4 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S5 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S6 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
             S7 = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            )
+            ) + 2
 
-            ## parameters for prms_marrmot. there are 18 parameters in it
-            tt = self.multi_comp_parameter_bounds(params, 0, args)
-            ddf = self.multi_comp_parameter_bounds(params, 1, args)
-            alpha = self.multi_comp_parameter_bounds(params, 2, args)
-            beta = self.multi_comp_parameter_bounds(params, 3, args)
-            stor = self.multi_comp_parameter_bounds(params, 4, args)
-            retip = self.multi_comp_parameter_bounds(params, 5, args)
-            fscn = self.multi_comp_parameter_bounds(params, 6, args)
-            scx = self.multi_comp_parameter_bounds(params, 7, args)
-            scn = fscn * scx
-            flz = self.multi_comp_parameter_bounds(params, 8, args)
-            stot = self.multi_comp_parameter_bounds(params, 9, args)
-            remx = ( 1 - flz) * stot
-            smax = flz stot
-            cgw = self.multi_comp_parameter_bounds(params, 10, args)
-            resmax = self.multi_comp_parameter_bounds(params, 11, args)
-            k1 = self.multi_comp_parameter_bounds(params, 12, args)
-            k2 = self.multi_comp_parameter_bounds(params, 13, args)
-            k3 = self.multi_comp_parameter_bounds(params, 14, args)
-            k4 = self.multi_comp_parameter_bounds(params, 15, args)
-            k5 = self.multi_comp_parameter_bounds(params, 16, args)
-            k6 = self.multi_comp_parameter_bounds(params, 17, args)
-            #################
+        ## parameters for prms_marrmot. there are 18 parameters in it
+        tt = self.multi_comp_parameter_bounds(params, 0, args)
+        ddf = self.multi_comp_parameter_bounds(params, 1, args)
+        alpha = self.multi_comp_parameter_bounds(params, 2, args)
+        beta = self.multi_comp_parameter_bounds(params, 3, args)
+        stor = self.multi_comp_parameter_bounds(params, 4, args)
+        retip = self.multi_comp_parameter_bounds(params, 5, args)
+        fscn = self.multi_comp_parameter_bounds(params, 6, args)
+        scx = self.multi_comp_parameter_bounds(params, 7, args)
+        scn = fscn * scx
+        flz = self.multi_comp_parameter_bounds(params, 8, args)
+        stot = self.multi_comp_parameter_bounds(params, 9, args)
+        remx = (1 - flz) * stot
+        smax = flz * stot
+        cgw = self.multi_comp_parameter_bounds(params, 10, args)
+        resmax = self.multi_comp_parameter_bounds(params, 11, args)
+        k1 = self.multi_comp_parameter_bounds(params, 12, args)
+        k2 = self.multi_comp_parameter_bounds(params, 13, args)
+        k3 = self.multi_comp_parameter_bounds(params, 14, args)
+        k4 = self.multi_comp_parameter_bounds(params, 15, args)
+        k5 = self.multi_comp_parameter_bounds(params, 16, args)
+        k6 = self.multi_comp_parameter_bounds(params, 17, args)
+        #################
+        # inputs
+        Precip = (
+            x[:, warm_up:, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
+        )
+        Tmaxf = x[:, warm_up:, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        Tminf = x[:, warm_up:, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        mean_air_temp = (Tmaxf + Tminf) / 2
+        dayl = (
+            x[:, warm_up:, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+        )
+        Ngrid, Ndays = Precip.shape[0], Precip.shape[1]
+        hamon_coef = torch.ones(dayl.shape, dtype=torch.float32, device=args["device"]) * 0.006  # this can be param
+        PET = get_potet(
+            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
+        )
 
-            Precip = (
-                x[:, warm_up:, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
-            )
-            Tmax_all = x[:, warm_up:, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-            Tminf_all = x[:, warm_up:, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-            mean_air_temp = (Tmaxf + Tminf) / 2
-            Ngrid, Ndays = Precip.shape[0], Precip.shape[1]
-            PET = get_potet(
-                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
-            )
+        # initialize the Q_sim
+        Q_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
 
-            # initialize the Q_sim
-            Q_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
+        for t in range(Ndays):
+            delta_t = 1 # timestep (day)
+            P = Precip[:, t, :]
+            Ep = PET[:, t, :]
+            T = mean_air_temp[:, t, :]
 
-            for t in range(Ndays):
-                delta_t = 1 # timestep (day)
-                P = Precip[:, t, :]
-                Ep = PET[:, t, :]
-                T = mean_air_temp[:, t, :]
+            # fluxes
+            flux_ps = self.snowfall_1(P, T, tt[:, t, :])
+            flux_pr = self.rainfall_1(P, T, tt[:, t, :])
+            flux_pim = self.split_1(1 - beta[:, t, :], flux_pr)
+            flux_psm = self.split_1(beta[:, t, :], flux_pr)
+            flux_pby = self.split_1(1 - alpha[:, t, :], flux_psm)
+            flux_pin = self.split_1(alpha[:, t, :], flux_psm)
+            flux_ptf = self.interception_1(args, flux_pin, S2, stor[:, t, :])
+            flux_m = self.melt_1(ddf[:, t, :], tt[:, t, :], T, S1, delta_t)
+            flux_mim = self.split_1(1 - beta[:, t, :], flux_m)
+            flux_msm = self.split_1(beta[:, t, :], flux_m)
+            flux_sas = self.saturation_1(args, flux_pim + flux_mim, S3, retip[:, t, :])
+            flux_sro = self.saturation_8(scn[:, t, :], scx[:, t, :], S4, remx[:, t, :], flux_msm + flux_ptf + flux_pby)
+            flux_inf = self.effective_1(flux_msm + flux_ptf + flux_pby, flux_sro)
+            flux_pc = self.saturation_1(args, flux_inf, S4, remx[:, t, :])
+            flux_excs = self.saturation_1(args, flux_pc, S5, smax[:, t, :])
+            flux_sep = self.recharge_7(cgw[:, t, :], flux_excs)
+            flux_qres = self.effective_1(flux_excs, flux_sep)
+            flux_gad = self.recharge_2(k2[:, t, :], S6, resmax[:, t, :], k1[:, t, :])
+            flux_ras = self.interflow_4(k3[:, t, :], k4[:, t, :], S6)
+            flux_bas = self.baseflow_1(k5[:, t, :], S7)
+            flux_snk = self.baseflow_1(k6[:, t, :], S7)    # represents transbasin gw or undergage streamflow
+            flux_ein = self.evap_1(S2, beta[:, t, :] * Ep, delta_t)
+            flux_eim = self.evap_1(S3, (1 - beta[:, t, :]) * Ep, delta_t)
+            flux_ea = self.evap_7(S4, remx[:, t, :], Ep - flux_ein - flux_eim, delta_t)
+            flux_et = self.evap_15(args, Ep - flux_ein - flux_eim - flux_ea, S5, smax[:, t, :], S4, Ep - flux_ein - flux_eim, delta_t)
 
-                # fluxes
-                flux_ps = self.snowfall_1(P, T, tt)
-                flux_pr = self.rainfall_1(P, T, tt)
-                flux_pim = self.split_1(1 - beta, flux_pr)
-                flux_psm = self.split_1(beta, flux_pr)
-                flux_pby = self.split_1(1 - alpha, flux_psm)
-                flux_pin = self.split_1(alpha, flux_psm)
-                flux_ptf = self.interception_1(flux_pin, S2, stor)
-                flux_m = self.melt_1(ddf, tt, T, S1, delta_t)
-                flux_mim = self.split_1(1 - beta, flux_m)
-                flux_msm = self.split_1(beta, flux_m)
-                flux_sas = self.saturation_1(flux_pim + flux_mim, S3, retip)
-                flux_sro = self.saturation_8(scn, scx, S4, remx, flux_msm + flux_ptf + flux_pby)
-                flux_inf = self.effective_1(flux_msm + flux_ptf + flux_pby, flux_sro)
-                flux_pc = self.saturation_1(flux_inf, S4, remx)
-                flux_excs = self.saturation_1(flux_pc, S5, smax)
-                flux_sep = self.recharge_7(cgw, flux_excs)
-                flux_qres = self.effective_1(flux_excs, flux_sep)
-                flux_gad = self.recharge_2(k2, S6, resmax, k1)
-                flux_ras = self.interflow_4(k3, k4, S6)
-                flux_bas = self.baseflow_1(k5, S7)
-                flux_snk = self.baseflow_1(k6, S7)
-                flux_ein = self.evap_1(S2, beta * Ep, delta_t)
-                flux_eim = self.evap_1(S3, (1 - beta) * Ep, delta_t)
-                flux_ea = self.evap_7(S4, remx, Ep - flux_ein - flux_eim, delta_t)
-                flux_et = self.evap_15(Ep - flux_ein - flux_eim - flux_ea, S5, smax, S4, Ep - flux_ein - flux_eim, delta_t)
+            # stores ODEs
+            dS1 = flux_ps - flux_m
+            dS2 = flux_pin - flux_ein - flux_ptf
+            dS3 = flux_pim + flux_mim - flux_eim - flux_sas
+            dS4 = flux_inf - flux_ea - flux_pc
+            dS5 = flux_pc - flux_et - flux_excs
+            dS6 = flux_qres - flux_gad - flux_ras
+            dS7 = flux_sep + flux_gad - flux_bas - flux_snk
 
-                # stores ODEs
-                dS1 = flux_ps - flux_m
-                dS2 = flux_pin - flux_ein - flux_ptf
-                dS3 = flux_pim + flux_mim - flux_eim - flux_sas
-                dS4 = flux_inf - flux_ea - flux_pc
-                dS5 = flux_pc - flux_et - flux_excs
-                dS6 = flux_qres - flux_gad - flux_ras
-                dS7 = flux_sep + flux_gad - flux_bas - flux_snk
+
+
+
 
 
 

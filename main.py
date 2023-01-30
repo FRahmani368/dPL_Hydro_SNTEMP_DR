@@ -10,6 +10,7 @@ from core.data_prep import (
 from core.small_codes import create_output_dirs
 from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, CudnnLstm, CudnnLstmModel
 from MODELS.PRMS import PRMS_pytorch
+from MODELS.marrmot.prms_marrmot import prms_marrmot
 from MODELS import crit
 from core import hydroDL
 from core.small_codes import make_tensor, tRange2Array, intersect
@@ -106,7 +107,8 @@ def main(args):
         # ANN model to simulate parameters
         # model = MLP(args)
         # all parameters are going to be 3D -> [batchsize, rho, nmul]
-        no_tot_params = len(args["paramCalLst"])
+        # no_tot_params = len(args["paramCalLst"])
+        no_tot_params = len(args["marrmot_paramCalLst"])
         ny = args["nmul"] * no_tot_params
         model = CudnnLstmModel(
             nx=len(args["optData"]["varT"] + args["optData"]["varC"]) - 1,
@@ -114,7 +116,8 @@ def main(args):
             hiddenSize=args["hyperparameters"]["hidden_size"],
             dr=args["hyperparameters"]["dropout"],
         )
-        PRMS = PRMS_pytorch()
+        PRMS = prms_marrmot()
+        # PRMS = PRMS_pytorch()
         Ts = STREAM_TEMP_EQ()
         # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
         #
@@ -127,6 +130,7 @@ def main(args):
             # model = model.cuda()
             model = model.to(args["device"])
             # mlp = mlp.cuda()
+            PRMS = PRMS.to(args["device"])
             # Ts = Ts.cuda()
             Ts = Ts.to(args["device"])
             # lossFun = lossFun.cuda()

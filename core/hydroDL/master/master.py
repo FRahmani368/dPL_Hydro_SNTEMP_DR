@@ -165,7 +165,7 @@ def loadData(args, readX=True, readY=True):
     c_PRMS = df.getDataConst(
         args,
         varLst=args["optData"]["varC_PRMS"],
-        doNorm=args["optData"]["doNorm"][0],
+        doNorm=False, #args["optData"]["doNorm"][0],
         rmNan=args["optData"]["rmNan"][0],
     )
     x_PRMS = df.getDataTs(

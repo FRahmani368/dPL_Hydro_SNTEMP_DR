@@ -174,7 +174,7 @@ def compute_infil(
     # snowmelt =0 & pkwater_equiv<NEARZERO
     avail_water = torch.where(
         (
-            (snowmelt = 0.0)
+            (snowmelt == 0.0)
             & (pkwater_equiv < NEARZERO)
             & (Net_snow < NEARZERO)
             & (Net_rain > 0.0)
@@ -184,7 +184,7 @@ def compute_infil(
     )
     infil = torch.where(
         (
-            (snowmelt = 0.0)
+            (snowmelt == 0.0)
             & (pkwater_equiv < NEARZERO)
             & (Net_snow < NEARZERO)
             & (Net_rain > 0.0)
@@ -199,7 +199,7 @@ def compute_infil(
     )
     infil = torch.where(
         (
-        (snowmelt = 0.0)
+        (snowmelt == 0.0)
         & (HRU_type == 1)
         & (pkwater_equiv < NEARZERO)
         & (Net_snow < NEARZERO)
@@ -210,7 +210,7 @@ def compute_infil(
     )
     Srp = torch.where(
         (
-        (snowmelt = 0.0)
+        (snowmelt == 0.0)
         & (HRU_type == 1)
         & (pkwater_equiv < NEARZERO)
         & (Net_snow < NEARZERO)

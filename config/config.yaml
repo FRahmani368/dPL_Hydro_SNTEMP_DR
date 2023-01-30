@@ -9,7 +9,7 @@ dataset:
 #  forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_10%_days_415sites_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_all_4.feather" #          no_dam_attr_temp99%_days34sites.feather
   forcing_path: "/scratch/fzr5082/PGML_STemp_results/inputs/forcing_PRMS_40sites.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_PRMS_40.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+  attr_path: "/scratch/fzr5082/PGML_STemp_results/inputs/attr_PRMS_nhm_40sites.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "//home//fzr5082//PGML_STemp_results//models//415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -49,8 +49,8 @@ optData:
   'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
   ]
   varC_PRMS: [
-      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp(mm)', 'srain_intcp(mm)',
-      'wrain_intcp(mm)', 'hru_percent_imperv', 'hru_area_sum', "Smidx_coef", "Smidx_exp",
+      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp', 'srain_intcp',
+      'wrain_intcp', 'hru_percent_imperv', 'hru_area', "smidx_coef", "smidx_exp",
       'DRAIN_SQKM'
   ]
 
@@ -119,6 +119,10 @@ static_params_list: []
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
+static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+semi_static_params_list_prms: []
+method_for_semi_static_param_prms: ["average", "average", "average", "average"]
+interval_for_semi_static_param_prms: [30, 30]
 paramCalLst: [
             # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
             [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
@@ -146,7 +150,7 @@ paramCalLst: [
 marrmot_paramCalLst: [
     [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
     [0, 20],    # ddf,  Degree-day factor for snowmelt [mm/oC/d]
-    [0, 1]     # alpha, Fraction of rainfall on soil moisture going to interception [-]
+    [0, 1],     # alpha, Fraction of rainfall on soil moisture going to interception [-]
     [0, 1],    # beta, Fraction of catchment where rain goes to soil moisture [-]
     [0, 5],    # stor, Maximum interception capcity [mm]
     [0, 50],    # retip, Maximum impervious area storage [mm]
