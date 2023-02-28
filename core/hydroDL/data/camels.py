@@ -302,8 +302,16 @@ def calStatbasinnorm(
     y[y < 0] = 0
     force_attr_list = args["optData"]["varT"] + args["optData"]["varC"]
     # attr_data = read_attr_data(args, idLst=idLst)
-    basinarea = x[:, :, force_attr_list.index("DRAIN_SQKM")]  #  'DRAIN_SQKM'
-    meanprep = x[:, :, force_attr_list.index("PPTAVG_BASIN")]  #   'PPTAVG_BASIN'
+    if "DRAIN_SQKM" in force_attr_list:
+        area_name = "DRAIN_SQKM"
+    elif "area_gages2" in force_attr_list:
+        area_name = "area_gages2"
+    basinarea = x[:, :, force_attr_list.index(area_name)]  #  'DRAIN_SQKM'
+    if "PPTAVG_BASIN" in force_attr_list:
+        p_mean_name = "PPTAVG_BASIN"
+    elif "p_mean" in force_attr_list:
+        p_mean_name = "p_mean"
+    meanprep = x[:, :, force_attr_list.index(p_mean_name)]  #   'PPTAVG_BASIN'
     # basinarea = attr_data['DRAIN_SQKM']
     ## meanprep = readAttr(gageDict['id'], ['PPTAVG_BASIN'])
     # meanprep = attr_data['PPTAVG_BASIN'] #  anual average precipitation

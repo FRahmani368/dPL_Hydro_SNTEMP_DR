@@ -4,12 +4,12 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 1
 dataset:
   forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
-  attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr.feather" #           no_dam_attr_temp99%_days34sites.feather
-#  forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\forcing_PRMS_40sites.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-#  attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\attr_PRMS_nhm_40sites.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+  attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr.feather" #          no_dam_attr_temp99%_days34sites.feather
+#  forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\forcing_PRMS_40sites.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+#  attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\attr_PRMS_nhm_40sites.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
 output:
   model: "G:\\Farshid\\PGML_STemp_results\\models\\415_sites"
   data: "//home//fzr5082//PGML_STemp_results//data"
@@ -17,8 +17,7 @@ output:
 optData:
   name: 'hydroDL.data.camels.DataframeCamels'
   subset: 'All'
-#  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean', "ccov"]
-  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
+  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']    # , '00060_Mean'
 
   varC: [
     'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
@@ -31,7 +30,6 @@ optData:
     'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
     'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
     'geol_permeability'
-
 
 #    'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
 #     'SLOPE_PCT', 'RAW_DIS_NEAREST_MAJ_DAM', 'STRAHLER_MAX', 'CLAYAVE', "stream_length_artificial", 'PPTAVG_BASIN',   # "NHDlength_tot(m)"   , 'stream_length_artificial'
@@ -58,11 +56,8 @@ optData:
 #    'PERHOR', 'CONTACT', 'MAINSTEM_SINUOUSITY', 'REACHCODE',
 #    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
   ]
-#  varT_PRMS: [
-#  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
-#  ]
   varT_PRMS: [
-    'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"
+  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"
   ]
 #  varC_PRMS: [
 #      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp', 'srain_intcp',
@@ -84,9 +79,9 @@ optData:
 
   target: ["00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
   tRange: [19800101, 20150101]
-  t_train: [19841001, 19951001]   # there should be an overlap because of the warm_up
+  t_train: [19851001, 19951001]
   t_val: [20101001, 20111001]
-  t_test: [19941001, 20101001]    # there should be an overlap because of the warm_up
+  t_test: [19951001, 20101001]
 #  tRange: [19800101, 20200101]
 #  t_train: [20100101, 20141001]
 #  t_val: [20151001, 20161001]
@@ -102,10 +97,10 @@ optData:
 hyperparameters:
   rho: 365
   batch_size: 40
-  EPOCHS: 100
+  EPOCHS: 400
   hidden_size: 256
   dropout: 0.5
-  saveEpoch: 50
+  saveEpoch: 20
 seq_lin_layers:
   hidden_size: 256
 res_time_params:
@@ -117,8 +112,8 @@ lat_temp_adj: "False"
 shade_smoothening: "False"
 frac_smoothening:
   mode: "True"
-  gw_filter_size: 40
-warm_up: 365
+  gw_filter_size: 20
+warm_up: 0
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]

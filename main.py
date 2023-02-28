@@ -22,7 +22,7 @@ import time
 import os
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
-from post import stat, plot
+from post import stat , plot
 import math
 from ruamel.yaml import YAML
 
@@ -111,7 +111,7 @@ def main(args):
         no_tot_params = len(args["marrmot_paramCalLst"])
         ny = args["nmul"] * no_tot_params
         model = CudnnLstmModel(
-            nx=len(args["optData"]["varT"] + args["optData"]["varC"]) - 1,
+            nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
             ny=ny,
             hiddenSize=args["hyperparameters"]["hidden_size"],
             dr=args["hyperparameters"]["dropout"],
@@ -139,6 +139,7 @@ def main(args):
             CUDA_LAUNCH_BLOCKING = 1
             # moving dataset to CUDA
 
+
         c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False, device="cpu")
 
         if 0 in args["Action"]:
@@ -158,9 +159,9 @@ def main(args):
             )
 
             vars = args["optData"]["varT"] + args["optData"]["varC"]
-            x_train_scaled_noccov = np.delete(
-                x_train_scaled, vars.index("ccov"), axis=2
-            )
+            # x_train_scaled_noccov = np.delete(
+            #     x_train_scaled, vars.index("ccov"), axis=2
+            # )
 
             ave_air_total = Ts.ave_temp_general(
                 args, x_total_raw_tensor, time_range=args["optData"]["t_train"]
@@ -182,7 +183,7 @@ def main(args):
                     )
                     xTrain_sample_scaled = selectSubset(
                         args,
-                        x_train_scaled_noccov,
+                        x_train_scaled,
                         iGrid,
                         iT,
                         rho + warm_up,
@@ -202,11 +203,11 @@ def main(args):
                     ### CudnnLstm
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
-                    yObs = selectSubset(
+                    flowObs = selectSubset(
                         args, y_train, iGrid, iT, rho + warm_up, has_grad=False
                     )
 
-                    Yp = PRMS(
+                    flowSim, _,_,_,_ = PRMS(
                         x_PRMS_sample.transpose(0, 1),
                         c_PRMS_sample,
                         params,
@@ -229,10 +230,10 @@ def main(args):
                     #                                                                  air_sample_ss=air_sample_ss,
                     #                                                                  air_sample_gw=air_sample_gw)
 
-                    mask_yp = Yp.ge(1e-6)
-                    y_sim = Yp * mask_yp.int().float()
+                    # mask_yp = flowSim.ge(1e-6)
+                    # flow_sim = flowSim * mask_yp.int().float()
                     loss = lossFun(
-                        y_sim.unsqueeze(-1), yObs[warm_up:, :, :].transpose(1, 0)
+                        flowSim.unsqueeze(-1), flowObs[warm_up:, :, :].transpose(1, 0)
                     )
                     # loss = lossFun(test_sim, test)
                     # c = list(model.parameters())[0].clone()
@@ -276,27 +277,27 @@ def main(args):
             del (
                 x_train_scaled,
                 y_train_scaled,
-                x_train_scaled_noccov,
+                # x_train_scaled_noccov,
                 y_train,
                 ave_air_total,
                 x_train,
             )
-            del (
-                gw_tau,
-                ss_tau,
-                pet,
-                shade_fraction_riparian,
-                shade_fraction_topo,
-                top_width,
-                cloud_fraction,
-                hamon_coef,
-                lat_temp_adj,
-            )
+            # del (
+            #     gw_tau,
+            #     ss_tau,
+            #     pet,
+            #     shade_fraction_riparian,
+            #     shade_fraction_topo,
+            #     top_width,
+            #     cloud_fraction,
+            #     hamon_coef,
+            #     lat_temp_adj,
+            # )
 
         if 1 in args["Action"]:
             # to free up some GPU memory
             del x_total_temp, c_raw, y_scaled, c_scaled
-
+            warm_up = args["warm_up"]
             modelFile = os.path.join(
                 args["output"]["out_dir"],
                 "model_Ep" + str(args["hyperparameters"]["EPOCHS"]) + ".pt",
@@ -308,22 +309,28 @@ def main(args):
             # iGrid = np.arange(99)
 
             time1 = hydroDL.utils.time.tRange2Array(args["optData"]["tRange"])
-            x_test, y_test, ngrid_test, nIterEp, nt, batchSize = train_val_test_split(
+            x_PRMS_test, y_test, ngrid_test, nIterEp, nt, batchSize = train_val_test_split(
+                "t_test", args, time1, x_PRMS, y_raw
+            )
+            x_test, _, _, _, _, _ = train_val_test_split(
                 "t_test", args, time1, x_total_raw, y_raw
             )
+
             # Normalizing the inputs for ML part
             x_test_scaled, _, _, _, _, _ = train_val_test_split(
                 "t_test", args, time1, x_total_scaled, y_raw
             )
 
             del x_total_raw, y_raw, x_total_scaled
-            x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
+            # x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
 
-            np.save(os.path.join(args["output"]["out_dir"], "x.npy"), x_test)
+            np.save(os.path.join(args["output"]["out_dir"], "x.npy"), x_test)  # saves with the overlap in the beginning
             x_test_tensor = make_tensor(x_test, has_grad=False)
-            x_test_scaled_tensor = make_tensor(
-                x_test_scaled_noccov, has_grad=False
-            )  # x_test_scaled
+            x_test_scaled_tensor = make_tensor(x_test_scaled, has_grad=False)
+            x_PRMS_test_tensor = make_tensor(x_PRMS_test, has_grad=False)
+            # x_test_scaled_tensor = make_tensor(
+            #     x_test_scaled_noccov, has_grad=False
+            # )  # x_test_scaled
             y_test_tensor = make_tensor(y_test, has_grad=False)
 
             args_mod = args.copy()
@@ -331,7 +338,7 @@ def main(args):
             # args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
             ngrid, nt, nx = x_test_scaled_tensor.shape
             rho = args["hyperparameters"]["rho"]
-            nrows = math.ceil(nt / rho)
+            nrows = math.ceil((nt - warm_up) / rho)   # need to reduce the warm_up from beginning
             batch_size = args_mod["hyperparameters"]["batch_size"]
             iS = np.arange(0, ngrid, batch_size)
             iE = np.append(iS[1:], ngrid)
@@ -344,295 +351,377 @@ def main(args):
                 for j in range(nrows):
                     if j != (nrows - 1):
                         yTemp = torch.tensor(
-                            y_test_tensor[iS[i] : iE[i], j * rho : (j + 1) * rho, :]
+                            y_test_tensor[iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :]
                         )
                         xTemp_scaled = x_test_scaled_tensor[
-                            iS[i] : iE[i], j * rho : (j + 1) * rho, :
-                        ]
-                        xTemp = x_test_tensor[iS[i] : iE[i], j * rho : (j + 1) * rho, :]
-                        ave_air_test = ave_air_total[
-                            iS[i] : iE[i], j * rho : (j + 1) * rho, :
-                        ]
+                                       iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :
+                                       ]
+                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :]
+                        c_PRMS_sample = torch.tensor(
+                            c_PRMS[iS[i]: iE[i],:], device=args["device"], dtype=torch.float32
+                        )
 
-                        air_sample_sr = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_srflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
-                        )
-                        air_sample_ss = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_ssflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
-                        )
-                        air_sample_gw = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_gwflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
-                        )
+                        # yTemp = torch.tensor(
+                        #     y_test_tensor[iS[i] : iE[i], j * rho : (j + 1) * rho, :]
+                        # )
+                        # xTemp_scaled = x_test_scaled_tensor[
+                        #     iS[i] : iE[i], j * rho : (j + 1) * rho, :
+                        # ]
+                        # xTemp = x_test_tensor[iS[i] : iE[i], j * rho : (j + 1) * rho, :]
+                        # ave_air_test = ave_air_total[
+                        #     iS[i] : iE[i], j * rho : (j + 1) * rho, :
+                        # ]
+
+                        # air_sample_sr = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_srflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
+                        # air_sample_ss = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_ssflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
+                        # air_sample_gw = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_gwflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
 
                         if type(model) in [MLP]:
                             params = model(xTemp_scaled)
                         ### CudnnLstm
                         if type(model) in [CudnnLstmModel]:
                             params = model(xTemp_scaled)
-                        iGrid = np.arange(xTemp.shape[0])
+                        iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        (
-                            Yp,
-                            ave_air_temp,
-                            gwflow_percentage,
-                            ssflow_percentage,
-                            gw_tau,
-                            ss_tau,
-                            pet,
-                            shade_fraction_riparian,
-                            shade_fraction_topo,
-                            top_width,
-                            cloud_fraction,
-                            hamon_coef,
-                            lat_temp_adj,
-                        ) = Ts.forward(
-                            xTemp,
+                        flowSim, flux_sas, flux_sro, flux_bas, flux_ras = PRMS(
+                            x_PRMS_sample,
+                            c_PRMS_sample,
                             params,
-                            iGrid,
-                            iT,
-                            args=args_mod,
-                            air_sample_sr=air_sample_sr,
-                            air_sample_ss=air_sample_ss,
-                            air_sample_gw=air_sample_gw,
+                            args,
+                            warm_up,
                         )
+                        # (
+                        #     Yp,
+                        #     ave_air_temp,
+                        #     gwflow_percentage,
+                        #     ssflow_percentage,
+                        #     gw_tau,
+                        #     ss_tau,
+                        #     pet,
+                        #     shade_fraction_riparian,
+                        #     shade_fraction_topo,
+                        #     top_width,
+                        #     cloud_fraction,
+                        #     hamon_coef,
+                        #     lat_temp_adj,
+                        # ) = Ts.forward(
+                        #     xTemp,
+                        #     params,
+                        #     iGrid,
+                        #     iT,
+                        #     args=args_mod,
+                        #     air_sample_sr=air_sample_sr,
+                        #     air_sample_ss=air_sample_ss,
+                        #     air_sample_gw=air_sample_gw,
+                        # )
 
                     else:
-                        yTemp = torch.tensor(y_test_tensor[iS[i] : iE[i], j * rho :, :])
-                        xTemp_scaled = x_test_scaled_tensor[iS[i] : iE[i], j * rho :, :]
-                        xTemp = x_test_tensor[iS[i] : iE[i], j * rho :, :]
-                        ave_air_test = ave_air_total[iS[i] : iE[i], j * rho :, :]
-                        air_sample_sr = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_srflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
+                        yTemp = torch.tensor(
+                            y_test_tensor[iS[i]: iE[i], j * rho:, :]
                         )
-                        air_sample_ss = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_ssflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
+                        xTemp_scaled = x_test_scaled_tensor[
+                                       iS[i]: iE[i], j * rho:, :
+                                       ]
+                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * rho:, :]
+                        c_PRMS_sample = torch.tensor(
+                            c_PRMS[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
                         )
-                        air_sample_gw = Ts.x_sample_air_temp2(
-                            iGrid=np.arange(0, ave_air_test.shape[0], 1),
-                            iT=np.zeros(ave_air_test.shape[0]),
-                            lenF=args["res_time_params"]["lenF_gwflow"],
-                            args=args,
-                            ave_air_total=ave_air_test,
-                        )
+
+                        # yTemp = torch.tensor(y_test_tensor[iS[i] : iE[i], j * rho :, :])
+                        # xTemp_scaled = x_test_scaled_tensor[iS[i] : iE[i], j * rho :, :]
+                        # xTemp = x_test_tensor[iS[i] : iE[i], j * rho :, :]
+                        # ave_air_test = ave_air_total[iS[i] : iE[i], j * rho :, :]
+                        # air_sample_sr = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_srflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
+                        # air_sample_ss = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_ssflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
+                        # air_sample_gw = Ts.x_sample_air_temp2(
+                        #     iGrid=np.arange(0, ave_air_test.shape[0], 1),
+                        #     iT=np.zeros(ave_air_test.shape[0]),
+                        #     lenF=args["res_time_params"]["lenF_gwflow"],
+                        #     args=args,
+                        #     ave_air_total=ave_air_test,
+                        # )
                         if type(model) in [MLP]:
                             params = model(xTemp_scaled)
                         ### CudnnLstm
                         if type(model) in [CudnnLstmModel]:
                             params = model(xTemp_scaled)
-                        iGrid = np.arange(xTemp.shape[0])
+                        iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        (
-                            Yp,
-                            ave_air_temp,
-                            gwflow_percentage,
-                            ssflow_percentage,
-                            gw_tau,
-                            ss_tau,
-                            pet,
-                            shade_fraction_riparian,
-                            shade_fraction_topo,
-                            top_width,
-                            cloud_fraction,
-                            hamon_coef,
-                            lat_temp_adj,
-                        ) = Ts.forward(
-                            xTemp,
+                        flowSim, flux_sas, flux_sro, flux_bas, flux_ras = PRMS(
+                            x_PRMS_sample,
+                            c_PRMS_sample,
                             params,
-                            iGrid,
-                            iT,
-                            args=args_mod,
-                            air_sample_sr=air_sample_sr,
-                            air_sample_ss=air_sample_ss,
-                            air_sample_gw=air_sample_gw,
+                            args,
+                            warm_up,
                         )
+                        # (
+                        #     Yp,
+                        #     ave_air_temp,
+                        #     gwflow_percentage,
+                        #     ssflow_percentage,
+                        #     gw_tau,
+                        #     ss_tau,
+                        #     pet,
+                        #     shade_fraction_riparian,
+                        #     shade_fraction_topo,
+                        #     top_width,
+                        #     cloud_fraction,
+                        #     hamon_coef,
+                        #     lat_temp_adj,
+                        # ) = Ts.forward(
+                        #     xTemp,
+                        #     params,
+                        #     iGrid,
+                        #     iT,
+                        #     args=args_mod,
+                        #     air_sample_sr=air_sample_sr,
+                        #     air_sample_ss=air_sample_ss,
+                        #     air_sample_gw=air_sample_gw,
+                        # )
 
                     if j == 0:
-                        out = torch.clone(Yp.detach().cpu())
-                        obstemp = torch.clone(yTemp)
-                        gw = torch.clone(gwflow_percentage.unsqueeze(-1).detach().cpu())
-                        ss = torch.clone(ssflow_percentage.unsqueeze(-1).detach().cpu())
-                        w_gw_tau = torch.clone(gw_tau.unsqueeze(-1).detach().cpu())
-                        w_ss_tau = torch.clone(ss_tau.unsqueeze(-1).detach().cpu())
-                        PET = torch.clone(pet.unsqueeze(-1).detach().cpu())
-                        shade_frac_rip = torch.clone(
-                            shade_fraction_riparian.unsqueeze(-1).detach().cpu()
-                        )
-                        shade_frac_top = torch.clone(
-                            shade_fraction_topo.unsqueeze(-1).detach().cpu()
-                        )
-                        top_w = torch.clone(top_width.unsqueeze(-1).detach().cpu())
-                        cloud = torch.clone(cloud_fraction.unsqueeze(-1).detach().cpu())
-                        hamon_co = torch.clone(hamon_coef.unsqueeze(-1).detach().cpu())
-                        lat_temp = torch.clone(
-                            ave_air_temp.unsqueeze(-1).detach().cpu()
-                        )
-                        lat_temp_bias = torch.clone(
-                            lat_temp_adj.unsqueeze(-1).detach().cpu()
-                        )
+                        Q_sim = torch.clone(flowSim.detach().cpu())
+                        Q_obs = torch.clone(yTemp[:, warm_up:, :])
+                        sr_sas = torch.clone(flux_sas.unsqueeze(-1).detach().cpu())
+                        sr_sro = torch.clone(flux_sro.unsqueeze(-1).detach().cpu())
+                        gw_bas = torch.clone(flux_bas.unsqueeze(-1).detach().cpu())
+                        ss_ras = torch.clone(flux_ras.unsqueeze(-1).detach().cpu())
+                        # out = torch.clone(Yp.detach().cpu())
+                        # obstemp = torch.clone(yTemp)
+                        # gw = torch.clone(gwflow_percentage.unsqueeze(-1).detach().cpu())
+                        # ss = torch.clone(ssflow_percentage.unsqueeze(-1).detach().cpu())
+                        # w_gw_tau = torch.clone(gw_tau.unsqueeze(-1).detach().cpu())
+                        # w_ss_tau = torch.clone(ss_tau.unsqueeze(-1).detach().cpu())
+                        # PET = torch.clone(pet.unsqueeze(-1).detach().cpu())
+                        # shade_frac_rip = torch.clone(
+                        #     shade_fraction_riparian.unsqueeze(-1).detach().cpu()
+                        # )
+                        # shade_frac_top = torch.clone(
+                        #     shade_fraction_topo.unsqueeze(-1).detach().cpu()
+                        # )
+                        # top_w = torch.clone(top_width.unsqueeze(-1).detach().cpu())
+                        # cloud = torch.clone(cloud_fraction.unsqueeze(-1).detach().cpu())
+                        # hamon_co = torch.clone(hamon_coef.unsqueeze(-1).detach().cpu())
+                        # lat_temp = torch.clone(
+                        #     ave_air_temp.unsqueeze(-1).detach().cpu()
+                        # )
+                        # lat_temp_bias = torch.clone(
+                        #     lat_temp_adj.unsqueeze(-1).detach().cpu()
+                        # )
                     else:
-                        out = torch.cat(
-                            (out, Yp.detach().cpu()), dim=1
-                        )  # Farshid: should dim be 1 or 2?
-                        obstemp = torch.cat((obstemp, yTemp), dim=1)
-                        gw = torch.cat(
-                            (gw, gwflow_percentage.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        ss = torch.cat(
-                            (ss, ssflow_percentage.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        w_gw_tau = torch.cat(
-                            (w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        w_ss_tau = torch.cat(
-                            (w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        PET = torch.cat((PET, pet.unsqueeze(-1).detach().cpu()), dim=1)
-                        shade_frac_rip = torch.cat(
-                            (
-                                shade_frac_rip,
-                                shade_fraction_riparian.unsqueeze(-1).detach().cpu(),
-                            ),
-                            dim=1,
-                        )
-                        shade_frac_top = torch.cat(
-                            (
-                                shade_frac_top,
-                                shade_fraction_topo.unsqueeze(-1).detach().cpu(),
-                            ),
-                            dim=1,
-                        )
-                        top_w = torch.cat(
-                            (top_w, top_width.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        cloud = torch.cat(
-                            (cloud, cloud_fraction.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        hamon_co = torch.cat(
-                            (hamon_co, hamon_coef.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        lat_temp = torch.cat(
-                            (lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1
-                        )
-                        lat_temp_bias = torch.cat(
-                            (lat_temp_bias, lat_temp_adj.unsqueeze(-1).detach().cpu()),
-                            dim=1,
-                        )
-                if i == 0:
-                    pred = torch.clone(out)
-                    obs = torch.clone(obstemp)
-                    gw_p = torch.clone(gw)
-                    ss_p = torch.clone(ss)
-                    weight_gw = torch.clone(w_gw_tau)
-                    weight_ss = torch.clone(w_ss_tau)
-                    PET_mm = torch.clone(PET)
-                    shade_frac_rip_mm = torch.clone(shade_frac_rip)
-                    shade_frac_top_mm = torch.clone(shade_frac_top)
-                    top_w_mm = torch.clone(top_w)
-                    cloud_mm = torch.clone(cloud)
-                    hamon_co_mm = torch.clone(hamon_co)
-                    lat_temp_mm = torch.clone(lat_temp)
-                    lat_temp_bias_m = torch.clone(lat_temp_bias)
-                else:
-                    pred = torch.cat((pred, out), dim=0)
-                    obs = torch.cat((obs, obstemp), dim=0)
-                    gw_p = torch.cat((gw_p, gw), dim=0)
-                    ss_p = torch.cat((ss_p, ss), dim=0)
-                    weight_gw = torch.cat((weight_gw, w_gw_tau), dim=0)
-                    weight_ss = torch.cat((weight_ss, w_ss_tau), dim=0)
-                    PET_mm = torch.cat((PET_mm, PET), dim=0)
-                    shade_frac_rip_mm = torch.cat(
-                        (shade_frac_rip_mm, shade_frac_rip), dim=0
-                    )
-                    shade_frac_top_mm = torch.cat(
-                        (shade_frac_top_mm, shade_frac_top), dim=0
-                    )
-                    top_w_mm = torch.cat((top_w_mm, top_w), dim=0)
-                    cloud_mm = torch.cat((cloud_mm, cloud), dim=0)
-                    hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
-                    lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
-                    lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
+                        Q_sim = torch.cat((Q_sim, flowSim.detach().cpu()), dim=1)
+                        Q_obs = torch.cat((Q_obs, yTemp[:, warm_up:, :]), dim=1)
+                        sr_sas = torch.cat((sr_sas, flux_sas.unsqueeze(-1).detach().cpu()), dim=1)
+                        sr_sro = torch.cat((sr_sro, flux_sro.unsqueeze(-1).detach().cpu()), dim=1)
+                        gw_bas = torch.cat((gw_bas, flux_bas.unsqueeze(-1).detach().cpu()), dim=1)
+                        ss_ras = torch.cat((ss_ras, flux_ras.unsqueeze(-1).detach().cpu()), dim=1)
 
-            mask_pred = pred.ge(0)
-            y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
-            loss = lossFun(y_sim.detach().cpu(), obs.detach().cpu())
+                        # out = torch.cat(
+                        #     (out, Yp.detach().cpu()), dim=1
+                        # )  # Farshid: should dim be 1 or 2?
+                        # obstemp = torch.cat((obstemp, yTemp), dim=1)
+                        # gw = torch.cat(
+                        #     (gw, gwflow_percentage.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # ss = torch.cat(
+                        #     (ss, ssflow_percentage.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # w_gw_tau = torch.cat(
+                        #     (w_gw_tau, gw_tau.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # w_ss_tau = torch.cat(
+                        #     (w_ss_tau, ss_tau.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # PET = torch.cat((PET, pet.unsqueeze(-1).detach().cpu()), dim=1)
+                        # shade_frac_rip = torch.cat(
+                        #     (
+                        #         shade_frac_rip,
+                        #         shade_fraction_riparian.unsqueeze(-1).detach().cpu(),
+                        #     ),
+                        #     dim=1,
+                        # )
+                        # shade_frac_top = torch.cat(
+                        #     (
+                        #         shade_frac_top,
+                        #         shade_fraction_topo.unsqueeze(-1).detach().cpu(),
+                        #     ),
+                        #     dim=1,
+                        # )
+                        # top_w = torch.cat(
+                        #     (top_w, top_width.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # cloud = torch.cat(
+                        #     (cloud, cloud_fraction.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # hamon_co = torch.cat(
+                        #     (hamon_co, hamon_coef.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # lat_temp = torch.cat(
+                        #     (lat_temp, ave_air_temp.unsqueeze(-1).detach().cpu()), dim=1
+                        # )
+                        # lat_temp_bias = torch.cat(
+                        #     (lat_temp_bias, lat_temp_adj.unsqueeze(-1).detach().cpu()),
+                        #     dim=1,
+                        # )
+                if i == 0:
+                    flow_pred = torch.clone(Q_sim)
+                    flow_obs = torch.clone(Q_obs)
+                    sr_sas_p = torch.clone(sr_sas)
+                    sr_sro_p = torch.clone(sr_sro)
+                    gw_bas_p = torch.clone(gw_bas)
+                    ss_ras_p = torch.clone(ss_ras)
+
+                    # pred = torch.clone(out)
+                    # obs = torch.clone(obstemp)
+                    # gw_p = torch.clone(gw)
+                    # ss_p = torch.clone(ss)
+                    # weight_gw = torch.clone(w_gw_tau)
+                    # weight_ss = torch.clone(w_ss_tau)
+                    # PET_mm = torch.clone(PET)
+                    # shade_frac_rip_mm = torch.clone(shade_frac_rip)
+                    # shade_frac_top_mm = torch.clone(shade_frac_top)
+                    # top_w_mm = torch.clone(top_w)
+                    # cloud_mm = torch.clone(cloud)
+                    # hamon_co_mm = torch.clone(hamon_co)
+                    # lat_temp_mm = torch.clone(lat_temp)
+                    # lat_temp_bias_m = torch.clone(lat_temp_bias)
+                else:
+                    flow_pred = torch.cat((flow_pred, Q_sim), dim=0)
+                    flow_obs = torch.cat((flow_obs, Q_obs), dim=0)
+                    sr_sas_p = torch.cat((sr_sas_p, sr_sas), dim=0)
+                    sr_sro_p = torch.cat((sr_sro_p, sr_sro), dim=0)
+                    gw_bas_p = torch.cat((gw_bas_p, gw_bas), dim=0)
+                    ss_ras_p = torch.cat((ss_ras_p, ss_ras), dim=0)
+
+                    # pred = torch.cat((pred, out), dim=0)
+                    # obs = torch.cat((obs, obstemp), dim=0)
+                    # gw_p = torch.cat((gw_p, gw), dim=0)
+                    # ss_p = torch.cat((ss_p, ss), dim=0)
+                    # weight_gw = torch.cat((weight_gw, w_gw_tau), dim=0)
+                    # weight_ss = torch.cat((weight_ss, w_ss_tau), dim=0)
+                    # PET_mm = torch.cat((PET_mm, PET), dim=0)
+                    # shade_frac_rip_mm = torch.cat(
+                    #     (shade_frac_rip_mm, shade_frac_rip), dim=0
+                    # )
+                    # shade_frac_top_mm = torch.cat(
+                    #     (shade_frac_top_mm, shade_frac_top), dim=0
+                    # )
+                    # top_w_mm = torch.cat((top_w_mm, top_w), dim=0)
+                    # cloud_mm = torch.cat((cloud_mm, cloud), dim=0)
+                    # hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
+                    # lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
+                    # lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
+
+            flow_pred = flow_pred.unsqueeze(-1)
+            loss = lossFun(flow_pred.detach().cpu(), flow_obs.detach().cpu())
+            # mask_pred = flow_pred.ge(0)
+            # y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
+            # loss = lossFun(y_sim.detach().cpu(), obs.detach().cpu())
             print(loss)
 
             predLst = list()
             obsLst = list()
-            y_sim_np = y_sim.detach().cpu().numpy()
-            y_obs_np = obs.detach().cpu().numpy()
-            gw_p_np = gw_p.detach().cpu().numpy()
-            ss_p_np = ss_p.detach().cpu().numpy()
-            weight_gw_np = weight_gw.detach().cpu().numpy()
-            weight_ss_np = weight_ss.detach().cpu().numpy()
-            PET_mm_np = PET_mm.detach().cpu().numpy()
-            shade_frac_rip_mm_np = shade_frac_rip_mm.detach().cpu().numpy()
-            shade_frac_top_mm_np = shade_frac_top_mm.detach().cpu().numpy()
-            top_w_mm_np = top_w_mm.detach().cpu().numpy()
-            cloud_mm_np = cloud_mm.detach().cpu().numpy()
-            hamon_co_mm_np = hamon_co_mm.detach().cpu().numpy()
-            lat_temp_mm_np = lat_temp_mm.detach().cpu().numpy()
-            lat_temp_bias_m_np = lat_temp_bias_m.detach().cpu().numpy()
-            predLst.append(
-                y_sim_np[:, 365:, :]
-            )  # the prediction list for all the models
-            obsLst.append(y_obs_np[:, 365:, :])
-            np.save(os.path.join(args["output"]["out_dir"], "pred.npy"), y_sim_np)
-            np.save(os.path.join(args["output"]["out_dir"], "obs.npy"), y_obs_np)
-            np.save(os.path.join(args["output"]["out_dir"], "gw_p.npy"), gw_p_np)
-            np.save(os.path.join(args["output"]["out_dir"], "ss_p.npy"), ss_p_np)
-            np.save(
-                os.path.join(args["output"]["out_dir"], "weight_gw.npy"), weight_gw_np
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "weight_ss.npy"), weight_ss_np
-            )
-            np.save(os.path.join(args["output"]["out_dir"], "PET.npy"), PET_mm_np)
-            np.save(
-                os.path.join(args["output"]["out_dir"], "shade_frac_rip.npy"),
-                shade_frac_rip_mm_np,
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "shade_frac_topo.npy"),
-                shade_frac_top_mm_np,
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "top_width.npy"), top_w_mm_np
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "cloud_frac.npy"), cloud_mm_np
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "hamon_coef.npy"),
-                hamon_co_mm_np,
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "lat_temp.npy"), lat_temp_mm_np
-            )
-            np.save(
-                os.path.join(args["output"]["out_dir"], "lat_temp_bias.npy"),
-                lat_temp_bias_m_np,
-            )
+
+            flow_pred_np = flow_pred.detach().cpu().numpy()
+            flow_obs_np = flow_obs.detach().cpu().numpy()
+            sr_sas_p_np = sr_sas_p.detach().cpu().numpy()
+            sr_sro_p_np = sr_sro_p.detach().cpu().numpy()
+            gw_bas_p_np = gw_bas_p.detach().cpu().numpy()
+            ss_ras_p_np = ss_ras_p.detach().cpu().numpy()
+            np.save(os.path.join(args["output"]["out_dir"], "flow_pred.npy"), flow_pred_np)
+            np.save(os.path.join(args["output"]["out_dir"], "flow_obs.npy"), flow_obs_np)
+            np.save(os.path.join(args["output"]["out_dir"], "sr_sas.npy"), sr_sas_p_np)
+            np.save(os.path.join(args["output"]["out_dir"], "sr_sro.npy"), sr_sro_p_np)
+            np.save(os.path.join(args["output"]["out_dir"], "gw_bas.npy"), gw_bas_p_np)
+            np.save(os.path.join(args["output"]["out_dir"], "ss_ras.npy"), ss_ras_p_np)
+            predLst.append(flow_pred_np[:, warm_up:, :])
+            obsLst.append(flow_obs_np[:, warm_up:, :])
+
+
+            # y_sim_np = y_sim.detach().cpu().numpy()
+            # y_obs_np = obs.detach().cpu().numpy()
+            # gw_p_np = gw_p.detach().cpu().numpy()
+            # ss_p_np = ss_p.detach().cpu().numpy()
+            # weight_gw_np = weight_gw.detach().cpu().numpy()
+            # weight_ss_np = weight_ss.detach().cpu().numpy()
+            # PET_mm_np = PET_mm.detach().cpu().numpy()
+            # shade_frac_rip_mm_np = shade_frac_rip_mm.detach().cpu().numpy()
+            # shade_frac_top_mm_np = shade_frac_top_mm.detach().cpu().numpy()
+            # top_w_mm_np = top_w_mm.detach().cpu().numpy()
+            # cloud_mm_np = cloud_mm.detach().cpu().numpy()
+            # hamon_co_mm_np = hamon_co_mm.detach().cpu().numpy()
+            # lat_temp_mm_np = lat_temp_mm.detach().cpu().numpy()
+            # lat_temp_bias_m_np = lat_temp_bias_m.detach().cpu().numpy()
+            # predLst.append(
+            #     y_sim_np[:, 365:, :]
+            # )  # the prediction list for all the models
+            # obsLst.append(y_obs_np[:, 365:, :])
+            # np.save(os.path.join(args["output"]["out_dir"], "pred.npy"), y_sim_np)
+            # np.save(os.path.join(args["output"]["out_dir"], "obs.npy"), y_obs_np)
+            # np.save(os.path.join(args["output"]["out_dir"], "gw_p.npy"), gw_p_np)
+            # np.save(os.path.join(args["output"]["out_dir"], "ss_p.npy"), ss_p_np)
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "weight_gw.npy"), weight_gw_np
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "weight_ss.npy"), weight_ss_np
+            # )
+            # np.save(os.path.join(args["output"]["out_dir"], "PET.npy"), PET_mm_np)
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "shade_frac_rip.npy"),
+            #     shade_frac_rip_mm_np,
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "shade_frac_topo.npy"),
+            #     shade_frac_top_mm_np,
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "top_width.npy"), top_w_mm_np
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "cloud_frac.npy"), cloud_mm_np
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "hamon_coef.npy"),
+            #     hamon_co_mm_np,
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "lat_temp.npy"), lat_temp_mm_np
+            # )
+            # np.save(
+            #     os.path.join(args["output"]["out_dir"], "lat_temp_bias.npy"),
+            #     lat_temp_bias_m_np,
+            # )
             statDictLst = [
                 stat.statError(x.squeeze(), y.squeeze())
                 for (x, y) in zip(predLst, obsLst)
@@ -683,18 +772,18 @@ def main(args):
             fig.show()
             plt.close()
             print("END testing")
-            del x_total_raw_tensor, x_test_scaled_noccov, x_test_scaled
-            del (
-                gw_tau,
-                ss_tau,
-                pet,
-                shade_fraction_riparian,
-                shade_fraction_topo,
-                top_width,
-                cloud_fraction,
-                hamon_coef,
-                lat_temp_adj,
-            )
+            del x_total_raw_tensor,  x_test_scaled  # ,x_test_scaled_noccov
+            # del (
+            #     gw_tau,
+            #     ss_tau,
+            #     pet,
+            #     shade_fraction_riparian,
+            #     shade_fraction_topo,
+            #     top_width,
+            #     cloud_fraction,
+            #     hamon_coef,
+            #     lat_temp_adj,
+            # )
             torch.cuda.empty_cache()
 
 
