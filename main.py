@@ -71,7 +71,7 @@ def main(args):
     lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
     frac_smoothening_list = ["True", "False"]
-    s = [0, 0]
+    s = [0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj, frac_smooth in zip(
         s,
@@ -203,6 +203,9 @@ def main(args):
                     ### CudnnLstm
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
+
+
+
                     flowObs = selectSubset(
                         args, y_train, iGrid, iT, rho + warm_up, has_grad=False
                     )
@@ -232,8 +235,13 @@ def main(args):
 
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
+                    flowObs = flowObs[warm_up:, :, :].transpose(1, 0)  # to make it in flowSim format
+                    varC_PRMS = args["optData"]["varC_PRMS"]
+                    area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
+                    flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
+                    # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
                     loss = lossFun(
-                        flowSim.unsqueeze(-1), flowObs[warm_up:, :, :].transpose(1, 0)
+                        flowSim.unsqueeze(-1), flowObs
                     )
                     # loss = lossFun(test_sim, test)
                     # c = list(model.parameters())[0].clone()
@@ -445,6 +453,7 @@ def main(args):
                             c_PRMS[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
                         )
 
+                        # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
                         # yTemp = torch.tensor(y_test_tensor[iS[i] : iE[i], j * rho :, :])
                         # xTemp_scaled = x_test_scaled_tensor[iS[i] : iE[i], j * rho :, :]
                         # xTemp = x_test_tensor[iS[i] : iE[i], j * rho :, :]
@@ -641,7 +650,11 @@ def main(args):
                     # hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
                     # lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
                     # lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
-
+            varC_PRMS = args["optData"]["varC_PRMS"]
+            area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flow_obs.shape[
+                1]).unsqueeze(-1)
+            flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
+                    area * (10 ** 6))  # convert ft3/s to mm/day
             flow_pred = flow_pred.unsqueeze(-1)
             loss = lossFun(flow_pred.detach().cpu(), flow_obs.detach().cpu())
             # mask_pred = flow_pred.ge(0)
