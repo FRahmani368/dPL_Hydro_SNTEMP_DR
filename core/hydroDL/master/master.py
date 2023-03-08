@@ -145,34 +145,34 @@ def calFDC(data):
 def loadData(args, readX=True, readY=True):
 
     df = hydroDL.data.camels.DataframeCamels(
-        subset=args["optData"]["subset"], tRange=args["optData"]["tRange"]
+        subset=args["subset"], tRange=args["tRange"]
     )
     x = df.getDataTs(
         args,
-        varLst=args["optData"]["varT"],
-        doNorm=args["optData"]["doNorm"][0],
-        rmNan=args["optData"]["rmNan"][0],
+        varLst=args["varT"],
+        doNorm=args["doNorm"][0],
+        rmNan=args["rmNan"][0],
     )
     y = df.getDataObs(
-        args, doNorm=args["optData"]["doNorm"][1], rmNan=args["optData"]["rmNan"][1]
+        args, doNorm=args["doNorm"][1], rmNan=args["rmNan"][1]
     )  # doNorm=optData['doNorm'][1]     optData['rmNan'][1]
     c = df.getDataConst(
         args,
-        varLst=args["optData"]["varC"],
-        doNorm=args["optData"]["doNorm"][0],
-        rmNan=args["optData"]["rmNan"][0],
+        varLst=args["varC"],
+        doNorm=args["doNorm"][0],
+        rmNan=args["rmNan"][0],
     )
     c_PRMS = df.getDataConst(
         args,
-        varLst=args["optData"]["varC_PRMS"],
+        varLst=args["varC_PRMS"],
         doNorm=False, #args["optData"]["doNorm"][0],
-        rmNan=args["optData"]["rmNan"][0],
+        rmNan=args["rmNan"][0],
     )
     x_PRMS = df.getDataTs(
         args,
-        varLst=args["optData"]["varT_PRMS"],
-        doNorm=args["optData"]["doNorm"][0],
-        rmNan=args["optData"]["rmNan"][0],
+        varLst=args["varT_PRMS"],
+        doNorm=args["doNorm"][0],
+        rmNan=args["rmNan"][0],
     )
 
     return df, x, y, c, c_PRMS, x_PRMS

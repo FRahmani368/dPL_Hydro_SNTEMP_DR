@@ -593,15 +593,15 @@ class STREAM_TEMP_EQ(nn.Module):
         return ave_air
 
     def ave_temp_general(self, args, x_total_raw_tensor, time_range):
-        vars = args["optData"]["varT"] + args["optData"]["varC"]
+        vars = args["varT"] + args["varC"]
         lenF_max = np.maximum(
-            args["res_time_params"]["lenF_srflow"],
+            args["res_time_lenF_srflow"],
             np.maximum(
-                args["res_time_params"]["lenF_ssflow"],
-                args["res_time_params"]["lenF_gwflow"],
+                args["res_time_lenF_ssflow"],
+                args["res_time_lenF_gwflow"],
             ),
         )
-        tArray_Total = tRange2Array(args["optData"]["tRange"])
+        tArray_Total = tRange2Array(args["tRange"])
         tArray_sample = tRange2Array(time_range)
         c, ind1, ind2 = np.intersect1d(tArray_sample, tArray_Total, return_indices=True)
         ave_air = torch.zeros(

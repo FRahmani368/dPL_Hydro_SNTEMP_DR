@@ -13,7 +13,7 @@ from MODELS.PRMS import PRMS_pytorch
 from MODELS.marrmot.prms_marrmot import prms_marrmot
 from MODELS import crit
 from core import hydroDL
-from core.small_codes import make_tensor, tRange2Array, intersect
+from core.small_codes import make_tensor, tRange2Array, intersect, update_args
 import torch
 import torch.nn as nn
 import numpy as np
@@ -25,6 +25,7 @@ from sklearn import preprocessing
 from post import stat , plot
 import math
 from ruamel.yaml import YAML
+from core.hydroDL.data.camels import initcamels
 
 
 def syntheticP(args):
@@ -81,12 +82,18 @@ def main(args):
         lat_temp_adj_list,
         frac_smoothening_list,
     ):
-        args["res_time_params"]["type"] = typ
-        args["res_time_params"]["lenF_gwflow"] = LenF_gw
-        args["res_time_params"]["lenF_ssflow"] = LenF_ss
-        args["lat_temp_adj"] = adj
+        # updating args
+        args = update_args(args,
+                            res_time_type=typ,
+                            res_time_lenF_gwflow=LenF_gw,
+                            res_time_lenF_ssflow=LenF_ss,
+                            lat_temp_adj=adj,
+                            frac_smoothening_mode=frac_smooth
+        )
+
+
         # args["shade_smoothening"] = shade_smooth
-        args["frac_smoothening"]["mode"] = frac_smooth
+
         # args['randomseed'] = seed
         # torch.cuda.set_per_process_memory_fraction(0.9)   # work for torch > 1.4
         randomseed_config(seed)
@@ -97,12 +104,28 @@ def main(args):
         x_total_temp, y_raw, c_raw, c_PRMS, x_PRMS = load_df(args)
 
         x_total_raw = x_total_temp.copy()
+
+        # making the stats for normalization only on the training part
+        time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
+        (
+            x_train,
+            y_train,
+            _,
+            _,
+            _,
+            _,
+        ) = train_val_test_split("t_train", args, time1, x_total_raw, y_raw)
+        initcamels(args, x_train, y_train)
+        del (x_train, y_train)
+
+        # normalizing x, y, c
         x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
         c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
-        time1 = hydroDL.utils.time.tRange2Array(args["optData"]["tRange"])
+
         #
-        vars = args["optData"]["varT"] + args["optData"]["varC"]
+        vars = args["varT"] + args["varC"]
         x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False, device="cpu")
+        c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False, device="cpu")
 
         # ANN model to simulate parameters
         # model = MLP(args)
@@ -111,10 +134,10 @@ def main(args):
         no_tot_params = len(args["marrmot_paramCalLst"])
         ny = args["nmul"] * no_tot_params
         model = CudnnLstmModel(
-            nx=len(args["optData"]["varT"] + args["optData"]["varC"]),
+            nx=len(args["varT"] + args["varC"]),
             ny=ny,
-            hiddenSize=args["hyperparameters"]["hidden_size"],
-            dr=args["hyperparameters"]["dropout"],
+            hiddenSize=args["hidden_size"],
+            dr=args["dropout"],
         )
         PRMS = prms_marrmot()
         # PRMS = PRMS_pytorch()
@@ -140,7 +163,7 @@ def main(args):
             # moving dataset to CUDA
 
 
-        c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False, device="cpu")
+
 
         if 0 in args["Action"]:
             (
@@ -158,29 +181,29 @@ def main(args):
                 "t_train", args, time1, x_PRMS, y_raw
             )
 
-            vars = args["optData"]["varT"] + args["optData"]["varC"]
+            vars = args["varT"] + args["varC"]
             # x_train_scaled_noccov = np.delete(
             #     x_train_scaled, vars.index("ccov"), axis=2
             # )
 
             ave_air_total = Ts.ave_temp_general(
-                args, x_total_raw_tensor, time_range=args["optData"]["t_train"]
+                args, x_total_raw_tensor, time_range=args["t_train"]
             )
 
-            rho = args["hyperparameters"]["rho"]
+            rho = args["rho"]
             warm_up = args["warm_up"]
             model.zero_grad()
             model.train()
             # training
-            for epoch in range(1, args["hyperparameters"]["EPOCHS"] + 1):
+            for epoch in range(1, args["EPOCHS"] + 1):
                 lossEp = 0
                 t0 = time.time()
                 for iIter in range(1, nIterEp + 1):
                     iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho + warm_up])
 
-                    xTrain_sample = selectSubset(
-                        args, x_train, iGrid, iT, rho + warm_up, has_grad=False
-                    )
+                    # xTrain_sample = selectSubset(
+                    #     args, x_train, iGrid, iT, rho + warm_up, has_grad=False
+                    # )
                     xTrain_sample_scaled = selectSubset(
                         args,
                         x_train_scaled,
@@ -236,7 +259,7 @@ def main(args):
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
                     flowObs = flowObs[warm_up:, :, :].transpose(1, 0)  # to make it in flowSim format
-                    varC_PRMS = args["optData"]["varC_PRMS"]
+                    varC_PRMS = args["varC_PRMS"]
                     area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                     flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
                     # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
@@ -273,13 +296,13 @@ def main(args):
                 )
                 print(logStr)
 
-                if epoch % args["hyperparameters"]["saveEpoch"] == 0:
+                if epoch % args["saveEpoch"] == 0:
                     # save model
                     modelFile = os.path.join(
-                        args["output"]["out_dir"], "model_Ep" + str(epoch) + ".pt"
+                        args["out_dir"], "model_Ep" + str(epoch) + ".pt"
                     )
                     torch.save(model, modelFile)
-                if epoch == args["hyperparameters"]["EPOCHS"]:
+                if epoch == args["EPOCHS"]:
                     print("last epoch")
             print("end")
             del (
@@ -307,8 +330,8 @@ def main(args):
             del x_total_temp, c_raw, y_scaled, c_scaled
             warm_up = args["warm_up"]
             modelFile = os.path.join(
-                args["output"]["out_dir"],
-                "model_Ep" + str(args["hyperparameters"]["EPOCHS"]) + ".pt",
+                args["out_dir"],
+                "model_Ep" + str(args["EPOCHS"]) + ".pt",
             )
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
 
@@ -316,7 +339,7 @@ def main(args):
             model.eval()
             # iGrid = np.arange(99)
 
-            time1 = hydroDL.utils.time.tRange2Array(args["optData"]["tRange"])
+            time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
             x_PRMS_test, y_test, ngrid_test, nIterEp, nt, batchSize = train_val_test_split(
                 "t_test", args, time1, x_PRMS, y_raw
             )
@@ -332,7 +355,7 @@ def main(args):
             del x_total_raw, y_raw, x_total_scaled
             # x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
 
-            np.save(os.path.join(args["output"]["out_dir"], "x.npy"), x_test)  # saves with the overlap in the beginning
+            np.save(os.path.join(args["out_dir"], "x.npy"), x_test)  # saves with the overlap in the beginning
             x_test_tensor = make_tensor(x_test, has_grad=False)
             x_test_scaled_tensor = make_tensor(x_test_scaled, has_grad=False)
             x_PRMS_test_tensor = make_tensor(x_PRMS_test, has_grad=False)
@@ -342,16 +365,16 @@ def main(args):
             y_test_tensor = make_tensor(y_test, has_grad=False)
 
             args_mod = args.copy()
-            args_mod["hyperparameters"]["batch_size"] = args["no_basins"]
+            args_mod["batch_size"] = args["no_basins"]
             # args_mod["hyperparameters"]["rho"] = x_test_scaled_tensor.shape[1]
             ngrid, nt, nx = x_test_scaled_tensor.shape
-            rho = args["hyperparameters"]["rho"]
+            rho = args["rho"]
             nrows = math.ceil((nt - warm_up) / rho)   # need to reduce the warm_up from beginning
-            batch_size = args_mod["hyperparameters"]["batch_size"]
+            batch_size = args_mod["batch_size"]
             iS = np.arange(0, ngrid, batch_size)
             iE = np.append(iS[1:], ngrid)
             ave_air_total = Ts.ave_temp_general(
-                args, x_total_raw_tensor, time_range=args["optData"]["t_test"]
+                args, x_total_raw_tensor, time_range=args["t_test"]
             )
             for i in range(0, len(iS)):
                 # print('batch {}'.format(i))
@@ -651,7 +674,7 @@ def main(args):
                     # lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
                     # lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
             varC_PRMS = args["optData"]["varC_PRMS"]
-            area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flow_obs.shape[
+            area = make_tensor(c_PRMS[:, varC_PRMS.index("area_gages2")]).unsqueeze(-1).repeat(1, flow_obs.shape[
                 1]).unsqueeze(-1)
             flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
                     area * (10 ** 6))  # convert ft3/s to mm/day
@@ -753,7 +776,7 @@ def main(args):
             mdstd = pd.DataFrame(
                 mdstd, index=statDictLst[0].keys(), columns=["median", "STD", "mean"]
             )
-            mdstd.to_csv((os.path.join(args["output"]["out_dir"], "mdstd.csv")))
+            mdstd.to_csv((os.path.join(args["out_dir"], "mdstd.csv")))
 
             # Show boxplots of the results
             plt.rcParams["font.size"] = 14
@@ -780,7 +803,7 @@ def main(args):
             fig.suptitle(boxPlotName, fontsize=12)
             plt.rcParams["font.size"] = 12
             plt.savefig(
-                os.path.join(args["output"]["out_dir"], "Boxplot.png")
+                os.path.join(args["out_dir"], "Boxplot.png")
             )  # , dpi=500
             fig.show()
             plt.close()

@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 
 """Local terminal path"""
 """pycharm path"""
-config_path = "config/config.yaml"
+config_path = "config/config_orderedDic.yaml"
 yaml = YAML(typ="safe")
 path = os.path.realpath(config_path)
 stream = open(path, "r")

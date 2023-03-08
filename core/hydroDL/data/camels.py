@@ -300,7 +300,7 @@ def calStatbasinnorm(
     """
     y[y == (-999)] = np.nan
     y[y < 0] = 0
-    force_attr_list = args["optData"]["varT"] + args["optData"]["varC"]
+    force_attr_list = args["varT"] + args["varC"]
     # attr_data = read_attr_data(args, idLst=idLst)
     if "DRAIN_SQKM" in force_attr_list:
         area_name = "DRAIN_SQKM"
@@ -358,16 +358,16 @@ def calStatAll(args, x, y):
     # y = readUsgs(args, idLst, dfMain)
     # # statDict['usgsFlow'] = calStatgamma(y)
     # ##statDict['00060_Mean'] = calStatbasinnorm(y)
-    if args["optData"]["target"] == ["00060_Mean"]:
+    if args["target"] == ["00060_Mean"]:
         statDict["00060_Mean"] = calStatbasinnorm(y, x, args)
     # elif args['optData']['target'] == ['combine_discharge']:
     #     statDict['00060_Mean'] = calStatbasinnorm(y, idLst)
     else:
-        statDict[args["optData"]["target"][0]] = calStat(y)
+        statDict[args["target"][0]] = calStat(y)
     # USGS streamflow
     # statDict['00060_Mean'] = calStatbasinnorm(y, x, args)
     # forcing
-    forcingLst = args["optData"]["varT"] + args["optData"]["varC"]
+    forcingLst = args["varT"] + args["varC"]
     # x = readForcing(idLst, dfMain, varLst=forcingLst)
     for k in range(len(forcingLst)):
         var = forcingLst[k]
@@ -387,7 +387,7 @@ def calStatAll(args, x, y):
     #     var = attrLst[k]
     #     statDict[var] = calStat(attrData[:, k])
     statFile = os.path.join(
-        os.path.dirname(args["dataset"]["forcing_path"]), "Statistics_basinnorm.json"
+        os.path.dirname(args["out_dir"]), "Statistics_basinnorm.json"
     )
     with open(statFile, "w") as fp:
         json.dump(statDict, fp, indent=4)
@@ -499,8 +499,9 @@ else:
 def initcamels(args, x, y):
     # reinitialize module variable
     global dirDB, gageDict, statDict, forcing_data, attr_data, TempTarget
-    stats_directory = os.path.dirname(args["dataset"]["forcing_path"])
+    stats_directory = os.path.dirname(args["out_dir"])
     statFile = os.path.join(stats_directory, "Statistics_basinnorm.json")
+
     if not os.path.isfile(statFile):
         calStatAll(args, x, y)
     with open(statFile, "r") as fp:
@@ -520,7 +521,7 @@ class DataframeCamels(Dataframe):
 
     def getDataObs(self, args, *, doNorm=False, rmNan=False, basinnorm=False):
 
-        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
         if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfiles)
         elif inputfile.endswith(".feather"):
@@ -529,22 +530,29 @@ class DataframeCamels(Dataframe):
             print("data type is not supported")
             exit()
         sites = dfMain["site_no"].unique()
-        tLst = utils.time.tRange2Array(args["optData"]["tRange"])
-        tLstobs = utils.time.tRange2Array(args["optData"]["tRange"])
+        tLst = utils.time.tRange2Array(args["tRange"])
+        tLstobs = utils.time.tRange2Array(args["tRange"])
         # nt = len(tLst)
         ntobs = len(tLstobs)
         nNodes = len(sites)
         y = np.empty([nNodes, ntobs])
 
-        for k, kk in enumerate(sites):
-            data = (
-                dfMain.loc[dfMain["site_no"] == kk, args["optData"]["target"]]
-                .to_numpy()
-                .squeeze()
-            )
-            y[k, :] = data
+        # for k, kk in enumerate(sites):
+        #     data = (
+        #         dfMain.loc[dfMain["site_no"] == kk, args["optData"]["target"]]
+        #         .to_numpy()
+        #         .squeeze()
+        #     )
+        #     y[k, :] = data
 
-        data = y
+        ## Farshid : trying a faster method compared to the upper six lines
+        # ## (to check: np.array_equal(y, y2, equal_nan=True)
+        yt = dfMain.loc[:, args["target"]].values
+        g = dfMain.reset_index(drop=True).groupby("site_no")
+        ytg = [yt[i.values, :] for k, i in g.groups.items()]
+        y = np.array(ytg)
+
+        data = y.squeeze()
 
         # data = readUsgs(self.usgsId)
         #   if basinnorm is True:
@@ -566,7 +574,7 @@ class DataframeCamels(Dataframe):
     def getDataTs(self, args, *, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
         if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfiles)
         elif inputfile.endswith(".feather"):
@@ -575,16 +583,22 @@ class DataframeCamels(Dataframe):
             print("data type is not supported")
             exit()
         sites = dfMain["site_no"].unique()
-        tLst = utils.time.tRange2Array(args["optData"]["tRange"])
-        tLstobs = utils.time.tRange2Array(args["optData"]["tRange"])
+        tLst = utils.time.tRange2Array(args["tRange"])
+        tLstobs = utils.time.tRange2Array(args["tRange"])
         # nt = len(tLst)
         ntobs = len(tLstobs)
         nNodes = len(sites)
-        x = np.empty([nNodes, ntobs, len(varLst)])
 
-        for k, kk in enumerate(sites):
-            data = dfMain.loc[dfMain["site_no"] == kk, varLst].to_numpy()
-            x[k, :, :] = data
+        # x = np.empty([nNodes, ntobs, len(varLst)])
+        # for k, kk in enumerate(sites):
+        #     data = dfMain.loc[dfMain["site_no"] == kk, varLst].to_numpy()
+        #     x[k, :, :] = data
+
+        ## Farshid : trying a faster method compared to the upper four lines ##
+        xt = dfMain.loc[:, varLst].values
+        g = dfMain.reset_index(drop=True).groupby("site_no")
+        xtg = [xt[i.values, :] for k, i in g.groups.items()]
+        x = np.array(xtg)
 
         data = x
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
@@ -603,17 +617,17 @@ class DataframeCamels(Dataframe):
     def getDataConst(self, args, *, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args["dataset"]["forcing_path"]))
+        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
         if inputfile.endswith(".csv"):
             dfMain = pd.read_csv(inputfile)
             inputfile2 = os.path.join(
-                os.path.realpath(args["dataset"]["attr_path"])
+                os.path.realpath(args["attr_path"])
             )  #   attr
             dfC = pd.read_csv(inputfile2)
         elif inputfile.endswith(".feather"):
             dfMain = pd.read_feather(inputfile)
             inputfile2 = os.path.join(
-                os.path.realpath(args["dataset"]["attr_path"])
+                os.path.realpath(args["attr_path"])
             )  #   attr
             dfC = pd.read_feather(inputfile2)
         else:

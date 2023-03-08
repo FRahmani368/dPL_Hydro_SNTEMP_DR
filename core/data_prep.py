@@ -42,31 +42,31 @@ def scaling(args, x, y, c):
     initcamels(args, x, y)
     # Normalization
     x_total_scaled = transNorm(
-        x, args["optData"]["varT"] + args["optData"]["varC"], toNorm=True
+        x, args["varT"] + args["varC"], toNorm=True
     )
-    y_scaled = transNorm(y, args["optData"]["target"][0], toNorm=True)
-    c_scaled = transNorm(c, args["optData"]["varC"], toNorm=True)
+    y_scaled = transNorm(y, args["target"][0], toNorm=True)
+    c_scaled = transNorm(c, args["varC"], toNorm=True)
     return x_total_scaled, y_scaled, c_scaled
 
 
 def train_val_test_split(set_name, args, time1, x_total, y_total):
-    t = hydroDL.utils.time.tRange2Array(args["optData"][set_name])
+    t = hydroDL.utils.time.tRange2Array(args[set_name])
     c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]
     ngrid, nt, nx = x.shape
-    if t.shape[0] < args["hyperparameters"]["rho"]:
+    if t.shape[0] < args["rho"]:
         rho = t.shape[0]
     else:
-        rho = args["hyperparameters"]["rho"]
+        rho = args["rho"]
     nIterEp = int(
         np.ceil(
             np.log(0.01)
-            / np.log(1 - args["hyperparameters"]["batch_size"] * rho / ngrid / nt)
+            / np.log(1 - args["batch_size"] * rho / ngrid / nt)
         )
     )
 
-    return x, y, ngrid, nIterEp, nt, args["hyperparameters"]["batch_size"]
+    return x, y, ngrid, nIterEp, nt, args["batch_size"]
 
 
 def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):

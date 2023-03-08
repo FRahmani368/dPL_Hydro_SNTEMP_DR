@@ -2,35 +2,33 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [ 1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 16
-dataset:
-  forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
-  attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
+forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
+attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
 #  forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_40_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 #  attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_40_attr.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
-output:
-  model: "/scratch/fzr5082/PGML_STemp_results/models/415_sites"
-  data: "//home//fzr5082//PGML_STemp_results//data"
+output_model: "/scratch/fzr5082/PGML_STemp_results/models/415_sites"
+data: "//home//fzr5082//PGML_STemp_results//data"
 
-optData:
-  name: 'hydroDL.data.camels.DataframeCamels'
-  subset: 'All'
+
+name: 'hydroDL.data.camels.DataframeCamels'
+subset: 'All'
 #  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean', "ccov"]
-  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
+varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
 
-  varC: [
-    'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-    'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-    'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-    'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-    'dom_land_cover', 'soil_depth_pelletier',                  #'root_depth_50'
-    'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-    'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-    'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-    'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-    'geol_permeability'
+varC: [
+  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
+  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
+  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
+  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
+  'dom_land_cover', 'soil_depth_pelletier',                  #'root_depth_50'
+  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
+  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
+  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
+  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
+  'geol_permeability'
 
 
 #    'DRAIN_SQKM','STREAMS_KM_SQ_KM','STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06',
@@ -57,89 +55,86 @@ optData:
 #    'ELEV_MEDIAN_M_BASIN', 'ELEV_STD_M_BASIN', 'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'DDENS_2009',
 #    'PERHOR', 'CONTACT', 'MAINSTEM_SINUOUSITY', 'REACHCODE',
 #    'ARTIFPATH_PCT','TOPWET', 'BAS_COMPACTNESS', 'AWCAVE', 'PERMAVE', 'RFACT'
-  ]
+]
 #  varT_PRMS: [
 #  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
 #  ]
-  varT_PRMS: [
-    'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"
-  ]
+varT_PRMS: [
+  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"
+]
 #  varC_PRMS: [
 #      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp', 'srain_intcp',
 #      'wrain_intcp', 'hru_percent_imperv', 'hru_area', "smidx_coef", "smidx_exp",
 #      'DRAIN_SQKM'
 #  ]
-  varC_PRMS: [
-    'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-    'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-    'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-    'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-    'dom_land_cover',  'soil_depth_pelletier',              #'root_depth_50',
-    'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-    'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-    'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-    'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-    'geol_permeability'
-  ]
+varC_PRMS: [
+  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
+  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
+  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
+  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
+  'dom_land_cover',  'soil_depth_pelletier',              #'root_depth_50',
+  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
+  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
+  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
+  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
+  'geol_permeability'
+]
 
-  target: ["00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
-  tRange: [19800101, 20150101]
-  t_train: [19841001, 19951001]   # there should be an overlap because of the warm_up
-  t_val: [20101001, 20111001]
-  t_test: [19941001, 20101001]    # there should be an overlap because of the warm_up
+target: ["00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+tRange: [19800101, 20150101]
+t_train: [19841001, 19951001]   # there should be an overlap because of the warm_up
+t_val: [20101001, 20111001]
+t_test: [19941001, 20101001]    # there should be an overlap because of the warm_up
 #  tRange: [19800101, 20200101]
 #  t_train: [20100101, 20141001]
 #  t_val: [20151001, 20161001]
 #  t_test: [20141001, 20160930]
-  doNorm: [True, True]
-  rmNan: [True, False]
-  daObs: 0
-  damean: False
-  davar: 'StreamTemp'
-  dameanopt: 0
-  lckernel: None
-  fdcopt: False
-hyperparameters:
-  rho: 365
-  batch_size: 336
-  EPOCHS: 250
-  hidden_size: 256
-  dropout: 0.5
-  saveEpoch: 50
-seq_lin_layers:
-  hidden_size: 256
-res_time_params:
-  type: "Meisner"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
-  lenF_ssflow: 1   #60
-  lenF_gwflow: 30 #
-  lenF_srflow: 1
+doNorm: [True, True]
+rmNan: [True, False]
+daObs: 0
+damean: False
+davar: 'StreamTemp'
+dameanopt: 0
+lckernel: None
+fdcopt: False
+
+rho: 365
+batch_size: 336
+EPOCHS: 20
+hidden_size: 256
+dropout: 0.5
+saveEpoch: 5
+
+seq_lin_layers_hidden_size: 256
+
+res_time_type: "Meisner"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
+res_time_lenF_ssflow: 1   #60
+res_time_lenF_gwflow: 30 #
+res_time_lenF_srflow: 1
 lat_temp_adj: "False"
 shade_smoothening: "False"
-frac_smoothening:
-  mode: "True"
-  gw_filter_size: 40
+
+frac_smoothening_mode: "True"
+frac_smoothening_gw_filter_size: 40
 warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
 one_param_target: ["shade_fraction"]
-STemp_default_params:
-  shade_fraction: 0.05
-  longwave_reflect_fraction: 0.0
-  cloud_fraction: 0.1
-  emissivity_veg: 0
-  shade_fraction_riparian: 0.5
-  albedo: 0.1
-  delta_Z: 1.0       # for streambed conduction
-params:
-  water_density: 1000
-  C_w: 4184    # J/kg. K
+STemp_default_shade_fraction: 0.05
+STemp_default_longwave_reflect_fraction: 0.0
+STemp_default_cloud_fraction: 0.1
+STemp_default_emissivity_veg: 0
+STemp_default_shade_fraction_riparian: 0.5
+STemp_default_albedo: 0.1
+STemp_default_delta_Z: 1.0       # for streambed conduction
+
+params_water_density: 1000
+params_C_w: 4184    # J/kg. K
 NEARZERO: 1e-10
 Epan_coef: 1.0
-initial_values:
-  shade_fraction: 0.1
+
+initial_values_shade_fraction: 0.1
 no_basins: 336
-params_calibrated:
-  shade: "/home/fzr5082/PGML_STemp_results/params_calibrated/shade.pt"
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
