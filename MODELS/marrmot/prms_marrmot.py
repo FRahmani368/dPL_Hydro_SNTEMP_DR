@@ -5,6 +5,7 @@ import torch
 from MODELS.potet import get_potet
 from MODELS.marrmot import Forward_implicit_solver
 # from functorch import vmap, jacrev, jacfwd, vjp
+import torch.nn.functional as F
 
 class prms_marrmot_changed(torch.nn.Module):
     def __init__(self, args, settings={'TolX': 1e-12, 'TolFun': 1e-6, 'MaxIter': 1000}):
@@ -834,8 +835,10 @@ class prms_marrmot_changed(torch.nn.Module):
 class prms_marrmot(torch.nn.Module):
     def __init__(self):
         super(prms_marrmot, self).__init__()
+        self.sigmoid = torch.nn.Sigmoid()
 
-    def smoothThreshold_temperature_logistic(self, T, Tt, r=1.0):
+
+    def smoothThreshold_temperature_logistic(self, T, Tt, r=0.01):
         # By transforming the equation above to Sf = f(P,T,Tt,r)
         # Sf = P * 1/ (1+exp((T-Tt)/r))
         # T       : current temperature
@@ -843,8 +846,11 @@ class prms_marrmot(torch.nn.Module):
         # r       : [optional] smoothing parameter rho, default = 0.01
         # calculate multiplier
         # out = 1 / (1 + torch.exp((T - Tt) / r))
-        m = torch.nn.Sigmoid()
-        out = m(-(T - Tt) / r)
+        # out = torch.where(T < Tt,
+        #                   torch.ones(T.shape, dtype=torch.float32, device=T.device),
+        #                   torch.zeros(T.shape, dtype=torch.float32, device=T.device))
+        out = (T <= Tt).type(torch.float32)
+        # out = torch.clamp(F.logsigmoid(-(T - Tt) / r), 1e-5, 1.0 - 1e-5)
         # out = (torch.zeros(T.shape).to(T)) + 0.1
         return out
 
@@ -869,17 +875,23 @@ class prms_marrmot(torch.nn.Module):
         out = p1 * In
         return out
 
-    def smoothThreshold_storage_logistic(self, args, S, Smax, r=2, e=2.0):   # r= 0.01, e = 5.0
+    def smoothThreshold_storage_logistic(self, args, S, Smax, r=0.01, e=5.0):   # r= 0.01, e = 5.0
         # Smax = torch.clamp(Smax, min=0.0)
         #
-        # # out = torch.where(r * Smax == 0.0,
-        # #                   1 / (1 + torch.exp((S - Smax + r * e * Smax) / r)),
-        # #                   1 / (1 + torch.exp((S - Smax + r * e * Smax) / (r * Smax))))
-        m = torch.nn.Sigmoid()
-        out = torch.where(r * Smax == 0.0,
-                          m(-(S - Smax + r * e * Smax) / r),
-                          m(-(S - Smax + r * e * Smax) / (r * Smax)))
-        # out = (torch.zeros(S.shape).to(S)) + 0.05
+        # a_temp = torch.where(r * Smax == 0.0,
+        #                   (S - Smax + r * e * Smax) / r,
+        #                   (S - Smax + r * e * Smax) / (r * Smax))
+        # a_temp2 = torch.clamp(a_temp, min=-6.0, max=10.0)
+        # out = 1 / (1 + torch.exp(a_temp2))
+
+        # out = torch.where(r * Smax == 0.0,
+        #                   1 / (1 + torch.exp((S - Smax + r * e * Smax) / r)),
+        #                   1 / (1 + torch.exp((S - Smax + r * e * Smax) / (r * Smax))))
+
+        # out = torch.where(r * Smax == 0.0,
+        #                   torch.clamp(F.logsigmoid(-(S - Smax + r * e * Smax) / r),  1e-5, 1.0 - 1e-5),
+        #                   torch.clamp(F.logsigmoid(-(S - Smax + r * e * Smax) / (r * Smax)),  1e-5, 1.0 - 1e-5))
+        out = (torch.zeros(S.shape).to(S)) + 0.05
         return out
 
     def interception_1(self, args, In, S, Smax, varargin_r=2, varargin_e=1):   # varargin_r=0.01, varargin_e=5.0
@@ -1107,8 +1119,8 @@ class prms_marrmot(torch.nn.Module):
     def forward(self, x, c_PRMS, params, args, warm_up=0, init=False):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
-        vars = args["optData"]["varT_PRMS"]
-        vars_c_PRMS = args["optData"]["varC_PRMS"]
+        vars = args["varT_PRMS"]
+        vars_c_PRMS = args["varC_PRMS"]
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x[:, 0:warm_up, :]

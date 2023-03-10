@@ -133,19 +133,20 @@ def main(args):
         # no_tot_params = len(args["paramCalLst"])
         no_tot_params = len(args["marrmot_paramCalLst"])
         ny = args["nmul"] * no_tot_params
-        model = CudnnLstmModel(
-            nx=len(args["varT"] + args["varC"]),
-            ny=ny,
-            hiddenSize=args["hidden_size"],
-            dr=args["dropout"],
-        )
+        # model = CudnnLstmModel(
+        #     nx=len(args["varT"] + args["varC"]),
+        #     ny=ny,
+        #     hiddenSize=args["hidden_size"],
+        #     dr=args["dropout"],
+        # )
+        model = torch.load("/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites/SNTEMP_gw_365_ss_30_adj_T_fr_T40_stat__semi__nmul_16_s_0/model_Ep30.pt")
         PRMS = prms_marrmot()
         # PRMS = PRMS_pytorch()
         Ts = STREAM_TEMP_EQ()
         # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
         #
         # loss function
-        lossFun = crit.RmseLoss()
+        lossFun = crit.RmseLoss()    # lossFun = crit.RmseLossComb(alpha=0.25)
         optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
         # optim = torch.optim.SGD(model.parameters(), lr=10)
 
@@ -276,16 +277,16 @@ def main(args):
                     # print(torch.equal(c.data, b.data))
                     model.zero_grad()
                     lossEp = lossEp + loss.item()
-
-                    print(
-                        iIter,
-                        " from ",
-                        nIterEp,
-                        " in the ",
-                        epoch,
-                        "th epoch, and Loss is ",
-                        loss.item(),
-                    )
+                    if (iIter % 10 == 0) or (iIter == nIterEp):
+                        print(
+                            iIter,
+                            " from ",
+                            nIterEp,
+                            " in the ",
+                            epoch,
+                            "th epoch, and Loss is ",
+                            loss.item(),
+                        )
                 lossEp = lossEp / nIterEp
                 # torch.cuda.synchronize()
                 logStr = "Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory".format(
@@ -673,7 +674,7 @@ def main(args):
                     # hamon_co_mm = torch.cat((hamon_co_mm, hamon_co), dim=0)
                     # lat_temp_mm = torch.cat((lat_temp_mm, lat_temp), dim=0)
                     # lat_temp_bias_m = torch.cat((lat_temp_bias_m, lat_temp_bias), dim=0)
-            varC_PRMS = args["optData"]["varC_PRMS"]
+            varC_PRMS = args["varC_PRMS"]
             area = make_tensor(c_PRMS[:, varC_PRMS.index("area_gages2")]).unsqueeze(-1).repeat(1, flow_obs.shape[
                 1]).unsqueeze(-1)
             flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
@@ -694,12 +695,12 @@ def main(args):
             sr_sro_p_np = sr_sro_p.detach().cpu().numpy()
             gw_bas_p_np = gw_bas_p.detach().cpu().numpy()
             ss_ras_p_np = ss_ras_p.detach().cpu().numpy()
-            np.save(os.path.join(args["output"]["out_dir"], "flow_pred.npy"), flow_pred_np)
-            np.save(os.path.join(args["output"]["out_dir"], "flow_obs.npy"), flow_obs_np)
-            np.save(os.path.join(args["output"]["out_dir"], "sr_sas.npy"), sr_sas_p_np)
-            np.save(os.path.join(args["output"]["out_dir"], "sr_sro.npy"), sr_sro_p_np)
-            np.save(os.path.join(args["output"]["out_dir"], "gw_bas.npy"), gw_bas_p_np)
-            np.save(os.path.join(args["output"]["out_dir"], "ss_ras.npy"), ss_ras_p_np)
+            np.save(os.path.join(args["out_dir"], "flow_pred.npy"), flow_pred_np)
+            np.save(os.path.join(args["out_dir"], "flow_obs.npy"), flow_obs_np)
+            np.save(os.path.join(args["out_dir"], "sr_sas.npy"), sr_sas_p_np)
+            np.save(os.path.join(args["out_dir"], "sr_sro.npy"), sr_sro_p_np)
+            np.save(os.path.join(args["out_dir"], "gw_bas.npy"), gw_bas_p_np)
+            np.save(os.path.join(args["out_dir"], "ss_ras.npy"), ss_ras_p_np)
             predLst.append(flow_pred_np[:, warm_up:, :])
             obsLst.append(flow_obs_np[:, warm_up:, :])
 

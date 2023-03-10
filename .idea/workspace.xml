@@ -4,12 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="68d97517-062d-497e-a4bf-baed4a570cba" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/config/config_orderedDic.yaml" afterDir="false" />
+    <list default="true" id="466ed71b-94ff-4401-b47c-7b04772b46ca" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/PGML_STemp.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PGML_STemp.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/crit.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/crit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_orderedDic.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_orderedDic.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/data_prep.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/data_prep.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/hydroDL/data/camels.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/hydroDL/data/camels.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/read_configurations.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/read_configurations.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/small_codes.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/small_codes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -24,7 +28,7 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="ProjectId" id="2MNXLZCMzOu4vb0rZXIaGt57IlG" />
+  <component name="ProjectId" id="2MkYxU8NC4rToOJ6cR7rx1bDoqz" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -33,28 +37,21 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "/home/fzr5082/Github/PGML_STemp/config",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+    "last_opened_file_path": "/mnt/sdb/fzr5082/programs/anaconda3/envs/PGML_STemp",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PythonContentEntriesConfigurable"
   }
 }]]></component>
-  <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/config" />
-      <recent name="$PROJECT_DIR$" />
-    </key>
-  </component>
   <component name="RunManager">
-    <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PGML_STemp" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="/data/fzr5082/envs/PGML_STemp/bin/python3.7" />
-      <option name="SDK_NAME" value="Python 3.7 (PGML_STemp)" />
+      <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="false" />
+      <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
@@ -66,15 +63,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.main" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="68d97517-062d-497e-a4bf-baed4a570cba" name="Changes" comment="" />
-      <created>1677608959745</created>
+      <changelist id="466ed71b-94ff-4401-b47c-7b04772b46ca" name="Changes" comment="" />
+      <created>1678313293572</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1677608959745</updated>
+      <updated>1678313293572</updated>
     </task>
     <servers />
   </component>
@@ -82,24 +84,16 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/core/hydroDL/data/camels.py</url>
-          <line>360</line>
-          <option name="timeStamp" value="19" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="loss!=loss" language="Python" />
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>116</line>
-          <option name="timeStamp" value="20" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>100</line>
-          <option name="timeStamp" value="23" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>98</line>
+          <line>271</line>
           <option name="timeStamp" value="24" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="(epoch==3) and (iIter==18)" language="Python" />
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>236</line>
+          <option name="timeStamp" value="26" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

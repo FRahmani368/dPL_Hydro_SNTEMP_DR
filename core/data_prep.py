@@ -39,7 +39,7 @@ def scaling(args, x, y, c):
     :param y_total_raw:
     :return:  x, y, ngrid, nIterEp, nt
     """
-    initcamels(args, x, y)
+    # initcamels(args, x, y)
     # Normalization
     x_total_scaled = transNorm(
         x, args["varT"] + args["varC"], toNorm=True

@@ -386,9 +386,7 @@ def calStatAll(args, x, y):
     # for k in range(len(attrLst)):
     #     var = attrLst[k]
     #     statDict[var] = calStat(attrData[:, k])
-    statFile = os.path.join(
-        os.path.dirname(args["out_dir"]), "Statistics_basinnorm.json"
-    )
+    statFile = os.path.join(args["out_dir"], "Statistics_basinnorm.json")
     with open(statFile, "w") as fp:
         json.dump(statDict, fp, indent=4)
 
@@ -397,7 +395,7 @@ def transNorm(x, varLst, *, toNorm):
     if type(varLst) is str:
         varLst = [varLst]
     out = np.zeros(x.shape)
-
+    x_temp = x.copy()
     for k in range(len(varLst)):
         var = varLst[k]
 
@@ -409,20 +407,20 @@ def transNorm(x, varLst, *, toNorm):
                     or var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
-                    x[:, :, k] = np.log10(np.sqrt(x[:, :, k]) + 0.1)
+                    x_temp[:, :, k] = np.log10(np.sqrt(x_temp[:, :, k]) + 0.1)
 
-                out[:, :, k] = (x[:, :, k] - stat[2]) / stat[3]
+                out[:, :, k] = (x_temp[:, :, k] - stat[2]) / stat[3]
             elif len(x.shape) == 2:
                 if (
                     var == "prcp(mm/day)"
                     or var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
-                    x[:, k] = np.log10(np.sqrt(x[:, k]) + 0.1)
-                out[:, k] = (x[:, k] - stat[2]) / stat[3]
+                    x_temp[:, k] = np.log10(np.sqrt(x_temp[:, k]) + 0.1)
+                out[:, k] = (x_temp[:, k] - stat[2]) / stat[3]
         else:
             if len(x.shape) == 3:
-                out[:, :, k] = x[:, :, k] * stat[3] + stat[2]
+                out[:, :, k] = x_temp[:, :, k] * stat[3] + stat[2]
                 if (
                     var == "prcp(mm/day)"
                     or var == "00060_Mean"
@@ -431,7 +429,7 @@ def transNorm(x, varLst, *, toNorm):
                     out[:, :, k] = (np.power(10, out[:, :, k]) - 0.1) ** 2
 
             elif len(x.shape) == 2:
-                out[:, k] = x[:, k] * stat[3] + stat[2]
+                out[:, k] = x_temp[:, k] * stat[3] + stat[2]
                 if (
                     var == "prcp(mm/day)"
                     or var == "00060_Mean"
@@ -499,7 +497,7 @@ else:
 def initcamels(args, x, y):
     # reinitialize module variable
     global dirDB, gageDict, statDict, forcing_data, attr_data, TempTarget
-    stats_directory = os.path.dirname(args["out_dir"])
+    stats_directory = args["out_dir"]
     statFile = os.path.join(stats_directory, "Statistics_basinnorm.json")
 
     if not os.path.isfile(statFile):

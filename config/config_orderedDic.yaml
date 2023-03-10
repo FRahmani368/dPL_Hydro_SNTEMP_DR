@@ -2,14 +2,14 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [0,1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 16
-forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
-attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
-#  forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_40_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-#  attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_40_attr.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "/scratch/fzr5082/PGML_STemp_results/models/415_sites"
+#forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
+#attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
+forcing_path: "//mnt//sdc//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "//mnt//sdc//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+output_model: "/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
@@ -89,7 +89,7 @@ t_test: [19941001, 20101001]    # there should be an overlap because of the warm
 #  t_train: [20100101, 20141001]
 #  t_val: [20151001, 20161001]
 #  t_test: [20141001, 20160930]
-doNorm: [True, True]
+doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
 damean: False
@@ -100,10 +100,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 336
-EPOCHS: 20
+EPOCHS: 30
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 5
+saveEpoch: 10
 
 seq_lin_layers_hidden_size: 256
 

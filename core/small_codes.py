@@ -10,7 +10,7 @@ import json
 import shutil
 
 
-def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config["device"]):
+def make_tensor(*values, has_grad=False, dtype=torch.float64, device=config["device"]):
 
     if len(values) > 1:
         tensor_list = []
