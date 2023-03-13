@@ -856,7 +856,7 @@ class prms_marrmot(torch.nn.Module):
 
 
     def snowfall_1(self, In, T, p1, varargin = 0.01):
-        out = In * ( 1 - self.smoothThreshold_temperature_logistic(T, p1))   #, r=varargin
+        out = In * (self.smoothThreshold_temperature_logistic(T, p1))   #, r=varargin
         return out
 
     def rainfall_1(self, In, T, p1, varargin = 0.01):
@@ -1126,35 +1126,44 @@ class prms_marrmot(torch.nn.Module):
                 xinit = x[:, 0:warm_up, :]
                 paramsinit = params[:, 0:warm_up, :]
                 warm_up_model = prms_marrmot()
-                Q_init, S1, S2, S3, S4, S5, S6, S7 = warm_up_model(xinit, c_PRMS, paramsinit, args, warm_up=0, init=True)
+                Q_init, snow_storage, XIN_storage, RSTOR_storage, \
+                    RECHR_storage, SMAV_storage, \
+                    RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, warm_up=0, init=True)
         else:
-            S1 = torch.zeros(
+            # snow storage
+            snow_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
-            S2 = torch.zeros(
+            # interception storage
+            XIN_storage = torch.zeros(
+                [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
+            ) + 0.75
+            # RSTOR storage
+            RSTOR_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
-            S3 = torch.zeros(
+            #storage in upper soil moisture zone
+            RECHR_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
-            S4 = torch.zeros(
+            # storage in lower soil moisture zone
+            SMAV_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
-            S5 = torch.zeros(
+            # storage in runoff reservoir
+            RES_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
-            S6 = torch.zeros(
-                [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
-            S7 = torch.zeros(
+            # GW storage
+            GW_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
             ) + 2
 
         ## parameters for prms_marrmot. there are 18 parameters in it
         tt = self.multi_comp_parameter_bounds(params, 0, args)
         ddf = self.multi_comp_parameter_bounds(params, 1, args)
-        alpha = self.multi_comp_parameter_bounds(params, 2, args)
-        beta = self.multi_comp_parameter_bounds(params, 3, args)
+        alpha = self.multi_comp_parameter_bounds(params, 2, args)  # can br found in attr
+        beta = self.multi_comp_parameter_bounds(params, 3, args)    # can be found in attr
         stor = self.multi_comp_parameter_bounds(params, 4, args)
         retip = self.multi_comp_parameter_bounds(params, 5, args)
         fscn = self.multi_comp_parameter_bounds(params, 6, args)
@@ -1171,7 +1180,7 @@ class prms_marrmot(torch.nn.Module):
         k3 = self.multi_comp_parameter_bounds(params, 14, args)
         k4 = self.multi_comp_parameter_bounds(params, 15, args)
         k5 = self.multi_comp_parameter_bounds(params, 16, args)
-        k6 = self.multi_comp_parameter_bounds(params, 17, args) * 0.0 # because we don't have aany sink in the watersheds! Do we?
+        k6 = self.multi_comp_parameter_bounds(params, 17, args) # because we don't have any sink in the watersheds! Do we?
         #################
         # inputs
         Precip = (
@@ -1198,7 +1207,7 @@ class prms_marrmot(torch.nn.Module):
         sro_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
         bas_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
         ras_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
-
+        snk_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
         for t in range(Ndays):
             delta_t = 1 # timestep (day)
             P = Precip[:, t, :]
@@ -1206,88 +1215,100 @@ class prms_marrmot(torch.nn.Module):
             T = mean_air_temp[:, t, :]
 
             # fluxes
-            flux_ps = self.snowfall_1(P, T, tt[:, t, :])
-            flux_pr = self.rainfall_1(P, T, tt[:, t, :])
-            flux_pim = self.split_1(1 - beta[:, t, :], flux_pr)
-            flux_psm = self.split_1(beta[:, t, :], flux_pr)
-            flux_pby = self.split_1(1 - alpha[:, t, :], flux_psm)
-            flux_pin = self.split_1(alpha[:, t, :], flux_psm)
-            flux_ptf = self.interception_1(args, flux_pin, S2, stor[:, t, :])
-            flux_m = self.melt_1(ddf[:, t, :], tt[:, t, :], T, S1, delta_t)
+            flux_ps = torch.mul(P, (T <= tt[:, t, :]).type(torch.float32))
+            flux_pr = torch.mul(P, (T > tt[:, t, :]).type(torch.float32))
+            snow_storage = snow_storage + flux_ps
+            flux_m = ddf[:, t, :] * (T - tt[:, t, :])
+            flux_m = torch.min(flux_m, snow_storage/delta_t)
+            flux_m = torch.clamp(flux_m, min=0.0)
+            snow_storage = snow_storage - flux_m
+            snow_storage = torch.clamp(snow_storage, min=NEARZERO)  # to prevent NaN  gradient, it is set to NEARZERO
 
-            dS1 = flux_ps - flux_m
-            S1 = S1 + dS1
-            S1 = torch.clamp(S1, min=0.0)
+            flux_pim = flux_pr * (1 - beta[:, t, :])
+            flux_psm = flux_pr * beta[:, t, :]
+            flux_pby = flux_psm * (1 - alpha[:, t, :])
+            flux_pin = flux_psm * beta[:, t, :]
 
-            flux_mim = self.split_1(1 - beta[:, t, :], flux_m)
-            flux_msm = self.split_1(beta[:, t, :], flux_m)
-            flux_sas = self.saturation_1(args, flux_pim + flux_mim, S3, retip[:, t, :])
-            flux_sro = self.saturation_8(scn[:, t, :], scx[:, t, :], S4, remx[:, t, :], flux_msm + flux_ptf + flux_pby)
-            flux_inf = self.effective_1(flux_msm + flux_ptf + flux_pby, flux_sro)
-            flux_pc = self.saturation_1(args, flux_inf, S4, remx[:, t, :])
-            flux_excs = self.saturation_1(args, flux_pc, S5, smax[:, t, :])
-            flux_sep = self.recharge_7(cgw[:, t, :], flux_excs)
-            flux_qres = self.effective_1(flux_excs, flux_sep)
-            flux_gad = self.recharge_2(k2[:, t, :], S6, resmax[:, t, :], k1[:, t, :])
-            flux_ras = self.interflow_4(k3[:, t, :], k4[:, t, :], S6)
+            XIN_storage = XIN_storage + flux_pin
+            flux_ptf = XIN_storage - stor[:, t, :]
+            flux_ptf = torch.clamp(flux_ptf, min=0.0)
+            XIN_storage = torch.clamp(XIN_storage - flux_ptf, min=NEARZERO)
+            evap_max_in = Ep * beta[:, t, :]   # only can happen in pervious area
+            flux_ein = torch.min(evap_max_in, XIN_storage/delta_t)
+            XIN_storage = torch.clamp(XIN_storage - flux_ein, min=NEARZERO)
 
-            dS6 = flux_qres - flux_gad - flux_ras
-            S6 = S6 + dS6
-            S6 = torch.clamp(S6, min=0.0)
 
-            flux_bas = self.baseflow_1(k5[:, t, :], S7)
-            flux_snk = self.baseflow_1(k6[:, t, :], S7)    # represents transbasin gw or undergage streamflow
+            flux_mim = flux_m * (1 - beta[:, t, :])
+            flux_msm = flux_m * beta[:, t, :]
+            RSTOR_storage = RSTOR_storage + flux_mim + flux_pim
+            flux_sas = RSTOR_storage - retip[:, t, :]
+            flux_sas = torch.clamp(flux_sas, min=0.0)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_sas, min=NEARZERO)
+            evap_max_im = (1 - beta[:, t, :]) * Ep
+            flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
 
-            dS7 = flux_sep + flux_gad - flux_bas - flux_snk
-            S7 = S7 + dS7
-            S7 = torch.clamp(S7, min=0.0)
-            flux_ein = self.evap_1(S2, beta[:, t, :] * Ep, delta_t)
 
-            dS2 = flux_pin - flux_ein - flux_ptf
-            S2 = S2 + dS2
-            S2 = torch.clamp(S2, min=0.0)
+            sro_lin_ratio = scn[:, t, :] + (scx[:, t, :] - scn[:, t, :]) * (RECHR_storage / remx[:, t, :])
+            sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
+            flux_sro = sro_lin_ratio * (flux_msm + flux_ptf + flux_pby)
+            flux_inf = torch.clamp(flux_msm + flux_ptf + flux_pby - flux_sro, min=0.0)
+            RECHR_storage = RECHR_storage + flux_inf
+            flux_pc = RECHR_storage - remx[:, t, :]
+            flux_pc = torch.clamp(flux_pc, min=0.0)
+            RECHR_storage = RECHR_storage - flux_pc
+            evap_max_a = (RECHR_storage / remx[:, t, :]) * (Ep - flux_ein - flux_eim)
+            evap_max_a = torch.clamp(evap_max_a, min=0.0)
+            flux_ea = torch.min(evap_max_a, RECHR_storage / delta_t)
+            RECHR_storage = torch.clamp(RECHR_storage - flux_ea, min=NEARZERO)
 
-            flux_eim = self.evap_1(S3, (1 - beta[:, t, :]) * Ep, delta_t)
+            SMAV_storage = SMAV_storage + flux_pc
+            flux_excs = SMAV_storage - smax[:, t, :]
+            flux_excs = torch.clamp(flux_excs, min=0.0)
+            SMAV_storage = SMAV_storage - flux_excs
+            transp = torch.where(RECHR_storage < (Ep - flux_ein - flux_eim),
+                                 (SMAV_storage/smax[:, t, :]) * (Ep - flux_ein - flux_eim - flux_ea),
+                                 torch.zeros(flux_excs.shape, dtype=torch.float32, device=args["device"]))
+            transp = torch.clamp(transp, min=0.0)    # in case Ep - flux_ein - flux_eim - flux_ea was negative
+            SMAV_storage = SMAV_storage - transp
 
-            dS3 = flux_pim + flux_mim - flux_eim - flux_sas
-            S3 = S3 + dS3
-            S3 = torch.clamp(S3, min=0.0)
+            flux_sep = torch.min(cgw[:, t, :], flux_excs)
+            flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
 
-            flux_ea = self.evap_7(S4, remx[:, t, :], Ep - flux_ein - flux_eim, delta_t)
+            RES_storage = RES_storage + flux_qres
+            flux_ras = k3[:, t, :] * RES_storage + k4[:, t, :] * (RES_storage ** 2)
+            flux_ras = torch.min(flux_ras, RES_storage)
+            RES_storage = RES_storage - flux_ras
+            RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
+            RES_excess = torch.clamp(RES_excess, min=0.0)
+            flux_ras = flux_ras + RES_excess
+            flux_gad = k1[:, t, :] * ((RES_storage / resmax[:, t, :]) ** k2[:, t, :])
+            flux_gad = torch.min(flux_gad, RES_storage)
+            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
 
-            dS4 = flux_inf - flux_ea - flux_pc
-            S4 = S4 + dS4
-            S4 = torch.clamp(S4, min=0.0)
+            GW_storage = GW_storage + flux_gad + flux_sep
+            flux_bas = k5[:, t, :] * GW_storage
+            GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
+            flux_snk = k6[:, t, :] * GW_storage
+            GW_storage = GW_storage - flux_snk
 
-            flux_et = self.evap_15(args, Ep - flux_ein - flux_eim - flux_ea, S5, smax[:, t, :], S4, Ep - flux_ein - flux_eim, delta_t)
-
-            dS5 = flux_pc - flux_et - flux_excs
-            S5 = S5 + dS5
-            S5 = torch.clamp(S5, min=0.0)
-
-            # # stores ODEs
-            # dS1 = flux_ps - flux_m
-            # dS2 = flux_pin - flux_ein - flux_ptf
-            # dS3 = flux_pim + flux_mim - flux_eim - flux_sas
-            # dS4 = flux_inf - flux_ea - flux_pc
-            # dS5 = flux_pc - flux_et - flux_excs
-            # dS6 = flux_qres - flux_gad - flux_ras
-            # dS7 = flux_sep + flux_gad - flux_bas - flux_snk
-            # stores ODEs
             Q_sim[:, t, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[:, t, :] = flux_sas
             sro_sim[:, t, :] = flux_sro
             bas_sim[:, t, :] = flux_bas
             ras_sim[:, t, :] = flux_ras
+            snk_sim[:, t, :] = flux_snk
         if init:  # means we are in warm up
-            return Q_sim, S1, S2, S3, S4, S5, S6, S7
+            return Q_sim, snow_storage, XIN_storage, RSTOR_storage, \
+                RECHR_storage, SMAV_storage, RES_storage, GW_storage
         else:
-            return (
-                torch.mean(Q_sim, -1).squeeze(),
-                torch.mean(sas_sim, -1).squeeze(),
-                torch.mean(sro_sim, -1).squeeze(),
-                torch.mean(bas_sim, -1).squeeze(),
-                torch.mean(ras_sim, -1).squeeze()
+            return torch.cat((
+                torch.mean(Q_sim, -1).unsqueeze(-1),
+                torch.mean(sas_sim, -1).unsqueeze(-1),
+                torch.mean(sro_sim, -1).unsqueeze(-1),
+                torch.mean(bas_sim, -1).unsqueeze(-1),
+                torch.mean(ras_sim, -1).unsqueeze(-1),
+                torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
 
 

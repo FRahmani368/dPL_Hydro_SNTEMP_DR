@@ -133,13 +133,13 @@ def main(args):
         # no_tot_params = len(args["paramCalLst"])
         no_tot_params = len(args["marrmot_paramCalLst"])
         ny = args["nmul"] * no_tot_params
-        # model = CudnnLstmModel(
-        #     nx=len(args["varT"] + args["varC"]),
-        #     ny=ny,
-        #     hiddenSize=args["hidden_size"],
-        #     dr=args["dropout"],
-        # )
-        model = torch.load("/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites/SNTEMP_gw_365_ss_30_adj_T_fr_T40_stat__semi__nmul_16_s_0/model_Ep30.pt")
+        model = CudnnLstmModel(
+            nx=len(args["varT"] + args["varC"]),
+            ny=ny,
+            hiddenSize=args["hidden_size"],
+            dr=args["dropout"],
+        )
+        # model = torch.load("/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites/SNTEMP_gw_365_ss_30_adj_T_fr_T40_stat__semi__nmul_16_s_0/model_Ep30.pt")
         PRMS = prms_marrmot()
         # PRMS = PRMS_pytorch()
         Ts = STREAM_TEMP_EQ()
@@ -234,7 +234,7 @@ def main(args):
                         args, y_train, iGrid, iT, rho + warm_up, has_grad=False
                     )
 
-                    flowSim, _,_,_,_ = PRMS(
+                    flowSim = PRMS(
                         x_PRMS_sample.transpose(0, 1),
                         c_PRMS_sample,
                         params,
@@ -265,7 +265,7 @@ def main(args):
                     flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
                     # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
                     loss = lossFun(
-                        flowSim.unsqueeze(-1), flowObs
+                        flowSim[:, :, 0].unsqueeze(-1), flowObs
                     )
                     # loss = lossFun(test_sim, test)
                     # c = list(model.parameters())[0].clone()
@@ -433,7 +433,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        flowSim, flux_sas, flux_sro, flux_bas, flux_ras = PRMS(
+                        flowSim = PRMS(
                             x_PRMS_sample,
                             c_PRMS_sample,
                             params,
@@ -510,7 +510,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
-                        flowSim, flux_sas, flux_sro, flux_bas, flux_ras = PRMS(
+                        flowSim = PRMS(
                             x_PRMS_sample,
                             c_PRMS_sample,
                             params,
@@ -545,10 +545,10 @@ def main(args):
                     if j == 0:
                         Q_sim = torch.clone(flowSim.detach().cpu())
                         Q_obs = torch.clone(yTemp[:, warm_up:, :])
-                        sr_sas = torch.clone(flux_sas.unsqueeze(-1).detach().cpu())
-                        sr_sro = torch.clone(flux_sro.unsqueeze(-1).detach().cpu())
-                        gw_bas = torch.clone(flux_bas.unsqueeze(-1).detach().cpu())
-                        ss_ras = torch.clone(flux_ras.unsqueeze(-1).detach().cpu())
+                        # sr_sas = torch.clone(flux_sas.unsqueeze(-1).detach().cpu())
+                        # sr_sro = torch.clone(flux_sro.unsqueeze(-1).detach().cpu())
+                        # gw_bas = torch.clone(flux_bas.unsqueeze(-1).detach().cpu())
+                        # ss_ras = torch.clone(flux_ras.unsqueeze(-1).detach().cpu())
                         # out = torch.clone(Yp.detach().cpu())
                         # obstemp = torch.clone(yTemp)
                         # gw = torch.clone(gwflow_percentage.unsqueeze(-1).detach().cpu())
@@ -574,10 +574,10 @@ def main(args):
                     else:
                         Q_sim = torch.cat((Q_sim, flowSim.detach().cpu()), dim=1)
                         Q_obs = torch.cat((Q_obs, yTemp[:, warm_up:, :]), dim=1)
-                        sr_sas = torch.cat((sr_sas, flux_sas.unsqueeze(-1).detach().cpu()), dim=1)
-                        sr_sro = torch.cat((sr_sro, flux_sro.unsqueeze(-1).detach().cpu()), dim=1)
-                        gw_bas = torch.cat((gw_bas, flux_bas.unsqueeze(-1).detach().cpu()), dim=1)
-                        ss_ras = torch.cat((ss_ras, flux_ras.unsqueeze(-1).detach().cpu()), dim=1)
+                        # sr_sas = torch.cat((sr_sas, flux_sas.unsqueeze(-1).detach().cpu()), dim=1)
+                        # sr_sro = torch.cat((sr_sro, flux_sro.unsqueeze(-1).detach().cpu()), dim=1)
+                        # gw_bas = torch.cat((gw_bas, flux_bas.unsqueeze(-1).detach().cpu()), dim=1)
+                        # ss_ras = torch.cat((ss_ras, flux_ras.unsqueeze(-1).detach().cpu()), dim=1)
 
                         # out = torch.cat(
                         #     (out, Yp.detach().cpu()), dim=1
@@ -629,10 +629,10 @@ def main(args):
                 if i == 0:
                     flow_pred = torch.clone(Q_sim)
                     flow_obs = torch.clone(Q_obs)
-                    sr_sas_p = torch.clone(sr_sas)
-                    sr_sro_p = torch.clone(sr_sro)
-                    gw_bas_p = torch.clone(gw_bas)
-                    ss_ras_p = torch.clone(ss_ras)
+                    # sr_sas_p = torch.clone(sr_sas)
+                    # sr_sro_p = torch.clone(sr_sro)
+                    # gw_bas_p = torch.clone(gw_bas)
+                    # ss_ras_p = torch.clone(ss_ras)
 
                     # pred = torch.clone(out)
                     # obs = torch.clone(obstemp)
@@ -651,10 +651,10 @@ def main(args):
                 else:
                     flow_pred = torch.cat((flow_pred, Q_sim), dim=0)
                     flow_obs = torch.cat((flow_obs, Q_obs), dim=0)
-                    sr_sas_p = torch.cat((sr_sas_p, sr_sas), dim=0)
-                    sr_sro_p = torch.cat((sr_sro_p, sr_sro), dim=0)
-                    gw_bas_p = torch.cat((gw_bas_p, gw_bas), dim=0)
-                    ss_ras_p = torch.cat((ss_ras_p, ss_ras), dim=0)
+                    # sr_sas_p = torch.cat((sr_sas_p, sr_sas), dim=0)
+                    # sr_sro_p = torch.cat((sr_sro_p, sr_sro), dim=0)
+                    # gw_bas_p = torch.cat((gw_bas_p, gw_bas), dim=0)
+                    # ss_ras_p = torch.cat((ss_ras_p, ss_ras), dim=0)
 
                     # pred = torch.cat((pred, out), dim=0)
                     # obs = torch.cat((obs, obstemp), dim=0)
@@ -679,8 +679,8 @@ def main(args):
                 1]).unsqueeze(-1)
             flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
                     area * (10 ** 6))  # convert ft3/s to mm/day
-            flow_pred = flow_pred.unsqueeze(-1)
-            loss = lossFun(flow_pred.detach().cpu(), flow_obs.detach().cpu())
+            q_pred = flow_pred[:,:,0].unsqueeze(-1)
+            loss = lossFun(q_pred.detach().cpu(), flow_obs.detach().cpu())
             # mask_pred = flow_pred.ge(0)
             # y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
             # loss = lossFun(y_sim.detach().cpu(), obs.detach().cpu())
@@ -691,17 +691,18 @@ def main(args):
 
             flow_pred_np = flow_pred.detach().cpu().numpy()
             flow_obs_np = flow_obs.detach().cpu().numpy()
-            sr_sas_p_np = sr_sas_p.detach().cpu().numpy()
-            sr_sro_p_np = sr_sro_p.detach().cpu().numpy()
-            gw_bas_p_np = gw_bas_p.detach().cpu().numpy()
-            ss_ras_p_np = ss_ras_p.detach().cpu().numpy()
-            np.save(os.path.join(args["out_dir"], "flow_pred.npy"), flow_pred_np)
+            # sr_sas_p_np = sr_sas_p.detach().cpu().numpy()
+            # sr_sro_p_np = sr_sro_p.detach().cpu().numpy()
+            # gw_bas_p_np = gw_bas_p.detach().cpu().numpy()
+            # ss_ras_p_np = ss_ras_p.detach().cpu().numpy()
+            np.save(os.path.join(args["out_dir"], "flow_pred.npy"), flow_pred_np[:, :, 0])
             np.save(os.path.join(args["out_dir"], "flow_obs.npy"), flow_obs_np)
-            np.save(os.path.join(args["out_dir"], "sr_sas.npy"), sr_sas_p_np)
-            np.save(os.path.join(args["out_dir"], "sr_sro.npy"), sr_sro_p_np)
-            np.save(os.path.join(args["out_dir"], "gw_bas.npy"), gw_bas_p_np)
-            np.save(os.path.join(args["out_dir"], "ss_ras.npy"), ss_ras_p_np)
-            predLst.append(flow_pred_np[:, warm_up:, :])
+            np.save(os.path.join(args["out_dir"], "sr_sas.npy"), flow_pred_np[:, :, 1])
+            np.save(os.path.join(args["out_dir"], "sr_sro.npy"), flow_pred_np[:, :, 2])
+            np.save(os.path.join(args["out_dir"], "gw_bas.npy"), flow_pred_np[:, :, 3])
+            np.save(os.path.join(args["out_dir"], "ss_ras.npy"), flow_pred_np[:, :, 4])
+            np.save(os.path.join(args["out_dir"], "gw_snk.npy"), flow_pred_np[:, :, 5])
+            predLst.append(flow_pred_np[:, warm_up:, 0: 1])
             obsLst.append(flow_obs_np[:, warm_up:, :])
 
 
