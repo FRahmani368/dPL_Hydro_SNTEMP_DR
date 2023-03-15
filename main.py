@@ -67,7 +67,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
+    mode_type = ["test", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
@@ -131,8 +131,12 @@ def main(args):
         # model = MLP(args)
         # all parameters are going to be 3D -> [batchsize, rho, nmul]
         # no_tot_params = len(args["paramCalLst"])
-        no_tot_params = len(args["marrmot_paramCalLst"])
-        ny = args["nmul"] * no_tot_params
+        no_tot_params = args["No_prms_params"]
+        if args["routing"] == True:  # needs a and b for routing with conv method
+            ny = args["nmul"] * (no_tot_params + 2)
+        else:
+            ny = args["nmul"] * no_tot_params
+
         model = CudnnLstmModel(
             nx=len(args["varT"] + args["varC"]),
             ny=ny,
@@ -430,7 +434,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         ### CudnnLstm
                         if type(model) in [CudnnLstmModel]:
-                            params = model(xTemp_scaled)
+                            params = model(xTemp_scaled.float())
                         iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
                         flowSim = PRMS(
@@ -507,7 +511,7 @@ def main(args):
                             params = model(xTemp_scaled)
                         ### CudnnLstm
                         if type(model) in [CudnnLstmModel]:
-                            params = model(xTemp_scaled)
+                            params = model(xTemp_scaled.float())
                         iGrid = np.arange(xTemp_scaled.shape[0])
                         iT = np.zeros((len(iGrid)))
                         flowSim = PRMS(

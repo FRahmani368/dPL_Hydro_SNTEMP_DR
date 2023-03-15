@@ -57,6 +57,24 @@ def create_output_dirs(args, seed):
     else:
         semi = ""
 
+    L1 = len(args["static_params_list_prms"])
+    if L1 > 0:
+        stat_prms = str(args["static_params_list_prms"][0])
+        if L1 > 1:
+            for i in range(1, L1):
+                stat_prms = stat_prms + "_" + str(args["static_params_list_prms"][i])
+    else:
+        stat_prms = ""
+
+    L1 = len(args["semi_static_params_list_prms"])
+    if L1 > 0:
+        semi_prms = str(args["semi_static_params_list_prms"][0])
+        if L1 > 1:
+            for i in range(1, L1):
+                semi_prms = semi_prms + "_" + str(args["semi_static_params_list_prms"][i])
+    else:
+        semi_prms = ""
+
     out_folder = (
         str(args["res_time_type"])
         + "_gw_"
@@ -72,6 +90,10 @@ def create_output_dirs(args, seed):
         + stat
         + "_semi_"
         + semi
+        + "_Pstat_"
+        + stat_prms
+        + "_Psemi_"
+        + semi_prms
         + "_nmul_"
         + str(args["nmul"])
         + "_s_"

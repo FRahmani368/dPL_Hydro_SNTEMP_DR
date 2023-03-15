@@ -2,14 +2,14 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0,1]   # 0:Train,   1: Test
-device: "cuda"
+Action: [0, 1]   # 0:Train,   1: Test
+device: "cuda:7"
 nmul: 16
-#forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
-#attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_attr_site_no.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\PGML_STemp_results\\models\\415_sites"
+forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
+attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
+#forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+#attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_attr_site_no.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+output_model: "//scratch//fzr5082//PGML_STemp_results//models//415_sites"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
@@ -99,11 +99,11 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 33
-EPOCHS: 30
+batch_size: 336
+EPOCHS: 300
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 10
+saveEpoch: 20
 
 seq_lin_layers_hidden_size: 256
 
@@ -133,6 +133,9 @@ params_C_w: 4184    # J/kg. K
 NEARZERO: 1e-10
 Epan_coef: 1.0
 
+routing: True
+No_prms_params: 18
+
 initial_values_shade_fraction: 0.1
 no_basins: 336
 potet_module: "potet_hamon"
@@ -142,7 +145,7 @@ static_params_list: []
 semi_static_params_list: []
 method_for_semi_static_param: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
-static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+static_params_list_prms: [18, 19] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19]
 semi_static_params_list_prms: []
 method_for_semi_static_param_prms: ["average", "average", "average", "average"]
 interval_for_semi_static_param_prms: [30, 30]
@@ -188,5 +191,7 @@ marrmot_paramCalLst: [
     [0, 1],    # k3, Interflow coefficient 1 [d-1]
     [0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
     [0, 1],    # k5, Baseflow coefficient [d-1]
-    [0, 1]    # k6, Groundwater sink coefficient [d-1]
+    [0, 1],    # k6, Groundwater sink coefficient [d-1],
+    [0, 2.9],  # routing parameter a
+    [0, 6.5]   # routing parameter b
 ]

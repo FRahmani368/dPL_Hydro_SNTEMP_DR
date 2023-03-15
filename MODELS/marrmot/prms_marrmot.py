@@ -1115,8 +1115,119 @@ class prms_marrmot(torch.nn.Module):
                       delta_S1, delta_S2, delta_S3, delta_S4, delta_S5, delta_S6, delta_S7):
         return S1_old
 
+    def UH_gamma(self, a, b, lenF):
+        # UH. a [time (same all time steps), batch, var]
+        # a = torch.abs(a)
+        if a.dim() == 2:
+            m = a.shape
+            a1 = a.repeat(1, lenF)
+            b1 = b.repeat(1, lenF)
+            alpha = F.relu(a1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.1
+            beta = F.relu(b1).view(m[0], lenF, 1).permute(1, 0, 2) + 0.5
+            # x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
+            x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1).repeat(1, m[0], 1)
+            if torch.cuda.is_available():
+                x = x.cuda(a.device)
+            # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
+            denom = (alpha.lgamma().exp()) * torch.pow(beta, alpha)
+            right = torch.exp((-1) * x / beta)
+            mid = torch.pow(x, alpha - 1)
+            w = 1 / denom * mid * right
+            ww = torch.cumsum(w, dim=0)
+            www = ww / ww.sum(0)  # scale to 1 for each UH
+        elif a.dim() == 3:
+            m = a.shape
+            a1 = a.repeat(1, 1, lenF)
+            b1 = b.repeat(1, 1, lenF)
+            alpha = F.relu(a1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.1
+            beta = F.relu(b1).view(m[0], m[1], lenF).permute(2, 0, 1) + 0.5
+            # x = torch.arange(0.5, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
+            x = torch.linspace(0.01, 1, lenF).view(lenF, 1, 1).repeat(1, m[0], m[1])
+            if torch.cuda.is_available():
+                x = x.cuda(a.device)
+            # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
+            denom = (alpha.lgamma().exp()) * torch.pow(beta, alpha)
+            right = torch.exp((-1) * x / beta)
+            mid = torch.pow(x, alpha - 1)
+            w = 1 / denom * mid * right
+            ww = torch.cumsum(w, dim=0)
+            www = ww / ww.sum(0)  # scale to 1 for each UH
+        elif a.dim() == 4:
+            m = a.shape
+            a1 = a.repeat(1, 1, 1, lenF)
+            b1 = b.repeat(1, 1, 1, lenF)
+            alpha = F.relu(a1).view(m[0], m[1], m[2], lenF).permute(3, 0, 1, 2) + 0.1
+            beta = F.relu(b1).view(m[0], m[1], m[2], lenF).permute(3, 0, 1, 2) + 0.5
+            x = (
+                torch.linspace(0.001, 20, lenF)
+                .view(lenF, 1, 1, 1)
+                .repeat(1, m[0], m[1], m[2])
+            )
+            if torch.cuda.is_available():
+                x = x.cuda(a.device)
+            # w = torch.pow(beta, alpha) * torch.pow(x, alpha - 1) * torch.exp((-1) * beta * x) / alpha.lgamma()
+            denom = (alpha.lgamma().exp()) * torch.pow(beta, alpha)
+            right = torch.exp((-1) * x / beta)
+            mid = torch.pow(x, alpha - 1)
+            w = 1 / denom * mid * right
+            ww = torch.cumsum(w, dim=0)
+            www = ww / ww.sum(0)  # scale to 1 for each UH
+        return www
 
-    def forward(self, x, c_PRMS, params, args, warm_up=0, init=False):
+    def UH_conv(self, x_sample, UH, bias, viewmode=1):
+        # UH is a vector indicating the unit hydrograph
+        # the convolved dimension will be the last dimension
+        # UH convolution is
+        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+        # hence we flip the UH
+        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+        # view
+        # x: [batch, var, time]
+        # UH:[batch, var, uhLen]
+        # batch needs to be accommodated by channels and we make use of gr
+        # ++++---------------------------------+
+        #
+        # oups
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+        # https://pytorch.org/docs/stable/nn.functional.html
+        if UH.shape[1] == 1:
+            x = x_sample[:, 0:1, :]
+            mm = x.shape
+            nb = mm[0]
+            m = UH.shape[-1]
+            padd = m - 1
+            if viewmode == 1:
+                xx = x.view([1, nb, mm[-1]])
+                w = UH.view([nb, 1, m])
+                groups = nb
+
+                # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+                # y = y[:, :, 0:-padd]
+
+            x_sample1 = x_sample.permute(1, 0, 2)
+            a = torch.arange(x_sample.shape[1])
+            y = F.conv1d(
+                x_sample1[a],
+                torch.flip(w, [2]),
+                groups=groups,
+                padding=0,
+                stride=1,
+                bias=bias,
+            )
+            y = y.permute(1, 0, 2)
+        elif UH.shape[1] > 1:
+            w = torch.flip(UH, [2])
+            y = x_sample * w
+            y = y.sum(2)
+            if bias is not None:
+                y = y + bias
+            y = y.unsqueeze(3)
+
+        return y
+
+
+    def forward(self, x, c_PRMS, params, args, warm_up=0, init=False, routing=True):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
         vars = args["varT_PRMS"]
@@ -1130,6 +1241,7 @@ class prms_marrmot(torch.nn.Module):
                     RECHR_storage, SMAV_storage, \
                     RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, warm_up=0, init=True)
         else:
+
             # snow storage
             snow_storage = torch.zeros(
                 [x.shape[0], nmul], dtype=torch.float32, device=args["device"]
@@ -1160,6 +1272,7 @@ class prms_marrmot(torch.nn.Module):
             ) + 2
 
         ## parameters for prms_marrmot. there are 18 parameters in it
+        params = params[:, warm_up:, :]
         tt = self.multi_comp_parameter_bounds(params, 0, args)
         ddf = self.multi_comp_parameter_bounds(params, 1, args)
         alpha = self.multi_comp_parameter_bounds(params, 2, args)  # can br found in attr
@@ -1181,6 +1294,10 @@ class prms_marrmot(torch.nn.Module):
         k4 = self.multi_comp_parameter_bounds(params, 15, args)
         k5 = self.multi_comp_parameter_bounds(params, 16, args)
         k6 = self.multi_comp_parameter_bounds(params, 17, args) # because we don't have any sink in the watersheds! Do we?
+
+        if routing == True:
+            tempa = self.multi_comp_parameter_bounds(params, 18, args)
+            tempb = self.multi_comp_parameter_bounds(params, 19, args)
         #################
         # inputs
         Precip = (
@@ -1298,18 +1415,37 @@ class prms_marrmot(torch.nn.Module):
             bas_sim[:, t, :] = flux_bas
             ras_sim[:, t, :] = flux_ras
             snk_sim[:, t, :] = flux_snk
+
+        if routing == True:
+            # routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
+            # routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
+            UH = self.UH_gamma(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
+            rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
+            UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
+            Qsrout = self.UH_conv(rf, UH, bias=None).squeeze()
+        else:
+            Qsrout = Q_sim
+        # Q_simave = Qsrout.mean(-1, keepdim=True)
+        # sas_simave = sas_sim.mean(-1, keepdim=True)
+        # sro_simave = sro_sim.mean(-1, keepdim=True)
+        # bas_simave = bas_sim.mean(-1, keepdim=True)
+        # ras_simave = ras_sim.mean(-1, keepdim=True)
+        # snk_simave = snk_sim.mean(-1, keepdim=True)
+
+
         if init:  # means we are in warm up
-            return Q_sim, snow_storage, XIN_storage, RSTOR_storage, \
+            return Qsrout.mean(-1, keepdim=True), snow_storage, XIN_storage, RSTOR_storage, \
                 RECHR_storage, SMAV_storage, RES_storage, GW_storage
         else:
-            return torch.cat((
-                torch.mean(Q_sim, -1).unsqueeze(-1),
+            Qall = torch.cat((
+                torch.mean(Qsrout, -1).unsqueeze(-1),
                 torch.mean(sas_sim, -1).unsqueeze(-1),
                 torch.mean(sro_sim, -1).unsqueeze(-1),
                 torch.mean(bas_sim, -1).unsqueeze(-1),
                 torch.mean(ras_sim, -1).unsqueeze(-1),
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
+            return Qall
 
 
 
