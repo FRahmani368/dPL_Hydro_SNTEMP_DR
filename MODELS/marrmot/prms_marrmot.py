@@ -1115,7 +1115,7 @@ class prms_marrmot(torch.nn.Module):
                       delta_S1, delta_S2, delta_S3, delta_S4, delta_S5, delta_S6, delta_S7):
         return S1_old
 
-    def UH_gamma(self, a, b, lenF):
+    def UH_gamma_notCum(self, a, b, lenF):
         # UH. a [time (same all time steps), batch, var]
         # a = torch.abs(a)
         if a.dim() == 2:
@@ -1133,8 +1133,9 @@ class prms_marrmot(torch.nn.Module):
             right = torch.exp((-1) * x / beta)
             mid = torch.pow(x, alpha - 1)
             w = 1 / denom * mid * right
-            ww = torch.cumsum(w, dim=0)
-            www = ww / ww.sum(0)  # scale to 1 for each UH
+            # ww = torch.cumsum(w, dim=0)
+            # www = ww / ww.sum(0)  # scale to 1 for each UH
+            www = w / w.sum(0)
         elif a.dim() == 3:
             m = a.shape
             a1 = a.repeat(1, 1, lenF)
@@ -1150,8 +1151,9 @@ class prms_marrmot(torch.nn.Module):
             right = torch.exp((-1) * x / beta)
             mid = torch.pow(x, alpha - 1)
             w = 1 / denom * mid * right
-            ww = torch.cumsum(w, dim=0)
-            www = ww / ww.sum(0)  # scale to 1 for each UH
+            # ww = torch.cumsum(w, dim=0)
+            # www = ww / ww.sum(0)  # scale to 1 for each UH
+            www = w/w.sum(0)
         elif a.dim() == 4:
             m = a.shape
             a1 = a.repeat(1, 1, 1, lenF)
@@ -1170,8 +1172,9 @@ class prms_marrmot(torch.nn.Module):
             right = torch.exp((-1) * x / beta)
             mid = torch.pow(x, alpha - 1)
             w = 1 / denom * mid * right
-            ww = torch.cumsum(w, dim=0)
-            www = ww / ww.sum(0)  # scale to 1 for each UH
+            # ww = torch.cumsum(w, dim=0)
+            # www = ww / ww.sum(0)  # scale to 1 for each UH
+            www = w / w.sum(0)
         return www
 
     def UH_conv(self, x_sample, UH, bias, viewmode=1):
@@ -1419,7 +1422,7 @@ class prms_marrmot(torch.nn.Module):
         if routing == True:
             # routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
             # routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
-            UH = self.UH_gamma(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
+            UH = self.UH_gamma_notCum(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
             rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
             UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
             Qsrout = self.UH_conv(rf, UH, bias=None).squeeze()

@@ -67,7 +67,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["test", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
+    mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
@@ -297,7 +297,7 @@ def main(args):
                     epoch,
                     lossEp,
                     time.time() - t0,
-                    int(torch.cuda.memory_allocated() * 0.001),
+                    int(torch.cuda.memory_allocated(device=args["device"]) * 0.001),
                 )
                 print(logStr)
 

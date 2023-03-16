@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="466ed71b-94ff-4401-b47c-7b04772b46ca" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_orderedDic.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_orderedDic.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/small_codes.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/small_codes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -30,14 +28,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/mnt/sdb/fzr5082/programs/anaconda3/envs/PGML_STemp&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PythonContentEntriesConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "/mnt/sdb/fzr5082/programs/anaconda3/envs/PGML_STemp",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PGML_STemp" />
@@ -76,17 +74,5 @@
       <updated>1678313293572</updated>
     </task>
     <servers />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <condition expression="loss!=loss" language="Python" />
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>275</line>
-          <option name="timeStamp" value="24" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>
