@@ -67,7 +67,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
+    mode_type = ["newgam_comb", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
@@ -150,7 +150,8 @@ def main(args):
         # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
         #
         # loss function
-        lossFun = crit.RmseLoss()    # lossFun = crit.RmseLossComb(alpha=0.25)
+        # lossFun = crit.RmseLoss()    #
+        lossFun = crit.RmseLossComb(alpha=0.25)
         optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
         # optim = torch.optim.SGD(model.parameters(), lr=10)
 
@@ -362,12 +363,12 @@ def main(args):
 
             np.save(os.path.join(args["out_dir"], "x.npy"), x_test)  # saves with the overlap in the beginning
             x_test_tensor = make_tensor(x_test, has_grad=False)
-            x_test_scaled_tensor = make_tensor(x_test_scaled, has_grad=False)
-            x_PRMS_test_tensor = make_tensor(x_PRMS_test, has_grad=False)
+            x_test_scaled_tensor = make_tensor(x_test_scaled, device=args["device"], has_grad=False)
+            x_PRMS_test_tensor = make_tensor(x_PRMS_test,device=args["device"], has_grad=False)
             # x_test_scaled_tensor = make_tensor(
             #     x_test_scaled_noccov, has_grad=False
             # )  # x_test_scaled
-            y_test_tensor = make_tensor(y_test, has_grad=False)
+            y_test_tensor = make_tensor(y_test, device=args["device"], has_grad=False)
 
             args_mod = args.copy()
             args_mod["batch_size"] = args["no_basins"]

@@ -1425,7 +1425,7 @@ class prms_marrmot(torch.nn.Module):
             UH = self.UH_gamma_notCum(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
             rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
             UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
-            Qsrout = self.UH_conv(rf, UH, bias=None).squeeze()
+            Qsrout = self.UH_conv(rf, UH, bias=None).squeeze(-1)
         else:
             Qsrout = Q_sim
         # Q_simave = Qsrout.mean(-1, keepdim=True)
