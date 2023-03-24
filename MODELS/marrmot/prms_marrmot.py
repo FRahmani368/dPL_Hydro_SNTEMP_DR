@@ -1422,12 +1422,19 @@ class prms_marrmot(torch.nn.Module):
         if routing == True:
             # routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
             # routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
-            UH = self.UH_gamma_notCum(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
-            rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
-            UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
-            Qsrout = self.UH_conv(rf, UH, bias=None).squeeze(-1)
+            # UH = self.UH_gamma_notCum(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
+            # rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
+            # UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
+            # Qsrout = self.UH_conv(rf, UH, bias=None).squeeze(-1)
+            tempa_new = tempa.mean(-1, keepdim=True).permute(1,0,2)
+            tempb_new = tempb.mean(-1, keepdim=True).permute(1,0,2)
+            # Q_sim_new = Q_sim.mean(-1, keepdim=True).permute(1,0,2)
+            UH = UH_gamma(tempa_new, tempb_new, lenF=15)  # lenF: folter
+            rf = Q_sim.mean(-1, keepdim=True).permute([0, 2, 1])  # dim:gage*var*time
+            UH = UH.permute([1, 2, 0])  # dim: gage*var*time
+            Qsrout = UH_conv(rf, UH).permute([0, 2, 1])
         else:
-            Qsrout = Q_sim
+            Qsrout = Q_sim.mean(-1, keepdim=True)
         # Q_simave = Qsrout.mean(-1, keepdim=True)
         # sas_simave = sas_sim.mean(-1, keepdim=True)
         # sro_simave = sro_sim.mean(-1, keepdim=True)
@@ -1437,11 +1444,11 @@ class prms_marrmot(torch.nn.Module):
 
 
         if init:  # means we are in warm up
-            return Qsrout.mean(-1, keepdim=True), snow_storage, XIN_storage, RSTOR_storage, \
+            return Qsrout, snow_storage, XIN_storage, RSTOR_storage, \
                 RECHR_storage, SMAV_storage, RES_storage, GW_storage
         else:
             Qall = torch.cat((
-                torch.mean(Qsrout, -1).unsqueeze(-1),
+                Qsrout,
                 torch.mean(sas_sim, -1).unsqueeze(-1),
                 torch.mean(sro_sim, -1).unsqueeze(-1),
                 torch.mean(bas_sim, -1).unsqueeze(-1),
@@ -1450,6 +1457,48 @@ class prms_marrmot(torch.nn.Module):
                     )
             return Qall
 
+def UH_gamma(a,b,lenF=10):
+    # UH. a [time (same all time steps), batch, var]
+    m = a.shape
+    w = torch.zeros([lenF, m[1],m[2]])
+    aa = F.relu(a[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.1 # minimum 0.1. First dimension of a is repeat
+    theta = F.relu(b[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.5 # minimum 0.5
+    t = torch.arange(0.5,lenF*1.0).view([lenF,1,1]).repeat([1,m[1],m[2]])
+    t = t.cuda(aa.device)
+    denom = (aa.lgamma().exp())*(theta**aa)
+    mid= t**(aa-1)
+    right=torch.exp(-t/theta)
+    w = 1/denom*mid*right
+    w = w/w.sum(0) # scale to 1 for each UH
+
+    return w
+
+def UH_conv(x,UH,viewmode=1):
+    # UH is a vector indicating the unit hydrograph
+    # the convolved dimension will be the last dimension
+    # UH convolution is
+    # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+    # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+    # hence we flip the UH
+    # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+    # view
+    # x: [batch, var, time]
+    # UH:[batch, var, uhLen]
+    # batch needs to be accommodated by channels and we make use of groups
+    # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+    # https://pytorch.org/docs/stable/nn.functional.html
+
+    mm= x.shape; nb=mm[0]
+    m = UH.shape[-1]
+    padd = m-1
+    if viewmode==1:
+        xx = x.view([1,nb,mm[-1]])
+        w  = UH.view([nb,1,m])
+        groups = nb
+
+    y = F.conv1d(xx, torch.flip(w,[2]), groups=groups, padding=padd, stride=1, bias=None)
+    y=y[:,:,0:-padd]
+    return y.view(mm)
 
 
 
