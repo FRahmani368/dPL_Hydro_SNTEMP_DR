@@ -4,11 +4,11 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
-#forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
-#attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
+nmul: 16
+#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
+#attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_forcing_pet.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr.feather" #        attr_415_all_3.feather  no_dam_attr_temp99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
@@ -99,7 +99,7 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 20
+batch_size: 336
 EPOCHS: 300
 hidden_size: 256
 dropout: 0.5

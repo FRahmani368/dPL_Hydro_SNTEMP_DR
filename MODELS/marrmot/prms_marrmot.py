@@ -1398,10 +1398,12 @@ class prms_marrmot(torch.nn.Module):
             RES_storage = RES_storage + flux_qres
             flux_ras = k3[:, t, :] * RES_storage + k4[:, t, :] * (RES_storage ** 2)
             flux_ras = torch.min(flux_ras, RES_storage)
-            RES_storage = RES_storage - flux_ras
-            RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
-            RES_excess = torch.clamp(RES_excess, min=0.0)
-            flux_ras = flux_ras + RES_excess
+            RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
+            # RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
+            # RES_excess = torch.clamp(RES_excess, min=0.0)
+            # flux_ras = flux_ras + RES_excess
+            # RES_storage = torch.clamp(RES_storage - RES_excess, min=NEARZERO)
+
             flux_gad = k1[:, t, :] * ((RES_storage / resmax[:, t, :]) ** k2[:, t, :])
             flux_gad = torch.min(flux_gad, RES_storage)
             RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
