@@ -1347,7 +1347,7 @@ class prms_marrmot(torch.nn.Module):
             flux_pim = flux_pr * (1 - beta[:, t, :])
             flux_psm = flux_pr * beta[:, t, :]
             flux_pby = flux_psm * (1 - alpha[:, t, :])
-            flux_pin = flux_psm * beta[:, t, :]
+            flux_pin = flux_psm * alpha[:, t, :]
 
             XIN_storage = XIN_storage + flux_pin
             flux_ptf = XIN_storage - stor[:, t, :]
@@ -1390,7 +1390,7 @@ class prms_marrmot(torch.nn.Module):
                                  (SMAV_storage/smax[:, t, :]) * (Ep - flux_ein - flux_eim - flux_ea),
                                  torch.zeros(flux_excs.shape, dtype=torch.float32, device=args["device"]))
             transp = torch.clamp(transp, min=0.0)    # in case Ep - flux_ein - flux_eim - flux_ea was negative
-            SMAV_storage = SMAV_storage - transp
+            SMAV_storage = torch.clamp(SMAV_storage - transp, min=NEARZERO)
 
             flux_sep = torch.min(cgw[:, t, :], flux_excs)
             flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
@@ -1412,7 +1412,7 @@ class prms_marrmot(torch.nn.Module):
             flux_bas = k5[:, t, :] * GW_storage
             GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
             flux_snk = k6[:, t, :] * GW_storage
-            GW_storage = GW_storage - flux_snk
+            GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
             Q_sim[:, t, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[:, t, :] = flux_sas
