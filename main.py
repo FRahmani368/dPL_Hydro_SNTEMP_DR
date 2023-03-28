@@ -393,7 +393,7 @@ def main(args):
                         xTemp_scaled = x_test_scaled_tensor[
                                        iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :
                                        ]
-                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :]
+                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * (rho): (j + 1) * rho + warm_up, :].type(torch.float32)
                         c_PRMS_sample = torch.tensor(
                             c_PRMS[iS[i]: iE[i],:], device=args["device"], dtype=torch.float32
                         )
@@ -477,7 +477,7 @@ def main(args):
                         xTemp_scaled = x_test_scaled_tensor[
                                        iS[i]: iE[i], j * rho:, :
                                        ]
-                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * rho:, :]
+                        x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * rho:, :].type(torch.float32)
                         c_PRMS_sample = torch.tensor(
                             c_PRMS[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
                         )
@@ -685,7 +685,7 @@ def main(args):
             flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
                     area * (10 ** 6))  # convert ft3/s to mm/day
             q_pred = flow_pred[:,:,0].unsqueeze(-1)
-            loss = lossFun(q_pred.detach().cpu(), flow_obs.detach().cpu())
+            loss = lossFun(q_pred.detach().cpu().type(torch.float32), flow_obs.detach().cpu().type(torch.float32))
             # mask_pred = flow_pred.ge(0)
             # y_sim = (pred * mask_pred.int().float()).unsqueeze(-1)
             # loss = lossFun(y_sim.detach().cpu(), obs.detach().cpu())

@@ -1462,6 +1462,7 @@ class prms_marrmot(torch.nn.Module):
 def UH_gamma(a,b,lenF=10):
     # UH. a [time (same all time steps), batch, var]
     m = a.shape
+    lenF = min(a.shape[0], lenF)
     w = torch.zeros([lenF, m[1],m[2]])
     aa = F.relu(a[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.1 # minimum 0.1. First dimension of a is repeat
     theta = F.relu(b[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.5 # minimum 0.5
@@ -1471,7 +1472,7 @@ def UH_gamma(a,b,lenF=10):
     mid= t**(aa-1)
     right=torch.exp(-t/theta)
     w = 1/denom*mid*right
-    w = w/w.sum(0) # scale to 1 for each UH
+    w = w/w.sum(0)  # scale to 1 for each UH
 
     return w
 
