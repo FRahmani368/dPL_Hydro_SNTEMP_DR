@@ -2,7 +2,7 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [ 1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
