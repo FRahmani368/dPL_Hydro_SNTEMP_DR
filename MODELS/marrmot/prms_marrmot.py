@@ -1435,6 +1435,14 @@ class prms_marrmot(torch.nn.Module):
             rf = Q_sim.mean(-1, keepdim=True).permute([0, 2, 1])  # dim:gage*var*time
             UH = UH.permute([1, 2, 0])  # dim: gage*var*time
             Qsrout = UH_conv(rf, UH).permute([0, 2, 1])
+
+            rf_ras = ras_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qras_rout = UH_conv(rf_ras, UH).permute([0, 2, 1])
+
+            rf_bas = bas_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qbas_rout = UH_conv(rf_bas, UH).permute([0, 2, 1])
+
+
         else:
             Qsrout = Q_sim.mean(-1, keepdim=True)
         # Q_simave = Qsrout.mean(-1, keepdim=True)
@@ -1453,8 +1461,8 @@ class prms_marrmot(torch.nn.Module):
                 Qsrout,
                 torch.mean(sas_sim, -1).unsqueeze(-1),
                 torch.mean(sro_sim, -1).unsqueeze(-1),
-                torch.mean(bas_sim, -1).unsqueeze(-1),
-                torch.mean(ras_sim, -1).unsqueeze(-1),
+                Qbas_rout,
+                Qras_rout,
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
             return Qall

@@ -16,9 +16,9 @@ data: "//home//fzr5082//PGML_STemp_results//data"
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'
 #  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean', "ccov"]
-varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
+varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
 
-varC: [
+varC_NN: [
   'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
   'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
   'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
@@ -59,6 +59,13 @@ varC: [
 #  varT_PRMS: [
 #  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
 #  ]
+varT_SNTEMP: [
+               'tmax(C)', 'tmin(C)','dayl(s)', "ccov", 'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)"
+]
+varC_SNTEMP: [
+               "stream_length_artificial", 'PPTAVG_BASIN', 'SLOPE_PCT',
+                'ELEV_MEAN_M_BASIN', # "NHDlength_tot(m)"
+]
 varT_PRMS: [
   'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"
 ]
@@ -80,9 +87,9 @@ varC_PRMS: [
   'geol_permeability'
 ]
 
-target: ["00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: ["00060_Mean", "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20150101]
-t_train: [19841001, 19951001]   # there should be an overlap because of the warm_up
+t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
 t_test: [19941001, 20101001]    # there should be an overlap because of the warm_up
 #  tRange: [19800101, 20200101]
@@ -133,9 +140,6 @@ params_C_w: 4184    # J/kg. K
 NEARZERO: 1e-10
 Epan_coef: 1.0
 
-routing: True
-No_prms_params: 18
-
 initial_values_shade_fraction: 0.1
 no_basins: 10
 potet_module: "potet_hamon"
@@ -149,17 +153,8 @@ static_params_list_prms: [18, 19] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,
 semi_static_params_list_prms: []
 method_for_semi_static_param_prms: ["average", "average", "average", "average"]
 interval_for_semi_static_param_prms: [30, 30]
-paramCalLst: [
-            # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-            [0.1, 5], [0.1, 5], [0.01, 12], [0.01, 12], [0.01, 12], [0.01, 12],  # a (k) and b (theta)
-#            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
-            # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
+SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
-            [0.01, 1], [0.01, 1], [0.01, 1],                                    # flow portions
-#            [0.06, 0.85], [0.06, 0.85], [0.12, 0.88],                          # flow portions
-            # [-2, 2], [-2, 2], [-2, 2],                                 # conv bias
-            # [0, 3], [-4, 4],                                            # final scale and final bias
-            # [0.1, 0.10001],                                                        # albedo
             [0, 1],                                                           # topo shade factor
             [0.1, 4] , #[0.01, 2],                                            # width coefficient nominator
             # [0.01, 1],                                                         # width exponent
@@ -192,6 +187,16 @@ marrmot_paramCalLst: [
     [0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
     [0, 1],    # k5, Baseflow coefficient [d-1]
     [0, 1],    # k6, Groundwater sink coefficient [d-1],
+]
+routing_PRMS: True
+routing_SNTEMP: True
+conv_SNTEMP: [
+  # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
+  [ 0.1, 5 ], [ 0.1, 5 ], [ 0.01, 12 ], [ 0.01, 12 ], [ 0.01, 12 ], [ 0.01, 12 ],  # a (k) and b (theta)
+  #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
+  # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
+]
+conv_PRMS: [
     [0, 2.9],  # routing parameter a
     [0, 6.5]   # routing parameter b
 ]

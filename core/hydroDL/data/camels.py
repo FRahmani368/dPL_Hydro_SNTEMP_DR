@@ -358,16 +358,17 @@ def calStatAll(args, x, y):
     # y = readUsgs(args, idLst, dfMain)
     # # statDict['usgsFlow'] = calStatgamma(y)
     # ##statDict['00060_Mean'] = calStatbasinnorm(y)
-    if args["target"] == ["00060_Mean"]:
-        statDict["00060_Mean"] = calStatbasinnorm(y, x, args)
-    # elif args['optData']['target'] == ['combine_discharge']:
-    #     statDict['00060_Mean'] = calStatbasinnorm(y, idLst)
-    else:
-        statDict[args["target"][0]] = calStat(y)
+    for i in range(len(args["target"])):
+        if args["target"] == ["00060_Mean"]:
+            statDict[args["target"][i]] = calStatbasinnorm(y, x, args)
+        # elif args['optData']['target'] == ['combine_discharge']:
+        #     statDict['00060_Mean'] = calStatbasinnorm(y, idLst)
+        else:
+            statDict[args["target"][i]] = calStat(y)
     # USGS streamflow
     # statDict['00060_Mean'] = calStatbasinnorm(y, x, args)
     # forcing
-    forcingLst = args["varT"] + args["varC"]
+    forcingLst = args["varT_NN"] + args["varC_NN"]
     # x = readForcing(idLst, dfMain, varLst=forcingLst)
     for k in range(len(forcingLst)):
         var = forcingLst[k]

@@ -4,11 +4,13 @@ from core.data_prep import (
     load_df,
     scaling,
     train_val_test_split,
+    No_iter_nt_ngrid,
+    train_val_test_split_action1,
     randomIndex,
     selectSubset,
 )
 from core.small_codes import create_output_dirs
-from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, CudnnLstm, CudnnLstmModel
+from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, SNTEMP_EQ, CudnnLstmModel
 from MODELS.PRMS import PRMS_pytorch
 from MODELS.marrmot.prms_marrmot import prms_marrmot
 from MODELS import crit
@@ -22,7 +24,7 @@ import time
 import os
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
-from post import stat , plot
+from post import stat, plot
 import math
 from ruamel.yaml import YAML
 from core.hydroDL.data.camels import initcamels
@@ -67,7 +69,7 @@ def syntheticP(args):
 def main(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["newgam_comb", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
+    mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
     lat_temp_adj_list = ["True", "True"]
@@ -88,114 +90,88 @@ def main(args):
                             res_time_lenF_gwflow=LenF_gw,
                             res_time_lenF_ssflow=LenF_ss,
                             lat_temp_adj=adj,
-                            frac_smoothening_mode=frac_smooth
+                            frac_smoothening_mode=frac_smooth,
+                            seed=seed
         )
 
-
-        # args["shade_smoothening"] = shade_smooth
-
-        # args['randomseed'] = seed
-        # torch.cuda.set_per_process_memory_fraction(0.9)   # work for torch > 1.4
         randomseed_config(seed)
         # Creating output directories
         args = create_output_dirs(args, seed)
         min_max_scaler = preprocessing.MinMaxScaler()
-        # getting the data
-        x_total_temp, y_raw, c_raw, c_PRMS, x_PRMS = load_df(args)
+        # getting the data for the Neural Network, PRMS, and SNTEMP
+        x_total_temp_NN, y_raw, c_raw_NN, c_PRMS, x_PRMS, c_SNTEMP, x_SNTEMP = load_df(args)
 
-        x_total_raw = x_total_temp.copy()
+        x_total_raw_NN = x_total_temp_NN.copy()   # making a copy of x for doing a normalization in future
 
         # making the stats for normalization only on the training part
         time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
-        (
-            x_train,
-            y_train,
-            _,
-            _,
-            _,
-            _,
-        ) = train_val_test_split("t_train", args, time1, x_total_raw, y_raw)
-        initcamels(args, x_train, y_train)
-        del (x_train, y_train)
+        x_NN_train, y_NN_train = train_val_test_split("t_train", args, time1, x_total_raw_NN, y_raw)
+        initcamels(args, x_NN_train, y_NN_train)
+        del (x_NN_train, y_NN_train)   # we just needed them to create a stat file for normalization
 
         # normalizing x, y, c
-        x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
-        c_scaled_0_1 = min_max_scaler.fit_transform(c_raw)
+        x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp_NN, y_raw, c_raw)
 
         #
-        vars = args["varT"] + args["varC"]
-        x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False, device="cpu")
-        c_tensorTrain = make_tensor(c_scaled_0_1, has_grad=False, device="cpu")
+        vars = args["varT_NN"] + args["varC_NN"]
+        x_total_raw_tensor = make_tensor(x_total_raw_NN, has_grad=False, device="cpu")
+        c_tensorTrain = make_tensor(c_scaled, has_grad=False, device="cpu")
 
         # ANN model to simulate parameters
-        # model = MLP(args)
         # all parameters are going to be 3D -> [batchsize, rho, nmul]
-        # no_tot_params = len(args["paramCalLst"])
-        no_tot_params = args["No_prms_params"]
-        if args["routing"] == True:  # needs a and b for routing with conv method
-            ny = args["nmul"] * (no_tot_params + 2)
+        # number of total parameters we need from NN, including the conv parameters
+        #PRMS
+        if args["routing_PRMS"] == True:  # needs a and b for routing with conv method
+            ny_prms = args["nmul"] * (len(args["marrmot_paramCalLst"]) + len(args["conv_PRMS"]))
         else:
-            ny = args["nmul"] * no_tot_params
+            ny_prms = args["nmul"] * len(args["marrmot_paramCalLst"])
+
+        #SNTEMP  # needs a and b for calculating different source flow temperatures with conv method
+        if args["routing_SNTEMP"] == True:
+            ny_sntemp = args["nmul"] * (len(args["SNTEMP_paramCalLst"]) + len(args["conv_SNTEMP"]))
+        else:
+            ny_sntemp = args["nmul"] * len(args["SNTEMP_paramCalLst"])
 
         model = CudnnLstmModel(
-            nx=len(args["varT"] + args["varC"]),
-            ny=ny,
+            nx=len(args["varT_NN"] + args["varC_NN"]),
+            ny=ny_prms + ny_sntemp,
             hiddenSize=args["hidden_size"],
             dr=args["dropout"],
         )
+        # model = MLP(args)
         # model = torch.load("/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites/SNTEMP_gw_365_ss_30_adj_T_fr_T40_stat__semi__nmul_16_s_0/model_Ep30.pt")
-        PRMS = prms_marrmot()
-        # PRMS = PRMS_pytorch()
-        Ts = STREAM_TEMP_EQ()
-        # model = torch.load(r"/home/fzr5082/PGML_STemp_results/models/E_560_R_365_B_50_H_256_dr_0.5/model_Ep560.pt")
-        #
+        PRMS = prms_marrmot()  # this is for discrete version of marrmot
+        # PRMS = PRMS_pytorch()   # This is for Newton-Raphson method version of marrmot
+        Ts = SNTEMP_EQ()    # SNTEMP model
+
         # loss function
-        # lossFun = crit.RmseLoss()    #
-        lossFun = crit.RmseLossComb(alpha=0.25)
+        # lossFun = crit.RmseLoss()    # simple rmse loss function
+        lossFun = crit.RmseLoss_temp_flow(w=0.25)   #0.25 for streamflow
+        # lossFun = crit.RmseLossComb(alpha=0.25)
         optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
         # optim = torch.optim.SGD(model.parameters(), lr=10)
 
         if torch.cuda.is_available():
-            # model = model.cuda()
             model = model.to(args["device"])
-            # mlp = mlp.cuda()
             PRMS = PRMS.to(args["device"])
-            # Ts = Ts.cuda()
             Ts = Ts.to(args["device"])
-            # lossFun = lossFun.cuda()
             lossFun = lossFun.to(args["device"])
             torch.backends.cudnn.deterministic = True
             CUDA_LAUNCH_BLOCKING = 1
-            # moving dataset to CUDA
+
 
 
 
 
         if 0 in args["Action"]:
-            (
-                x_train,
-                y_train,
-                ngrid_train,
-                nIterEp,
-                nt,
-                batchSize,
-            ) = train_val_test_split("t_train", args, time1, x_total_raw, y_raw)
-            x_train_scaled, y_train_scaled, _, _, _, _ = train_val_test_split(
-                "t_train", args, time1, x_total_scaled, y_scaled
-            )
-            x_PRMS_train, _, _, _, _, _ = train_val_test_split(
-                "t_train", args, time1, x_PRMS, y_raw
-            )
+            # preparing training dataset for NN, PRMS, SNTEMP
+            x_train, y_train = train_val_test_split("t_train", args, time1, x_total_raw_NN, y_raw)
+            x_train_scaled, y_train_scaled = train_val_test_split("t_train", args, time1, x_total_scaled, y_scaled)
+            x_PRMS_train, _ = train_val_test_split("t_train", args, time1, x_PRMS, y_raw)
+            x_SNTEMP_train, _ = train_val_test_split("t_train", args, time1, x_SNTEMP, y_raw)
+            ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args["t_train"])
 
-            vars = args["varT"] + args["varC"]
-            # x_train_scaled_noccov = np.delete(
-            #     x_train_scaled, vars.index("ccov"), axis=2
-            # )
-
-            ave_air_total = Ts.ave_temp_general(
-                args, x_total_raw_tensor, time_range=args["t_train"]
-            )
-
+            ngrid_train, nIterEp, nt, batchSize = No_iter_nt_ngrid("t_train", args, x_train)
             rho = args["rho"]
             warm_up = args["warm_up"]
             model.zero_grad()
@@ -206,24 +182,31 @@ def main(args):
                 t0 = time.time()
                 for iIter in range(1, nIterEp + 1):
                     iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho + warm_up])
-
-                    # xTrain_sample = selectSubset(
-                    #     args, x_train, iGrid, iT, rho + warm_up, has_grad=False
-                    # )
+                    # NN sampling
                     xTrain_sample_scaled = selectSubset(
-                        args,
-                        x_train_scaled,
-                        iGrid,
-                        iT,
-                        rho + warm_up,
-                        has_grad=False,
-                    )  # x_train_scaled
-
+                        args, x_train_scaled, iGrid, iT, rho + warm_up, has_grad=False,
+                    )
+                    # PRMS sampling
                     x_PRMS_sample = selectSubset(
                         args, x_PRMS_train, iGrid, iT, rho + warm_up, has_grad=False
                     )
                     c_PRMS_sample = torch.tensor(
                         c_PRMS[iGrid], device=args["device"], dtype=torch.float32
+                    )
+                    # SNTEMP sampling
+                    x_SNTEMP_sample = selectSubset(
+                        args, x_SNTEMP_train, iGrid, iT, rho + warm_up, has_grad=False
+                    )[:, warm_up:, :]    # there is no need for warm up in temp section yet
+                    c_SNTEMP_sample = torch.tensor(
+                        c_SNTEMP[iGrid], device=args["device"], dtype=torch.float32
+                    )
+                    # observations
+                    targets = args["target"]
+                    flowObs = selectSubset(
+                        args, y_train[:, :, targets.index("00060_Mean")], iGrid, iT, rho + warm_up, has_grad=False
+                    )
+                    tempObs = selectSubset(
+                        args, y_train[:, :, targets.index("00010_Mean")], iGrid, iT, rho + warm_up, has_grad=False
                     )
 
                     ### MLP
@@ -233,34 +216,42 @@ def main(args):
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled.permute(1, 0, 2))
 
+                    params_PRMS = params[:, :, 0:ny_prms]
+                    params_SNTEMP = params[:, warm_up:, ny_prms:]
 
 
-                    flowObs = selectSubset(
-                        args, y_train, iGrid, iT, rho + warm_up, has_grad=False
-                    )
-
-                    flowSim = PRMS(
+                    flowSim_total = PRMS(
                         x_PRMS_sample.transpose(0, 1),
                         c_PRMS_sample,
-                        params,
+                        params_PRMS,
                         args,
                         warm_up,
                     )
 
-                    # air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_srflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-                    # air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_ssflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-                    # air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_params']['lenF_gwflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-                    #
-                    # Yp, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
-                    # shade_fraction_riparian, shade_fraction_topo, \
-                    # top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
-                    #                                                  params, iGrid, iT,
-                    #                                                  args=args, air_sample_sr=air_sample_sr,
-                    #                                                                  air_sample_ss=air_sample_ss,
-                    #                                                                  air_sample_gw=air_sample_gw)
+                    # converting mm/day to m3/ day
+                    varC_PRMS = args["varC_PRMS"]
+                    area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1])
+                    srflow = area * (flowSim_total[:, :, 1] + flowSim_total[:, :, 2])   # sro + sas
+                    ssflow = area * (flowSim_total[:, :, 4])   # ras
+                    gwflow = area * (flowSim_total[:, :, 3])   # bas
+
+                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_srflow'],
+                                                          args=args, ave_air_total=ave_air_total)
+                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_ssflow'],
+                                                          args=args, ave_air_total=ave_air_total)
+                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_gwflow'],
+                                                          args=args, ave_air_total=ave_air_total)
+
+                    temp_sim, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
+                    shade_fraction_riparian, shade_fraction_topo, \
+                    top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
+                                                                     params_SNTEMP, iGrid, iT,
+                                                                     args=args, air_sample_sr=air_sample_sr,
+                                                                     air_sample_ss=air_sample_ss,
+                                                                     air_sample_gw=air_sample_gw,
+                                                                     srflow=srflow,
+                                                                     ssflow=ssflow,
+                                                                     gwflow=gwflow)
 
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
@@ -269,8 +260,8 @@ def main(args):
                     area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                     flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
                     # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
-                    loss = lossFun(
-                        flowSim[:, :, 0].unsqueeze(-1), flowObs
+                    loss = lossFun(flowObs, tempObs,
+                        flowSim[:, :, 0].unsqueeze(-1), temp_sim.unsqueeze(-1)
                     )
                     # loss = lossFun(test_sim, test)
                     # c = list(model.parameters())[0].clone()
@@ -334,6 +325,7 @@ def main(args):
         if 1 in args["Action"]:
             # to free up some GPU memory
             del x_total_temp, c_raw, y_scaled, c_scaled
+
             warm_up = args["warm_up"]
             modelFile = os.path.join(
                 args["out_dir"],
@@ -346,15 +338,15 @@ def main(args):
             # iGrid = np.arange(99)
 
             time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
-            x_PRMS_test, y_test, ngrid_test, nIterEp, nt, batchSize = train_val_test_split(
+            x_PRMS_test, y_test, ngrid_test, nt, batchSize = train_val_test_split_action1(
                 "t_test", args, time1, x_PRMS, y_raw
             )
-            x_test, _, _, _, _, _ = train_val_test_split(
+            x_test, _, _, _, _ = train_val_test_split_action1(
                 "t_test", args, time1, x_total_raw, y_raw
             )
 
             # Normalizing the inputs for ML part
-            x_test_scaled, _, _, _, _, _ = train_val_test_split(
+            x_test_scaled, _, _, _, _ = train_val_test_split_action1(
                 "t_test", args, time1, x_total_scaled, y_raw
             )
 
@@ -707,8 +699,8 @@ def main(args):
             np.save(os.path.join(args["out_dir"], "gw_bas.npy"), flow_pred_np[:, :, 3])
             np.save(os.path.join(args["out_dir"], "ss_ras.npy"), flow_pred_np[:, :, 4])
             np.save(os.path.join(args["out_dir"], "gw_snk.npy"), flow_pred_np[:, :, 5])
-            predLst.append(flow_pred_np[:, warm_up:, 0: 1])
-            obsLst.append(flow_obs_np[:, warm_up:, :])
+            predLst.append(flow_pred_np[:, :, 0: 1])
+            obsLst.append(flow_obs_np[:, :, :])
 
 
             # y_sim_np = y_sim.detach().cpu().numpy()

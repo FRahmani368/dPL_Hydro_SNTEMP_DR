@@ -15,18 +15,24 @@ def load_df(args):
     A function that loads the data into a
     :return:
     """
-    df, x, y, c, c_PRMS, x_PRMS = master.loadData(args)
+    df, x, y, c, c_PRMS, x_PRMS, c_SNTEMP, x_SNTEMP = master.loadData(args)
     nx = x.shape[-1] + c.shape[-1]
     x_total = np.zeros((x.shape[0], x.shape[1], nx))
+    x_tot_SNTEMP = np.zeros((x.shape[0], x.shape[1], nx))
     ct = np.repeat(c, repeats=x.shape[1], axis=0)
     for k in range(x.shape[0]):
         x_total[k, :, :] = np.concatenate(
             (x[k, :, :], np.tile(c[k], (x.shape[1], 1))), axis=1
         )
+        x_tot_SNTEMP[k, :, :] = np.concatenate(
+            (x_SNTEMP[k, :, :], np.tile(c_SNTEMP[k], (x_SNTEMP.shape[1], 1))), axis=1
+        )
+
+
     # streamflow values should not be negative
     # vars = args['optData']['varT'] + args['optData']['varC']
     # x_total[x_total[:, :, vars.index("00060_Mean")] < 0] = 0
-    return x_total, y, c, c_PRMS, x_PRMS
+    return x_total, y, c, c_PRMS, x_PRMS, c_SNTEMP, x_tot_SNTEMP
 
 
 def scaling(args, x, y, c):
@@ -42,10 +48,10 @@ def scaling(args, x, y, c):
     # initcamels(args, x, y)
     # Normalization
     x_total_scaled = transNorm(
-        x, args["varT"] + args["varC"], toNorm=True
+        x, args["varT_NN"] + args["varC_NN"], toNorm=True
     )
-    y_scaled = transNorm(y, args["target"][0], toNorm=True)
-    c_scaled = transNorm(c, args["varC"], toNorm=True)
+    y_scaled = transNorm(y, args["target"], toNorm=True)
+    c_scaled = transNorm(c, args["varC_NN"], toNorm=True)
     return x_total_scaled, y_scaled, c_scaled
 
 
@@ -54,7 +60,13 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
     c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]
+
+
+    return x, y
+
+def No_iter_nt_ngrid(set_name, args, x):
     ngrid, nt, nx = x.shape
+    t = hydroDL.utils.time.tRange2Array(args[set_name])
     if t.shape[0] < args["rho"]:
         rho = t.shape[0]
     else:
@@ -65,8 +77,21 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
             / np.log(1 - args["batch_size"] * rho / ngrid / nt)
         )
     )
+    return ngrid, nIterEp, nt, args["batch_size"]
 
-    return x, y, ngrid, nIterEp, nt, args["batch_size"]
+def train_val_test_split_action1(set_name, args, time1, x_total, y_total):
+    t = hydroDL.utils.time.tRange2Array(args[set_name])
+    c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
+    x = x_total[:, ind1, :]
+    y = y_total[:, ind1, :]
+    ngrid, nt, nx = x.shape
+    if t.shape[0] < args["rho"]:
+        rho = t.shape[0]
+    else:
+        rho = args["rho"]
+
+
+    return x, y, ngrid, nt, args["batch_size"]
 
 
 def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=False):

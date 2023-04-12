@@ -147,18 +147,24 @@ def loadData(args, readX=True, readY=True):
     df = hydroDL.data.camels.DataframeCamels(
         subset=args["subset"], tRange=args["tRange"]
     )
-    x = df.getDataTs(
+    x_NN = df.getDataTs(
         args,
-        varLst=args["varT"],
+        varLst=args["varT_NN"],
         doNorm=args["doNorm"][0],
         rmNan=args["rmNan"][0],
     )
-    y = df.getDataObs(
-        args, doNorm=args["doNorm"][1], rmNan=args["rmNan"][1]
-    )  # doNorm=optData['doNorm'][1]     optData['rmNan'][1]
-    c = df.getDataConst(
+    y = df.getDataTs(
         args,
-        varLst=args["varC"],
+        varLst=args["target"],
+        doNorm=args["doNorm"][1],
+        rmNan=args["rmNan"][1],
+    )
+    # y = df.getDataObs(
+    #     args, doNorm=args["doNorm"][1], rmNan=args["rmNan"][1]
+    # )  # doNorm=optData['doNorm'][1]     optData['rmNan'][1]
+    c_NN = df.getDataConst(
+        args,
+        varLst=args["varC_NN"],
         doNorm=args["doNorm"][0],
         rmNan=args["rmNan"][0],
     )
@@ -174,8 +180,20 @@ def loadData(args, readX=True, readY=True):
         doNorm=args["doNorm"][0],
         rmNan=args["rmNan"][0],
     )
+    c_SNTEMP = df.getDataConst(
+        args,
+        varLst=args["varC_SNTEMP"],
+        doNorm=False,  # args["optData"]["doNorm"][0],
+        rmNan=args["rmNan"][0],
+    )
+    x_SNTEMP = df.getDataTs(
+        args,
+        varLst=args["varT_SNTEMP"],
+        doNorm=args["doNorm"][0],
+        rmNan=args["rmNan"][0],
+    )
 
-    return df, x, y, c, c_PRMS, x_PRMS
+    return df, x_NN, y, c_NN, c_PRMS, x_PRMS, c_SNTEMP, x_SNTEMP
 
 
 def train(mDict):

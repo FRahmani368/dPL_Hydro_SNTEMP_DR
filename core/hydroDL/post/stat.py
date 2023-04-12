@@ -228,3 +228,4 @@ def statError_new(pred, target):
                    absBiasflat=absBiasflat, RMSEflat=RMSEflat, ubRMSEflat=ubRMSEflat,
                    corrflat=corrflat, NSEflat=NSEflat, MSE=MSE, KGE=KGE, KGE12=KGE12)  #
     return outDict
+
