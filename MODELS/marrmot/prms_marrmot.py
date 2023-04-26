@@ -1074,6 +1074,42 @@ class prms_marrmot(torch.nn.Module):
         new_param = torch.cat(param_name_list, 1)
         return new_param
 
+    def param_bounds(self, params, num, args, bounds):
+        nmul = args["nmul"]
+        if num in args["static_params_list_prms"]:
+            out_temp = (
+                    params[:, -1, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+            out = out_temp.repeat(1, params.shape[1]).reshape(
+                params.shape[0], params.shape[1], nmul
+            )
+
+        elif num in args["semi_static_params_list_prms"]:
+            out_temp = self.multi_comp_semi_static_params(
+                params,
+                num,
+                args,
+                interval=args["interval_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
+                ],
+                method=args["method_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
+                ],
+            )
+            out = (
+                    out_temp * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+
+        else:  # dynamic
+            out = (
+                    params[:, :, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+        return out
     def multi_comp_parameter_bounds(self, params, num, args):
         nmul = args["nmul"]
         if num in args["static_params_list_prms"]:
@@ -1230,7 +1266,7 @@ class prms_marrmot(torch.nn.Module):
         return y
 
 
-    def forward(self, x, c_PRMS, params, args, warm_up=0, init=False, routing=True):
+    def forward(self, x, c_PRMS, params, args, Hamon_coef, warm_up=0, init=False, routing=True):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
         vars = args["varT_PRMS"]
@@ -1242,7 +1278,8 @@ class prms_marrmot(torch.nn.Module):
                 warm_up_model = prms_marrmot()
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
-                    RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, warm_up=0, init=True)
+                    RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, Hamon_coef,
+                                                            warm_up=0, init=True)
         else:
 
             # snow storage
@@ -1276,31 +1313,33 @@ class prms_marrmot(torch.nn.Module):
 
         ## parameters for prms_marrmot. there are 18 parameters in it
         params = params[:, warm_up:, :]
-        tt = self.multi_comp_parameter_bounds(params, 0, args)
-        ddf = self.multi_comp_parameter_bounds(params, 1, args)
-        alpha = self.multi_comp_parameter_bounds(params, 2, args)  # can br found in attr
-        beta = self.multi_comp_parameter_bounds(params, 3, args)    # can be found in attr
-        stor = self.multi_comp_parameter_bounds(params, 4, args)
-        retip = self.multi_comp_parameter_bounds(params, 5, args)
-        fscn = self.multi_comp_parameter_bounds(params, 6, args)
-        scx = self.multi_comp_parameter_bounds(params, 7, args)
+        tt = self.param_bounds(params, 0, args, bounds=args["marrmot_paramCalLst"][0])
+        ddf = self.param_bounds(params, 1, args, bounds=args["marrmot_paramCalLst"][1])
+        alpha = self.param_bounds(params, 2, args, bounds=args["marrmot_paramCalLst"][2])  # can br found in attr
+        beta = self.param_bounds(params, 3, args, bounds=args["marrmot_paramCalLst"][3])    # can be found in attr
+        stor = self.param_bounds(params, 4, args, bounds=args["marrmot_paramCalLst"][4])
+        retip = self.param_bounds(params, 5, args, bounds=args["marrmot_paramCalLst"][5])
+        fscn = self.param_bounds(params, 6, args, bounds=args["marrmot_paramCalLst"][6])
+        scx = self.param_bounds(params, 7, args, bounds=args["marrmot_paramCalLst"][7])
         scn = fscn * scx
-        flz = self.multi_comp_parameter_bounds(params, 8, args)
-        stot = self.multi_comp_parameter_bounds(params, 9, args)
+        flz = self.param_bounds(params, 8, args, bounds=args["marrmot_paramCalLst"][8])
+        stot = self.param_bounds(params, 9, args, bounds=args["marrmot_paramCalLst"][9])
         remx = (1 - flz) * stot
         smax = flz * stot
-        cgw = self.multi_comp_parameter_bounds(params, 10, args)
-        resmax = self.multi_comp_parameter_bounds(params, 11, args)
-        k1 = self.multi_comp_parameter_bounds(params, 12, args)
-        k2 = self.multi_comp_parameter_bounds(params, 13, args)
-        k3 = self.multi_comp_parameter_bounds(params, 14, args)
-        k4 = self.multi_comp_parameter_bounds(params, 15, args)
-        k5 = self.multi_comp_parameter_bounds(params, 16, args)
-        k6 = self.multi_comp_parameter_bounds(params, 17, args) # because we don't have any sink in the watersheds! Do we?
+        cgw = self.param_bounds(params, 10, args, bounds=args["marrmot_paramCalLst"][10])
+        resmax = self.param_bounds(params, 11, args, bounds=args["marrmot_paramCalLst"][11])
+        k1 = self.param_bounds(params, 12, args, bounds=args["marrmot_paramCalLst"][12])
+        k2 = self.param_bounds(params, 13, args, bounds=args["marrmot_paramCalLst"][13])
+        k3 = self.param_bounds(params, 14, args, bounds=args["marrmot_paramCalLst"][14])
+        k4 = self.param_bounds(params, 15, args, bounds=args["marrmot_paramCalLst"][15])
+        k5 = self.param_bounds(params, 16, args, bounds=args["marrmot_paramCalLst"][16])
+        k6 = self.param_bounds(params, 17, args, bounds=args["marrmot_paramCalLst"][17]) # because we don't have any sink in the watersheds! Do we?
 
         if routing == True:
-            tempa = self.multi_comp_parameter_bounds(params, 18, args)
-            tempb = self.multi_comp_parameter_bounds(params, 19, args)
+            tempa = self.param_bounds(params, 18, args, bounds=args["conv_PRMS"][0])
+            tempb = self.param_bounds(params, 19, args, bounds=args["conv_PRMS"][1])
+            # tempa = self.multi_comp_parameter_bounds(params, 18, args)
+            # tempb = self.multi_comp_parameter_bounds(params, 19, args)
         #################
         # inputs
         Precip = (
@@ -1309,17 +1348,18 @@ class prms_marrmot(torch.nn.Module):
         Tmaxf = x[:, warm_up:, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         Tminf = x[:, warm_up:, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         mean_air_temp = (Tmaxf + Tminf) / 2
-        # dayl = (
-        #     x[:, warm_up:, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
-        # )
-        Ngrid, Ndays = Precip.shape[0], Precip.shape[1]
-        PET = (
-            x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
+        dayl = (
+            x[:, warm_up:, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
         )
-        # hamon_coef = torch.ones(dayl.shape, dtype=torch.float32, device=args["device"]) * 0.006  # this can be param
-        # PET = get_potet(
-        #     args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
+        Ngrid, Ndays = Precip.shape[0], Precip.shape[1]
+        # PET = (
+        #     x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
         # )
+        t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][4])
+        PET = get_potet(
+            args=args, mean_air_temp=t_monthly, dayl=dayl, hamon_coef=hamon_coef
+        ) * 86400 * 1000  # converting m/sec to mm/day
 
         # initialize the Q_sim and other fluxes
         Q_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])

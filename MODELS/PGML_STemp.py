@@ -1512,7 +1512,7 @@ class SNTEMP_EQ(nn.Module):
         St_Boltzman_ct = make_tensor(5.670373) * torch.pow(
             make_tensor(10), (-8.0)
         )  # (J/s*m^2 * K^4)
-        emissivity_veg = make_tensor(args["STemp_default_params"]["emissivity_veg"])
+        emissivity_veg = make_tensor(args["STemp_default_emissivity_veg"])
         H_v = (
             emissivity_veg
             * St_Boltzman_ct
@@ -1569,7 +1569,7 @@ class SNTEMP_EQ(nn.Module):
         B_c = 0.00061 * P / denom2
         B_c1 = 0.00061 * P / (e_s - e_a)
         K_g = make_tensor(1.65)
-        delta_Z = make_tensor(args["STemp_default_params"]["delta_Z"])
+        delta_Z = make_tensor(args["STemp_default_delta_Z"])
         # we don't need H_a, because we hae swrad directly from inputs
         H_a = self.atm_longwave_radiation_heat(
             T_a, e_a, shade_total, cloud_fraction, args=args
@@ -1653,12 +1653,12 @@ class SNTEMP_EQ(nn.Module):
         self, ave_air_temp, x, res_time, iGrid, iT, args, x_total_raw
     ):
         rho = x.shape[1]  # args['hyperparameters']['rho']
-        tArray_Total = tRange2Array(args["optData"]["tRange"])
-        tArray_train = tRange2Array(args["optData"]["t_train"])
+        tArray_Total = tRange2Array(args["tRange"])
+        tArray_train = tRange2Array(args["t_train"])
         _, ind1, _ = intersect(tArray_Total, tArray_train)
         ind1_tensor = make_tensor(ind1, has_grad=False)
         iT_tensor = make_tensor(iT, has_grad=False)
-        vars = args["optData"]["varT"] + args["optData"]["varC"]
+        vars = args["varT_SNTEMP"] + args["varC_SNTEMP"]
         temp_res = res_time
         with torch.no_grad():
             temp_res1 = temp_res.int()
@@ -1666,8 +1666,8 @@ class SNTEMP_EQ(nn.Module):
         B = torch.reshape(A, (res_time.shape[0], rho, res_time.shape[1]))
         ave_air = torch.zeros(
             (
-                args["hyperparameters"]["batch_size"],
-                args["hyperparameters"]["rho"],
+                args["batch_size"],
+                args["rho"],
                 res_time.shape[1],
             ),
             device=args["device"],
@@ -1696,17 +1696,17 @@ class SNTEMP_EQ(nn.Module):
         :param lenF: maximum number of days that it is needed to be considered in average
         :return:
         """
-        rho = args["hyperparameters"]["rho"]
-        tArray_Total = tRange2Array(args["optData"]["tRange"])
+        rho = args["rho"]
+        tArray_Total = tRange2Array(args["tRange"])
         tArray_sample = tRange2Array(time_range)
         _, ind1, _ = intersect(tArray_Total, tArray_sample)
         ind1_tensor = make_tensor(ind1, has_grad=False)
         iT_tensor = make_tensor(iT, has_grad=False)
-        vars = args["optData"]["varT"] + args["optData"]["varC"]
+        vars = args["varT_SNTEMP"] + args["varC_SNTEMP"]
         ave_air = torch.zeros(
             (
-                args["hyperparameters"]["batch_size"],
-                args["hyperparameters"]["rho"],
+                args["batch_size"],
+                args["rho"],
                 lenF,
             ),
             device=args["device"],
@@ -1726,11 +1726,11 @@ class SNTEMP_EQ(nn.Module):
         return ave_air
 
     def x_sample_air_temp2(self, iGrid, iT, lenF, args, ave_air_total):
-        rho = args["hyperparameters"]["rho"]
+        rho = args["rho"]
         # ave_air = torch.zeros((len(iGrid), args["hyperparameters"]["rho"],
         #                        lenF),
         #                       device=args["device"])
-        a = min(ave_air_total.shape[1], args["hyperparameters"]["rho"])
+        a = min(ave_air_total.shape[1], args["rho"])
         ave_air = torch.zeros((len(iGrid), a, lenF), device=args["device"])
         # array = np.array([np.arange(x, y) for x, y in zip(iT, iT + rho)])
         ave_air_temp = ave_air_total[iGrid, :, 0:lenF]
@@ -1743,7 +1743,7 @@ class SNTEMP_EQ(nn.Module):
         return ave_air
 
     def ave_temp_general(self, args, x_total_raw_tensor, time_range):
-        vars = args["varT"] + args["varC"]
+        vars = args["varT_NN"] + args["varC_NN"]
         lenF_max = np.maximum(
             args["res_time_lenF_srflow"],
             np.maximum(
@@ -1831,7 +1831,7 @@ class SNTEMP_EQ(nn.Module):
             www = ww / ww.sum(0)  # scale to 1 for each UH
         return www
 
-    def UH_gamma(a, b, lenF=10):
+    def UH_gamma(self, a, b, lenF=10):
         # UH. a [time (same all time steps), batch, var]
         m = a.shape
         lenF = min(a.shape[0], lenF)
@@ -1847,7 +1847,7 @@ class SNTEMP_EQ(nn.Module):
         w = w / w.sum(0)  # scale to 1 for each UH
         return w
 
-    def UH_conv(x, UH, viewmode=1):
+    def UH_conv(self, x, UH, viewmode=1):
         # UH is a vector indicating the unit hydrograph
         # the convolved dimension will be the last dimension
         # UH convolution is
@@ -1871,8 +1871,10 @@ class SNTEMP_EQ(nn.Module):
             w = UH.view([nb, 1, m])
             groups = nb
 
-        y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
-        y = y[:, :, 0:-padd]
+        # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+        y = F.conv1d(xx, w, groups=groups, padding=padd, stride=1, bias=None) # we don't need flip
+        if padd != 0:
+            y = y[:, :, 0:-padd]
         return y.view(mm)
 
 
@@ -1941,7 +1943,7 @@ class SNTEMP_EQ(nn.Module):
         :return: temperature of lateral flow
         """
         # with torch.no_grad():
-        if args["res_time_params"]["type"] == "SNTEMP":
+        if args["res_time_type"] == "SNTEMP":
             mask_ave_air_temp = ave_air_temp.ge(0)
             ave_air_temp = ave_air_temp * mask_ave_air_temp.int().float()
 
@@ -1958,7 +1960,7 @@ class SNTEMP_EQ(nn.Module):
                 dim=3,
             )
 
-        elif args["res_time_params"]["type"] == "van Vliet":
+        elif args["res_time_type"] == "van Vliet":
             # look at http://dx.doi.org/10.1029/2018WR023250 page 4
             srflow_temp = ave_air_temp[:, :, :, 0] - 1.5
             mask_srflow_temp = srflow_temp.ge(0.0)
@@ -1982,7 +1984,7 @@ class SNTEMP_EQ(nn.Module):
             )
         #
         # elif args["res_time_params"]["type"] is "Meisner":
-        elif args["res_time_params"]["type"] == "Meisner":
+        elif args["res_time_type"] == "Meisner":
             # look at http://dx.doi.org/10.1029/2018WR023250 page 4
             srflow_temp = ave_air_temp[:, :, :, 0]
             mask_srflow_temp = srflow_temp.ge(0)
@@ -2035,8 +2037,8 @@ class SNTEMP_EQ(nn.Module):
     ):
         # # Note: as we assume that Q_0 is 0.01, we are always gaining flow with positive lateral flow or
         # # with zero lateral flow
-        density = args["params"]["water_density"]
-        c_w = args["params"]["C_w"]
+        density = args["params_water_density"]
+        c_w = args["params_C_w"]
         mask_q_l = q_l.eq(0)
         q_l_pos = q_l + mask_q_l.int().float()
         b = q_l + ((K1 * ave_width) / (density * c_w))
@@ -2274,6 +2276,43 @@ class SNTEMP_EQ(nn.Module):
         new_param = torch.cat(param_name_list, 1)
         return new_param
 
+    def param_bounds(self, params, num, args, bounds):
+        nmul = args["nmul"]
+        if num in args["static_params_list_SNTEMP"]:
+            out_temp = (
+                    params[:, -1, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+            out = out_temp.repeat(1, params.shape[1]).reshape(
+                params.shape[0], params.shape[1], nmul
+            )
+
+        elif num in args["semi_static_params_list_SNTEMP"]:
+            out_temp = self.multi_comp_semi_static_params(
+                params,
+                num,
+                args,
+                interval=args["interval_for_semi_static_param_SNTEMP"][
+                    args["semi_static_params_list_SNTEMP"].index(num)
+                ],
+                method=args["method_for_semi_static_param_SNTEMP"][
+                    args["semi_static_params_list_SNTEMP"].index(num)
+                ],
+            )
+            out = (
+                    out_temp * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+
+        else:  # dynamic
+            out = (
+                    params[:, :, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+        return out
+
     def multi_comp_semi_static_params(
         self, params, param_no, args, interval=30, method="average"
     ):
@@ -2333,75 +2372,76 @@ class SNTEMP_EQ(nn.Module):
 
         # for all a and b
 
-        w1_shade = self.multi_comp_parameter_bounds(params, 0, args)
-        w2_shade = self.multi_comp_parameter_bounds(params, 1, args)
-        w3_shade = self.multi_comp_parameter_bounds(params, 2, args)
-        width_coef_nom = self.multi_comp_parameter_bounds(params, 3, args)
-        width_coef_denom = self.multi_comp_parameter_bounds(params, 4, args)
-        hamon_coef = self.multi_comp_parameter_bounds(params, 5, args)
-        lat_temp_adj = self.multi_comp_parameter_bounds(params, 6, args)
+        w1_shade = self.param_bounds(params, 0, args, bounds=args["SNTEMP_paramCalLst"][0])
+        w2_shade = self.param_bounds(params, 1, args, bounds=args["SNTEMP_paramCalLst"][1])
+        w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
+        width_coef_nom = self.param_bounds(params, 3, args, bounds=args["SNTEMP_paramCalLst"][3])
+        width_coef_denom = self.param_bounds(params, 4, args, bounds=args["SNTEMP_paramCalLst"][4])
+        hamon_coef = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
+        lat_temp_adj = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
         if args["routing_SNTEMP"] == True:
             No_params = len(args["SNTEMP_paramCalLst"])
-            a_srflow = self.multi_comp_parameter_bounds(params, No_params, args)
-            b_srflow = self.multi_comp_parameter_bounds(params, No_params + 1, args)
-            a_ssflow = self.multi_comp_parameter_bounds(params, No_params + 2, args)
-            b_ssflow = self.multi_comp_parameter_bounds(params, No_params + 3, args)
-            a_gwflow = self.multi_comp_parameter_bounds(params, No_params + 4, args)
-            b_gwflow = self.multi_comp_parameter_bounds(params, No_params + 5, args)
+            a_srflow = self.param_bounds(params, No_params, args, bounds=args["conv_SNTEMP"][0])
+            b_srflow = self.param_bounds(params, No_params + 1, args, bounds=args["conv_SNTEMP"][1])
+            a_ssflow = self.param_bounds(params, No_params + 2, args, bounds=args["conv_SNTEMP"][2])
+            b_ssflow = self.param_bounds(params, No_params + 3, args, bounds=args["conv_SNTEMP"][3])
+            a_gwflow = self.param_bounds(params, No_params + 4, args, bounds=args["conv_SNTEMP"][4])
+            b_gwflow = self.param_bounds(params, No_params + 5, args, bounds=args["conv_SNTEMP"][5])
         nmul = args["nmul"]
         vars = args["varT_SNTEMP"] + args["varC_SNTEMP"]
-        with torch.no_grad():
-            flow_tot = (
-                    (srflow + ssflow + gwflow).unsqueeze(-1).repeat(1, 1, nmul)
-            )  # converting cfs to cms
-            precip = (
-                x[:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # with torch.no_grad():
+        flow_tot = (
+                (srflow + ssflow + gwflow)
+        )  # converting cfs to cms
+        precip = (
+            x[:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
+        )
+        up_inflow = make_tensor(torch.zeros(flow_tot.size()))
+        mean_air_temp = (
+            ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
+            .unsqueeze(-1)
+            .repeat(1, 1, nmul)
+        )
+        dayl = x[:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+        vp = 0.01 * x[:, :, vars.index("vp(Pa)")].unsqueeze(-1).repeat(
+            1, 1, nmul
+        )  # converting to mbar
+        swrad = (
+            (
+                x[:, :, vars.index("srad(W/m2)")]
+                * x[:, :, vars.index("dayl(s)")]
+                / 86400
             )
-            up_inflow = make_tensor(torch.zeros(flow_tot.size()))
-            mean_air_temp = (
-                ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
-                .unsqueeze(-1)
-                .repeat(1, 1, nmul)
-            )
-            dayl = x[:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
-            vp = 0.01 * x[:, :, vars.index("vp(Pa)")].unsqueeze(-1).repeat(
-                1, 1, nmul
-            )  # converting to mbar
-            swrad = (
-                (
-                    x[:, :, vars.index("srad(W/m2)")]
-                    * x[:, :, vars.index("dayl(s)")]
-                    / 86400
-                )
-                .unsqueeze(-1)
-                .repeat(1, 1, nmul)
-            )
-            elev = (
-                x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-                .unsqueeze(-1)
-                .repeat(1, 1, nmul)
-            )
-            slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(
-                1, 1, nmul
-            )  # adding the percentage, it is a watershed slope not a stream slope
-            # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
-            # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
-            # stream_length = x[:, :, vars.index("stream_length_artificial")]
-            # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
-            stream_length = (
-                x[:, :, vars.index("stream_length_artificial")]
-                .unsqueeze(-1)
-                .repeat(1, 1, nmul)
-            )
-            # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
+            .unsqueeze(-1)
+            .repeat(1, 1, nmul)
+        )
+        elev = (
+            x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
+            .unsqueeze(-1)
+            .repeat(1, 1, nmul)
+        )
+        slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(
+            1, 1, nmul
+        )  # adding the percentage, it is a watershed slope not a stream slope
+        # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
+        # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
+        # stream_length = x[:, :, vars.index("stream_length_artificial")]
+        # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
+        stream_length = (
+            x[:, :, vars.index("stream_length_artificial")]
+            .unsqueeze(-1)
+            .repeat(1, 1, nmul)
+        )
+        # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
+        t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         albedo = args["STemp_default_albedo"]
         # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
 
         # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
         # hamon PET equation. We can add other methods too, such as Penman monteith
         PET = get_potet(
-            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
+            args=args, mean_air_temp=t_monthly, dayl=dayl, hamon_coef=hamon_coef
         )
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))
@@ -2445,25 +2485,28 @@ class SNTEMP_EQ(nn.Module):
         b_srflow_new = b_srflow.mean(-1, keepdim=True).permute(1, 0, 2)
         w_srflow = self.UH_gamma(a=a_srflow_new, b=b_srflow_new,
                                  lenF=args["res_time_lenF_srflow"])
-        air_sample_sr = air_sample_sr.unsqueeze(-1).permute([0, 2, 1])  # dim:gage*var*time
+        air_sample_sr = air_sample_sr.permute([0, 2, 1])  # dim:gage*var*time
         w_srflow = w_srflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_sr = self.UH_conv(air_sample_sr, w_srflow).permute([0, 2, 1]).repeat(1, 1, nmul)
+        ave_air_sr = self.UH_conv(air_sample_sr, w_srflow)[:, :, args["res_time_lenF_srflow"]:].permute(
+            [0, 2, 1]).repeat(1, 1, nmul)
 
         a_ssflow_new = a_ssflow.mean(-1, keepdim=True).permute(1, 0, 2)
         b_ssflow_new = b_ssflow.mean(-1, keepdim=True).permute(1, 0, 2)
         w_ssflow = self.UH_gamma(a=a_ssflow_new, b=b_ssflow_new,
                                  lenF=args["res_time_lenF_ssflow"])
-        air_sample_ss = air_sample_ss.unsqueeze(-1).permute([0, 2, 1])  # dim:gage*var*time
+        air_sample_ss = air_sample_ss.permute([0, 2, 1])  # dim:gage*var*time
         w_ssflow = w_ssflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_ss = self.UH_conv(air_sample_ss, w_ssflow).permute([0, 2, 1]).repeat(1, 1, nmul)
+        ave_air_ss = self.UH_conv(air_sample_ss, w_srflow)[:, :, args["res_time_lenF_ssflow"]:].permute(
+            [0, 2, 1]).repeat(1, 1, nmul)
 
         a_gwflow_new = a_gwflow.mean(-1, keepdim=True).permute(1, 0, 2)
         b_gwflow_new = b_gwflow.mean(-1, keepdim=True).permute(1, 0, 2)
         w_gwflow = self.UH_gamma(a=a_gwflow_new, b=b_gwflow_new,
                                  lenF=args["res_time_lenF_gwflow"])
-        air_sample_gw = air_sample_gw.unsqueeze(-1).permute([0, 2, 1])  # dim:gage*var*time
+        air_sample_gw = air_sample_gw.permute([0, 2, 1])  # dim:gage*var*time
         w_gwflow = w_gwflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_gw = self.UH_conv(air_sample_gw, w_gwflow).permute([0, 2, 1]).repeat(1, 1, nmul)
+        ave_air_gw = self.UH_conv(air_sample_gw, w_srflow)[:, :, args["res_time_lenF_gwflow"]:].permute(
+            [0, 2, 1]).repeat(1, 1, nmul)
         # w_srflow = self.res_time_gamma(
         #     a=a_srflow.unsqueeze(-1),
         #     b=b_srflow.unsqueeze(-1),
@@ -2517,7 +2560,7 @@ class SNTEMP_EQ(nn.Module):
         #     air_sample_gw, w_gwflow, bias=None
         # )  # gw_conv_bias
 
-        ave_air_temp = torch.cat((ave_air_sr, ave_air_ss, ave_air_gw), dim=3)
+        ave_air_temp = torch.cat((ave_air_sr.unsqueeze(-1), ave_air_ss.unsqueeze(-1), ave_air_gw.unsqueeze(-1)), dim=3)
 
         (
             T_0,
@@ -2587,15 +2630,15 @@ class SNTEMP_EQ(nn.Module):
             L=stream_length,
             args=args,
             T_0=T_0,
-            Q_0=obsQ,
+            Q_0=flow_tot,
         )
 
         if args["lat_temp_adj"] == "True":
             return (
                 torch.mean(T_w, -1).squeeze(),
                 torch.mean(ave_air_temp_new, 2).squeeze(),
-                torch.mean(gwflow_percentage, -1).squeeze(),
-                torch.mean(ssflow_percentage, -1).squeeze(),
+                torch.mean(gwflow, -1).squeeze(),
+                torch.mean(ssflow, -1).squeeze(),
                 torch.mean(w_gwflow, -1).squeeze(),
                 torch.mean(w_ssflow, -1).squeeze(),
                 torch.mean(PET, -1).squeeze(),
@@ -2610,8 +2653,8 @@ class SNTEMP_EQ(nn.Module):
             return (
                 torch.mean(T_w, -1).squeeze(),
                 torch.mean(ave_air_temp_new, 2).squeeze(),
-                torch.mean(gwflow_percentage, -1).squeeze(),
-                torch.mean(ssflow_percentage, -1).squeeze(),
+                torch.mean(gwflow, -1).squeeze(),
+                torch.mean(ssflow, -1).squeeze(),
                 torch.mean(w_gwflow, -1).squeeze(),
                 torch.mean(w_ssflow, -1).squeeze(),
                 torch.mean(PET, -1).squeeze(),

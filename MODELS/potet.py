@@ -20,7 +20,7 @@ def potet_hamon(mean_air_temp, dayl, hamon_coef=0.0055):  # hamon_coef=0.1651
 
     PET = (
         hamon_coef * torch.pow((dayl / 3600) / 12, 2) * rho * 0.0254 / 86400
-    )  # 25.4 is converting inches to m/s
+    )  # 25.4 is converting inches/day to m/s
 
     # replacing negative values with zero
     mask_PET = PET.ge(0)

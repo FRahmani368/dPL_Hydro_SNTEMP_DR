@@ -39,7 +39,7 @@ def create_output_dirs(args, seed):
     #              '_B_' + str(args['hyperparameters']['batch_size']) + \
     #              '_H_' + str(args['hyperparameters']['hidden_size']) + \
     #              '_dr_' + str(args['hyperparameters']['dropout']) + "_" + str(seed)
-    L = len(args["static_params_list"])
+    L = len(args["static_params_list_SNTEMP"])
     # if L > 0:
     #     stat = str(args["static_params_list"][0])
     #     if L > 1:
@@ -49,7 +49,7 @@ def create_output_dirs(args, seed):
     #     stat = ""
     stat = str(L)
 
-    L = len(args["semi_static_params_list"])
+    L = len(args["semi_static_params_list_SNTEMP"])
     # if L > 0:
     #     semi = str(args["semi_static_params_list"][0])
     #     if L > 1:

@@ -91,7 +91,7 @@ def main(args):
                             res_time_lenF_ssflow=LenF_ss,
                             lat_temp_adj=adj,
                             frac_smoothening_mode=frac_smooth,
-                            seed=seed
+                            randomseed=seed
         )
 
         randomseed_config(seed)
@@ -110,7 +110,7 @@ def main(args):
         del (x_NN_train, y_NN_train)   # we just needed them to create a stat file for normalization
 
         # normalizing x, y, c
-        x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp_NN, y_raw, c_raw)
+        x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp_NN, y_raw, c_raw_NN)
 
         #
         vars = args["varT_NN"] + args["varC_NN"]
@@ -145,8 +145,8 @@ def main(args):
         Ts = SNTEMP_EQ()    # SNTEMP model
 
         # loss function
-        # lossFun = crit.RmseLoss()    # simple rmse loss function
-        lossFun = crit.RmseLoss_temp_flow(w=0.25)   #0.25 for streamflow
+        lossFun = crit.RmseLoss()    # simple rmse loss function
+        # lossFun = crit.RmseLoss_temp_flow(w=0.25)   #0.25 for streamflow
         # lossFun = crit.RmseLossComb(alpha=0.25)
         optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
         # optim = torch.optim.SGD(model.parameters(), lr=10)
@@ -170,10 +170,12 @@ def main(args):
             x_PRMS_train, _ = train_val_test_split("t_train", args, time1, x_PRMS, y_raw)
             x_SNTEMP_train, _ = train_val_test_split("t_train", args, time1, x_SNTEMP, y_raw)
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args["t_train"])
-
+            mean_air_temp_train = (x_PRMS_train[:,:, args["varT_SNTEMP"].index("tmax(C)")] +
+                                   x_PRMS_train[:,:, args["varT_SNTEMP"].index("tmin(C)")]) / 2
             ngrid_train, nIterEp, nt, batchSize = No_iter_nt_ngrid("t_train", args, x_train)
             rho = args["rho"]
             warm_up = args["warm_up"]
+            nmul = args["nmul"]
             model.zero_grad()
             model.train()
             # training
@@ -196,17 +198,31 @@ def main(args):
                     # SNTEMP sampling
                     x_SNTEMP_sample = selectSubset(
                         args, x_SNTEMP_train, iGrid, iT, rho + warm_up, has_grad=False
-                    )[:, warm_up:, :]    # there is no need for warm up in temp section yet
+                    )[warm_up:,:, :].transpose(0, 1)    # there is no need for warm up in temp section yet
                     c_SNTEMP_sample = torch.tensor(
                         c_SNTEMP[iGrid], device=args["device"], dtype=torch.float32
                     )
+                    air_sample_sr = selectSubset(
+                        args, np.expand_dims(mean_air_temp_train, axis=2), iGrid, iT,
+                        rho + args['res_time_lenF_srflow'], has_grad=False
+                    ).permute([1, 0, 2])
+                    air_sample_ss = selectSubset(
+                        args, np.expand_dims(mean_air_temp_train, axis=2), iGrid, iT,
+                        rho + args['res_time_lenF_ssflow'], has_grad=False
+                    ).permute([1, 0, 2])
+                    air_sample_gw = selectSubset(
+                        args, np.expand_dims(mean_air_temp_train, axis=2), iGrid, iT,
+                        rho + args['res_time_lenF_gwflow'], has_grad=False
+                    ).permute([1, 0, 2])
                     # observations
                     targets = args["target"]
                     flowObs = selectSubset(
-                        args, y_train[:, :, targets.index("00060_Mean")], iGrid, iT, rho + warm_up, has_grad=False
+                        args, np.expand_dims(y_train[:, :, targets.index("00060_Mean")], axis=2),
+                        iGrid, iT, rho + warm_up, has_grad=False
                     )
                     tempObs = selectSubset(
-                        args, y_train[:, :, targets.index("00010_Mean")], iGrid, iT, rho + warm_up, has_grad=False
+                        args, np.expand_dims(y_train[:, :, targets.index("00010_Mean")], axis=2),
+                        iGrid, iT, rho + warm_up, has_grad=False
                     )
 
                     ### MLP
@@ -225,45 +241,47 @@ def main(args):
                         c_PRMS_sample,
                         params_PRMS,
                         args,
-                        warm_up,
+                        Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
+                        warm_up=warm_up,
+
                     )
 
                     # converting mm/day to m3/ day
                     varC_PRMS = args["varC_PRMS"]
-                    area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1])
+                    area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowSim_total.shape[1])
                     srflow = area * (flowSim_total[:, :, 1] + flowSim_total[:, :, 2])   # sro + sas
                     ssflow = area * (flowSim_total[:, :, 4])   # ras
                     gwflow = area * (flowSim_total[:, :, 3])   # bas
 
-                    air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_srflow'],
-                                                          args=args, ave_air_total=ave_air_total)
-                    air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_ssflow'],
-                                                          args=args, ave_air_total=ave_air_total)
-                    air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_gwflow'],
-                                                          args=args, ave_air_total=ave_air_total)
+                    # air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_srflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
+                    # air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_ssflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
+                    # air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_gwflow'],
+                    #                                       args=args, ave_air_total=ave_air_total)
 
                     temp_sim, ave_air_temp, gwflow_percentage, ssflow_percentage, gw_tau, ss_tau, pet, \
                     shade_fraction_riparian, shade_fraction_topo, \
-                    top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(xTrain_sample.transpose(0, 1),
+                    top_width, cloud_fraction, hamon_coef, lat_temp_adj = Ts.forward(x_SNTEMP_sample,
                                                                      params_SNTEMP, iGrid, iT,
                                                                      args=args, air_sample_sr=air_sample_sr,
                                                                      air_sample_ss=air_sample_ss,
                                                                      air_sample_gw=air_sample_gw,
-                                                                     srflow=srflow,
-                                                                     ssflow=ssflow,
-                                                                     gwflow=gwflow)
+                                                                     srflow=srflow.unsqueeze(-1).repeat(1, 1, nmul),
+                                                                     ssflow=ssflow.unsqueeze(-1).repeat(1, 1, nmul),
+                                                                     gwflow=gwflow.unsqueeze(-1).repeat(1, 1, nmul))
 
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
                     flowObs = flowObs[warm_up:, :, :].transpose(1, 0)  # to make it in flowSim format
                     varC_PRMS = args["varC_PRMS"]
-                    area = c_PRMS_sample[:, varC_PRMS.index("area_gages2")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
-                    flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
+                    area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
+                    flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
                     # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
-                    loss = lossFun(flowObs, tempObs,
-                        flowSim[:, :, 0].unsqueeze(-1), temp_sim.unsqueeze(-1)
-                    )
-                    # loss = lossFun(test_sim, test)
+                    # loss = lossFun(flowObs, tempObs,
+                    #     flowSim[:, :, 0].unsqueeze(-1), temp_sim.unsqueeze(-1)
+                    # )
+                    loss = lossFun(temp_sim.unsqueeze(-1), tempObs[warm_up:, :, :].permute([1, 0, 2]))
                     # c = list(model.parameters())[0].clone()
                     loss.backward()  # retain_graph=True
                     # for param in model.parameters():

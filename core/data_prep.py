@@ -18,7 +18,8 @@ def load_df(args):
     df, x, y, c, c_PRMS, x_PRMS, c_SNTEMP, x_SNTEMP = master.loadData(args)
     nx = x.shape[-1] + c.shape[-1]
     x_total = np.zeros((x.shape[0], x.shape[1], nx))
-    x_tot_SNTEMP = np.zeros((x.shape[0], x.shape[1], nx))
+    nx_SNTEMP = x_SNTEMP.shape[-1] + c_SNTEMP.shape[-1]
+    x_tot_SNTEMP = np.zeros((x.shape[0], x.shape[1], nx_SNTEMP))
     ct = np.repeat(c, repeats=x.shape[1], axis=0)
     for k in range(x.shape[0]):
         x_total[k, :, :] = np.concatenate(
