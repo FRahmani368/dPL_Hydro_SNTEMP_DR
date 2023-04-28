@@ -1838,14 +1838,18 @@ class SNTEMP_EQ(nn.Module):
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
         theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
-        t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
-        t = t.cuda(aa.device)
+        # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        # t = t.cuda(aa.device)
+        t = (torch.linspace(0.001, 20, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
+        t = t.to(aa.device)
         denom = (aa.lgamma().exp()) * (theta ** aa)
         mid = t ** (aa - 1)
         right = torch.exp(-t / theta)
         w = 1 / denom * mid * right
-        w = w / w.sum(0)  # scale to 1 for each UH
-        return w
+        ww = torch.cumsum(w, dim=0)
+        www = ww / ww.sum(0)
+        # w = w / w.sum(0)  # scale to 1 for each UH
+        return www
 
     def UH_conv(self, x, UH, viewmode=1):
         # UH is a vector indicating the unit hydrograph
@@ -2441,7 +2445,7 @@ class SNTEMP_EQ(nn.Module):
         # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
         # hamon PET equation. We can add other methods too, such as Penman monteith
         PET = get_potet(
-            args=args, mean_air_temp=t_monthly, dayl=dayl, hamon_coef=hamon_coef
+            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
         )
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))

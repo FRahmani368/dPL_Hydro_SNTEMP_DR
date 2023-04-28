@@ -6,7 +6,7 @@ from MODELS.potet import get_potet
 from MODELS.marrmot import Forward_implicit_solver
 # from functorch import vmap, jacrev, jacfwd, vjp
 import torch.nn.functional as F
-
+import matplotlib.pyplot as plt
 class prms_marrmot_changed(torch.nn.Module):
     def __init__(self, args, settings={'TolX': 1e-12, 'TolFun': 1e-6, 'MaxIter': 1000}):
         super(prms_marrmot, self).__init__()
@@ -1356,9 +1356,10 @@ class prms_marrmot(torch.nn.Module):
         #     x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
         # )
         t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][4])
+        # it is poorly coded. need to fix it later.
+        hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][5])
         PET = get_potet(
-            args=args, mean_air_temp=t_monthly, dayl=dayl, hamon_coef=hamon_coef
+            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
         ) * 86400 * 1000  # converting m/sec to mm/day
 
         # initialize the Q_sim and other fluxes
@@ -1476,6 +1477,12 @@ class prms_marrmot(torch.nn.Module):
             UH = UH.permute([1, 2, 0])  # dim: gage*var*time
             Qsrout = UH_conv(rf, UH).permute([0, 2, 1])
 
+            rf_sas = sas_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qsas_rout = UH_conv(rf_sas, UH).permute([0, 2, 1])
+
+            rf_sro = sro_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qsro_rout = UH_conv(rf_sro, UH).permute([0, 2, 1])
+
             rf_ras = ras_sim.mean(-1, keepdim=True).permute([0, 2, 1])
             Qras_rout = UH_conv(rf_ras, UH).permute([0, 2, 1])
 
@@ -1499,8 +1506,8 @@ class prms_marrmot(torch.nn.Module):
         else:
             Qall = torch.cat((
                 Qsrout,
-                torch.mean(sas_sim, -1).unsqueeze(-1),
-                torch.mean(sro_sim, -1).unsqueeze(-1),
+                Qsas_rout,
+                Qsro_rout,
                 Qbas_rout,
                 Qras_rout,
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
