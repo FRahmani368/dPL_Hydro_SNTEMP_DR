@@ -2637,37 +2637,33 @@ class SNTEMP_EQ(nn.Module):
             Q_0=flow_tot,
         )
 
+        source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
+                                    ssflow_temp.mean(-1, keepdim=True),
+                                    gwflow_temp.mean(-1, keepdim=True)), dim=2)
         if args["lat_temp_adj"] == "True":
-            return (
-                torch.mean(T_w, -1).squeeze(),
-                torch.mean(ave_air_temp_new, 2).squeeze(),
-                torch.mean(gwflow, -1).squeeze(),
-                torch.mean(ssflow, -1).squeeze(),
-                torch.mean(w_gwflow, -1).squeeze(),
-                torch.mean(w_ssflow, -1).squeeze(),
-                torch.mean(PET, -1).squeeze(),
-                torch.mean(shade_fraction_riparian, -1).squeeze(),
-                torch.mean(shade_fraction_topo, -1).squeeze(),
-                torch.mean(top_width, -1).squeeze(),
-                torch.mean(cloud_fraction, -1).squeeze(),
-                torch.mean(hamon_coef, -1).squeeze(),
-                torch.mean(lat_temp_adj, -1).squeeze(),
-            )
+            SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
+                                     shade_fraction_riparian.mean(-1, keepdim=True),
+                                     shade_fraction_topo.mean(-1, keepdim=True),
+                                     top_width.mean(-1, keepdim=True),
+                                     hamon_coef.mean(-1, keepdim=True),
+                                     lat_temp_adj.mean(-1, keepdim=True)), dim=2)
+            return (T_w.mean(-1, keepdim=True),
+                    ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
+                    w_gwflow.permute([0, 2, 1]),
+                    w_ssflow.permute([0, 2, 1]),
+                    source_temps,
+                    SNTEMP_outs
+                    )
         else:
-            return (
-                torch.mean(T_w, -1).squeeze(),
-                torch.mean(ave_air_temp_new, 2).squeeze(),
-                torch.mean(gwflow, -1).squeeze(),
-                torch.mean(ssflow, -1).squeeze(),
-                torch.mean(w_gwflow, -1).squeeze(),
-                torch.mean(w_ssflow, -1).squeeze(),
-                torch.mean(PET, -1).squeeze(),
-                torch.mean(shade_fraction_riparian, -1).squeeze(),
-                torch.mean(shade_fraction_topo, -1).squeeze(),
-                torch.mean(top_width, -1).squeeze(),
-                torch.mean(cloud_fraction, -1).squeeze(),
-                torch.mean(hamon_coef, -1).squeeze(),
-                torch.mean(
-                    torch.zeros(hamon_coef.shape, device=args["device"]), -1
-                ).squeeze(),
-            )
+            SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
+                                     shade_fraction_riparian.mean(-1, keepdim=True),
+                                     shade_fraction_topo.mean(-1, keepdim=True),
+                                     top_width.mean(-1, keepdim=True),
+                                     hamon_coef.mean(-1, keepdim=True),
+                                     0.0 * hamon_coef.mean(-1, keepdim=True)), dim=2)
+            return (T_w.mean(-1, keepdim=True),
+                    ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
+                    w_gwflow.permute([0, 2, 1]),
+                    w_ssflow.permute([0, 2, 1]),
+                    source_temps,
+                    SNTEMP_outs)

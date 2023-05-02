@@ -33,7 +33,8 @@ def load_df(args):
     # streamflow values should not be negative
     # vars = args['optData']['varT'] + args['optData']['varC']
     # x_total[x_total[:, :, vars.index("00060_Mean")] < 0] = 0
-    return x_total, y, c, c_PRMS, x_PRMS, c_SNTEMP, x_tot_SNTEMP
+    return np.float32(x_total), np.float32(y), np.float32(c), np.float32(c_PRMS), \
+        np.float32(x_PRMS), np.float32(c_SNTEMP), np.float32(x_tot_SNTEMP)
 
 
 def scaling(args, x, y, c):

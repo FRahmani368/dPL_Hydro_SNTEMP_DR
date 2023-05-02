@@ -1554,8 +1554,9 @@ def UH_conv(x,UH,viewmode=1):
         w  = UH.view([nb,1,m])
         groups = nb
 
-    y = F.conv1d(xx, torch.flip(w,[2]), groups=groups, padding=padd, stride=1, bias=None)
-    y=y[:,:,0:-padd]
+    y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+    if padd != 0:
+        y = y[:, :, 0:-padd]
     return y.view(mm)
 
 

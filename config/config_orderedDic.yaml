@@ -2,7 +2,7 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [0 ,1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -84,7 +84,7 @@ target: ["00060_Mean", "00010_Mean"]     # ['synth_T_1030365']   #   #     #['sy
 tRange: [19800101, 20230101]
 t_train: [20101001, 20141001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [20141001, 20161001]    # there should be an overlap because of the warm_up
+t_test: [20131001, 20161001]    # there should be an overlap because of the warm_up
 #  tRange: [19800101, 20200101]
 #  t_train: [20100101, 20141001]
 #  t_val: [20151001, 20161001]
@@ -100,10 +100,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 200
+EPOCHS: 300
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 5
+saveEpoch: 50
 
 seq_lin_layers_hidden_size: 256
 
@@ -134,7 +134,7 @@ NEARZERO: 1e-10
 Epan_coef: 1.0
 
 initial_values_shade_fraction: 0.1
-no_basins: 10
+no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
@@ -160,7 +160,7 @@ SNTEMP_paramCalLst: [
             # [0.01, 1],                       # cloud cover fraction
             [0.004, 0.008],                        # PET_ hamon coefficient
 
-            [-3, 5]
+            [-3, 5]                             # lateral temp adjusment
 ]
 marrmot_paramCalLst: [
     [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
