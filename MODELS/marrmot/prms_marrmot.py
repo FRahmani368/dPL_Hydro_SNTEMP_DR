@@ -1274,7 +1274,7 @@ class prms_marrmot(torch.nn.Module):
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x[:, 0:warm_up, :]
-                paramsinit = params[:, 0:warm_up, :]
+                paramsinit = params[:, :warm_up, :]
                 warm_up_model = prms_marrmot()
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
@@ -1355,7 +1355,7 @@ class prms_marrmot(torch.nn.Module):
         # PET = (
         #     x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
         # )
-        t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # it is poorly coded. need to fix it later.
         hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][5])
         PET = get_potet(
@@ -1489,15 +1489,12 @@ class prms_marrmot(torch.nn.Module):
             rf_bas = bas_sim.mean(-1, keepdim=True).permute([0, 2, 1])
             Qbas_rout = UH_conv(rf_bas, UH).permute([0, 2, 1])
 
-
         else:
             Qsrout = Q_sim.mean(-1, keepdim=True)
-        # Q_simave = Qsrout.mean(-1, keepdim=True)
-        # sas_simave = sas_sim.mean(-1, keepdim=True)
-        # sro_simave = sro_sim.mean(-1, keepdim=True)
-        # bas_simave = bas_sim.mean(-1, keepdim=True)
-        # ras_simave = ras_sim.mean(-1, keepdim=True)
-        # snk_simave = snk_sim.mean(-1, keepdim=True)
+            Qsas_rout = sas_sim.mean(-1, keepdim=True)
+            Qsro_rout = sro_sim.mean(-1, keepdim=True)
+            Qbas_rout = bas_sim.mean(-1, keepdim=True)
+            Qras_rout = ras_sim.mean(-1, keepdim=True)
 
 
         if init:  # means we are in warm up

@@ -2438,11 +2438,11 @@ class SNTEMP_EQ(nn.Module):
         )
         # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
-        t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         albedo = args["STemp_default_albedo"]
-        # top_width = make_tensor(np.full((x.shape[0], x.shape[1]), 10), has_grad=False)
 
-        # PET = make_tensor(np.full((x.shape[0], x.shape[1]), 0.010 / 86400), has_grad=False)
+
+
         # hamon PET equation. We can add other methods too, such as Penman monteith
         PET = get_potet(
             args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
@@ -2485,8 +2485,8 @@ class SNTEMP_EQ(nn.Module):
             # shade_fraction_riparian = w1_shade / (w1_shade + w2_shade + w3_shade)
             # shade_fraction_topo = w2_shade / (w1_shade + w2_shade + w3_shade)
             # shade_total = shade_fraction_riparian + shade_fraction_topo
-        a_srflow_new = a_srflow.mean(-1, keepdim=True).permute(1, 0, 2)
-        b_srflow_new = b_srflow.mean(-1, keepdim=True).permute(1, 0, 2)
+        a_srflow_new = a_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
+        b_srflow_new = b_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
         w_srflow = self.UH_gamma(a=a_srflow_new, b=b_srflow_new,
                                  lenF=args["res_time_lenF_srflow"])
         air_sample_sr = air_sample_sr.permute([0, 2, 1])  # dim:gage*var*time
@@ -2494,22 +2494,22 @@ class SNTEMP_EQ(nn.Module):
         ave_air_sr = self.UH_conv(air_sample_sr, w_srflow)[:, :, args["res_time_lenF_srflow"]:].permute(
             [0, 2, 1]).repeat(1, 1, nmul)
 
-        a_ssflow_new = a_ssflow.mean(-1, keepdim=True).permute(1, 0, 2)
-        b_ssflow_new = b_ssflow.mean(-1, keepdim=True).permute(1, 0, 2)
+        a_ssflow_new = a_ssflow.mean(-1, keepdim=True).permute([1, 0, 2])
+        b_ssflow_new = b_ssflow.mean(-1, keepdim=True).permute([1, 0, 2])
         w_ssflow = self.UH_gamma(a=a_ssflow_new, b=b_ssflow_new,
                                  lenF=args["res_time_lenF_ssflow"])
         air_sample_ss = air_sample_ss.permute([0, 2, 1])  # dim:gage*var*time
         w_ssflow = w_ssflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_ss = self.UH_conv(air_sample_ss, w_srflow)[:, :, args["res_time_lenF_ssflow"]:].permute(
+        ave_air_ss = self.UH_conv(air_sample_ss, w_ssflow)[:, :, args["res_time_lenF_ssflow"]:].permute(
             [0, 2, 1]).repeat(1, 1, nmul)
 
-        a_gwflow_new = a_gwflow.mean(-1, keepdim=True).permute(1, 0, 2)
-        b_gwflow_new = b_gwflow.mean(-1, keepdim=True).permute(1, 0, 2)
+        a_gwflow_new = a_gwflow.mean(-1, keepdim=True).permute([1, 0, 2])
+        b_gwflow_new = b_gwflow.mean(-1, keepdim=True).permute([1, 0, 2])
         w_gwflow = self.UH_gamma(a=a_gwflow_new, b=b_gwflow_new,
                                  lenF=args["res_time_lenF_gwflow"])
         air_sample_gw = air_sample_gw.permute([0, 2, 1])  # dim:gage*var*time
         w_gwflow = w_gwflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_gw = self.UH_conv(air_sample_gw, w_srflow)[:, :, args["res_time_lenF_gwflow"]:].permute(
+        ave_air_gw = self.UH_conv(air_sample_gw, w_gwflow)[:, :, args["res_time_lenF_gwflow"]:].permute(
             [0, 2, 1]).repeat(1, 1, nmul)
         # w_srflow = self.res_time_gamma(
         #     a=a_srflow.unsqueeze(-1),
@@ -2636,6 +2636,8 @@ class SNTEMP_EQ(nn.Module):
             T_0=T_0,
             Q_0=flow_tot,
         )
+        # get rid of negative values:
+        T_w = torch.relu(T_w)
 
         source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
                                     ssflow_temp.mean(-1, keepdim=True),

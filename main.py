@@ -72,8 +72,8 @@ def main(args):
     mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
-    lat_temp_adj_list = ["True", "True"]
-    frac_smoothening_list = ["True", "False"]
+    lat_temp_adj_list = ["False", "False"]
+    frac_smoothening_list = ["False", "False"]
     s = [0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj, frac_smooth in zip(
@@ -184,14 +184,15 @@ def main(args):
                 t0 = time.time()
                 for iIter in range(1, nIterEp + 1):
                     iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho + warm_up])
+
                     # NN sampling
                     xTrain_sample_scaled = selectSubset(
                         args, x_train_scaled, iGrid, iT, rho + warm_up, has_grad=False,
-                    )
+                    ).permute([1, 0, 2])
                     # PRMS sampling
                     x_PRMS_sample = selectSubset(
                         args, x_PRMS_train, iGrid, iT, rho + warm_up, has_grad=False
-                    )
+                    ).permute([1, 0, 2])
                     c_PRMS_sample = torch.tensor(
                         c_PRMS[iGrid], device=args["device"], dtype=torch.float32
                     )
@@ -199,9 +200,9 @@ def main(args):
                     x_SNTEMP_sample = selectSubset(
                         args, x_SNTEMP_train, iGrid, iT, rho + warm_up, has_grad=False
                     )[warm_up:,:, :].permute([1, 0, 2])    # there is no need for warm up in temp section yet
-                    c_SNTEMP_sample = torch.tensor(
-                        c_SNTEMP[iGrid], device=args["device"], dtype=torch.float32
-                    )
+                    # c_SNTEMP_sample = torch.tensor(
+                    #     c_SNTEMP[iGrid], device=args["device"], dtype=torch.float32
+                    # )
                     # here, warm_up should not be smaller than res_time_lenF_gwflow
                     air_sample_sr = selectSubset(
                         args, np.expand_dims(mean_air_temp_train, axis=2), iGrid, iT,
@@ -231,20 +232,20 @@ def main(args):
                         params = model(c_tensorTrain[iGrid])
                     ### CudnnLstm
                     if type(model) in [CudnnLstmModel]:
-                        params = model(xTrain_sample_scaled.permute(1, 0, 2))
+                        params = model(xTrain_sample_scaled)
 
                     params_PRMS = params[:, :, 0:ny_prms]
                     params_SNTEMP = params[:, warm_up:, ny_prms:]
-
+                    # params_PRMS = torch.load(r"G:\Farshid\fzr5082\params_PRMS.pt")
+                    # params_SNTEMP = torch.load(r"G:\Farshid\fzr5082\params_SNTEMP.pt")
 
                     flowSim_total = PRMS(
-                        x_PRMS_sample.transpose(0, 1),
+                        x_PRMS_sample,
                         c_PRMS_sample,
                         params_PRMS,
                         args,
                         Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
                         warm_up=warm_up,
-
                     )
 
                     # converting mm/day to m3/ day
@@ -254,16 +255,9 @@ def main(args):
                     srflow = (1000 / 86400) * area * (
                                 flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4])   # Q_t - gw - ss
                     ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4])   # ras
-                    gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])   # bas
+                    gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])
 
-                    # air_sample_sr = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_srflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-                    # air_sample_ss = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_ssflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-                    # air_sample_gw = Ts.x_sample_air_temp2(iGrid, iT, lenF=args['res_time_lenF_gwflow'],
-                    #                                       args=args, ave_air_total=ave_air_total)
-
-                    temp_sim, ave_air_temp, w_gwflow, w_ssflow, source_temps, SNTEMP_outs = Ts.forward(x_SNTEMP_sample,
+                    temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
                                                                      params_SNTEMP, iGrid, iT,
                                                                      args=args, air_sample_sr=air_sample_sr,
                                                                      air_sample_ss=air_sample_ss,
@@ -274,7 +268,7 @@ def main(args):
 
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
-                    flowObs = flowObs[warm_up:, :, :].transpose(1, 0)  # to make it in flowSim format
+                    flowObs = flowObs[warm_up:, :, :].permute([1, 0 , 2])  # to make it in flowSim format
                     varC_PRMS = args["varC_PRMS"]
                     area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                     flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
@@ -282,64 +276,29 @@ def main(args):
                     # loss = lossFun(flowObs, tempObs,
                     #     flowSim[:, :, 0].unsqueeze(-1), temp_sim.unsqueeze(-1)
                     # )
-                    loss = lossFun(temp_sim.unsqueeze(-1), tempObs[warm_up:, :, :].permute([1, 0, 2]))
-                    # c = list(model.parameters())[0].clone()
+                    loss = lossFun(temp_sim, tempObs[warm_up:, :, :].permute([1, 0, 2]))
+                    # loss = lossFun(flowSim_total[:, :, 0].unsqueeze(-1), flowObs)
                     loss.backward()  # retain_graph=True
-                    # for param in model.parameters():
-                    #     print(param.grad.data.sum())
                     optim.step()
-                    # b = list(model.parameters())[0].clone()
-                    # print(torch.equal(c.data, b.data))
                     model.zero_grad()
                     lossEp = lossEp + loss.item()
-                    if (iIter % 10 == 0) or (iIter == nIterEp):
-                        print(
-                            iIter,
-                            " from ",
-                            nIterEp,
-                            " in the ",
-                            epoch,
-                            "th epoch, and Loss is ",
-                            loss.item(),
-                        )
+                    if (iIter % 1 == 0) or (iIter == nIterEp):
+                        print(iIter," from ", nIterEp, " in the ", epoch,
+                            "th epoch, and Loss is ", loss.item())
                 lossEp = lossEp / nIterEp
-                # torch.cuda.synchronize()
                 logStr = "Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory".format(
-                    epoch,
-                    lossEp,
-                    time.time() - t0,
-                    int(torch.cuda.memory_allocated(device=args["device"]) * 0.001),
-                )
+                    epoch, lossEp, time.time() - t0,
+                    int(torch.cuda.memory_allocated(device=args["device"]) * 0.001))
                 print(logStr)
 
                 if epoch % args["saveEpoch"] == 0:
                     # save model
-                    modelFile = os.path.join(
-                        args["out_dir"], "model_Ep" + str(epoch) + ".pt"
-                    )
+                    modelFile = os.path.join(args["out_dir"], "model_Ep" + str(epoch) + ".pt")
                     torch.save(model, modelFile)
                 if epoch == args["EPOCHS"]:
                     print("last epoch")
             print("end")
-            del (
-                x_train_scaled,
-                y_train_scaled,
-                # x_train_scaled_noccov,
-                y_train,
-                ave_air_total,
-                x_train,
-            )
-            # del (
-            #     gw_tau,
-            #     ss_tau,
-            #     pet,
-            #     shade_fraction_riparian,
-            #     shade_fraction_topo,
-            #     top_width,
-            #     cloud_fraction,
-            #     hamon_coef,
-            #     lat_temp_adj,
-            # )
+            del (x_train_scaled, y_train_scaled, y_train, ave_air_total, x_train)
 
         if 1 in args["Action"]:
             # to free up some GPU memory
@@ -347,15 +306,11 @@ def main(args):
 
             warm_up = args["warm_up"]
             nmul = args["nmul"]
-            modelFile = os.path.join(
-                args["out_dir"],
-                "model_Ep" + str(args["EPOCHS"]) + ".pt",
-            )
+            modelFile = os.path.join(args["out_dir"], "model_Ep" + str(args["EPOCHS"]) + ".pt")
             # modelFile = r"/home/fzr5082/PGML_STemp_results/models/415_sites/E_900_R_365_B_208_H_256_dr_0.5_0R1/model_Ep900.pt"
 
             model = torch.load(modelFile)
             model.eval()
-            # iGrid = np.arange(99)
 
             time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
             # getting the raw and normalized inputs
@@ -366,7 +321,6 @@ def main(args):
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args["t_test"])
             mean_air_temp_test = (x_SNTEMP_test[:, :, args["varT_SNTEMP"].index("tmax(C)")] +
                                    x_SNTEMP_test[:, :, args["varT_SNTEMP"].index("tmin(C)")]) / 2
-
 
             del x_total_raw_NN, y_raw, x_total_scaled, y_scaled, x_SNTEMP, x_PRMS
             # x_test_scaled_noccov = np.delete(x_test_scaled, vars.index("ccov"), axis=2)
@@ -389,8 +343,6 @@ def main(args):
             iE = np.append(iS[1:], ngrid)
 
             for i in range(0, len(iS)):
-                # print('batch {}'.format(i))
-
                 for j in range(nrows):
                     if j != (nrows - 1):
                         cut = (j + 1) * rho + warm_up
