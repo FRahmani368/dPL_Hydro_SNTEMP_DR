@@ -5,12 +5,11 @@ from core.data_prep import (
     scaling,
     train_val_test_split,
     No_iter_nt_ngrid,
-    train_val_test_split_action1,
     randomIndex,
     selectSubset,
 )
 from core.small_codes import create_output_dirs
-from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, SNTEMP_EQ, CudnnLstmModel
+from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, SNTEMP_EQ, CudnnLstmModel, SNTEMP_only
 from MODELS.PRMS import PRMS_pytorch
 from MODELS.marrmot.prms_marrmot import prms_marrmot
 from MODELS import crit
@@ -30,43 +29,7 @@ from ruamel.yaml import YAML
 from core.hydroDL.data.camels import initcamels
 
 
-def syntheticP(args):
-    x_total_temp, y_raw, c_raw = load_df(args)
-    x_total_raw = x_total_temp.copy()
-    x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp, y_raw, c_raw)
-    time1 = hydroDL.utils.time.tRange2Array(args["optData"]["tRange"])
-    x_train, y_train, ngrid_train, nIterEp, nt, rho, batchSize = train_val_test_split(
-        "t_train", args, time1, x_total_raw, y_raw
-    )
-    x_train_scaled, y_train_scaled, _, _, _, _, _ = train_val_test_split(
-        "t_train", args, time1, x_total_scaled, y_scaled
-    )
-    x_total_raw_tensor = make_tensor(x_total_raw, has_grad=False)
-    model = STREAM_TEMP_EQ(args, x_total_raw_tensor)
-    if torch.cuda.is_available():
-        # model = model.cuda()
-        model = model.to(args["device"])
-    # initializing the variables
-    ave_air_temp = torch.empty(
-        (
-            args["hyperparameters"]["batch_size"],
-            x_train.shape[1],
-            len(args["params_target"]),
-        ),
-        device=args["device"],
-        requires_grad=False,
-    )
-
-    iGrid = np.arange(99)
-    iT = np.zeros(99)
-    Yp, ave_air_temp = model.forward(
-        torch.from_numpy(x_train).cuda().float(), iGrid, iT, ave_air_temp
-    )
-    # Yp = model.forward(torch.from_numpy(x_train).cuda().float(), ave_air_temp)
-    print("end")
-
-
-def main(args):
+def main_SNTEMP_only(args):
     # setting random seeds
     # randomseed_config(args)
     mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
@@ -107,7 +70,7 @@ def main(args):
         time1 = hydroDL.utils.time.tRange2Array(args["tRange"])
         x_NN_train, y_NN_train = train_val_test_split("t_train", args, time1, x_total_raw_NN, y_raw)
         initcamels(args, x_NN_train, y_NN_train)
-        del (x_NN_train, y_NN_train)   # we just needed them to create a stat file for normalization
+        del (x_NN_train, y_NN_train)   # we just needed them to create a stat file for normalization.
 
         # normalizing x, y, c
         x_total_scaled, y_scaled, c_scaled = scaling(args, x_total_temp_NN, y_raw, c_raw_NN)
@@ -121,10 +84,10 @@ def main(args):
         # all parameters are going to be 3D -> [batchsize, rho, nmul]
         # number of total parameters we need from NN, including the conv parameters
         #PRMS
-        if args["routing_PRMS"] == True:  # needs a and b for routing with conv method
-            ny_prms = args["nmul"] * (len(args["marrmot_paramCalLst"]) + len(args["conv_PRMS"]))
-        else:
-            ny_prms = args["nmul"] * len(args["marrmot_paramCalLst"])
+        # if args["routing_PRMS"] == True:  # needs a and b for routing with conv method
+        #     ny_prms = args["nmul"] * (len(args["marrmot_paramCalLst"]) + len(args["conv_PRMS"]))
+        # else:
+        #     ny_prms = args["nmul"] * len(args["marrmot_paramCalLst"])
 
         #SNTEMP  # needs a and b for calculating different source flow temperatures with conv method
         if args["routing_SNTEMP"] == True:
@@ -134,15 +97,16 @@ def main(args):
 
         model = CudnnLstmModel(
             nx=len(args["varT_NN"] + args["varC_NN"]),
-            ny=ny_prms + ny_sntemp,
+            ny= ny_sntemp,
             hiddenSize=args["hidden_size"],
             dr=args["dropout"],
         )
         # model = MLP(args)
         # model = torch.load("/mnt/sdc/fzr5082/PGML_STemp_results/models/415_sites/SNTEMP_gw_365_ss_30_adj_T_fr_T40_stat__semi__nmul_16_s_0/model_Ep30.pt")
-        PRMS = prms_marrmot()  # this is for discrete version of marrmot
+        # PRMS = prms_marrmot()  # this is for discrete version of marrmot
         # PRMS = PRMS_pytorch()   # This is for Newton-Raphson method version of marrmot
-        Ts = SNTEMP_EQ()    # SNTEMP model
+        # Ts = SNTEMP_EQ()    # SNTEMP model
+        Ts = SNTEMP_only()
 
         # loss function
         lossFun = crit.RmseLoss()    # simple rmse loss function
@@ -153,7 +117,7 @@ def main(args):
 
         if torch.cuda.is_available():
             model = model.to(args["device"])
-            PRMS = PRMS.to(args["device"])
+            # PRMS = PRMS.to(args["device"])
             Ts = Ts.to(args["device"])
             lossFun = lossFun.to(args["device"])
             torch.backends.cudnn.deterministic = True
@@ -165,7 +129,7 @@ def main(args):
             # preparing training dataset for NN, PRMS, SNTEMP
             x_train, y_train = train_val_test_split("t_train", args, time1, x_total_raw_NN, y_raw)
             x_train_scaled, y_train_scaled = train_val_test_split("t_train", args, time1, x_total_scaled, y_scaled)
-            x_PRMS_train, _ = train_val_test_split("t_train", args, time1, x_PRMS, y_raw)
+            # x_PRMS_train, _ = train_val_test_split("t_train", args, time1, x_PRMS, y_raw)
             x_SNTEMP_train, _ = train_val_test_split("t_train", args, time1, x_SNTEMP, y_raw)
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args["t_train"])
             mean_air_temp_train = (x_SNTEMP_train[:,:, args["varT_SNTEMP"].index("tmax(C)")] +
@@ -188,12 +152,12 @@ def main(args):
                         args, x_train_scaled, iGrid, iT, rho + warm_up, has_grad=False,
                     ).permute([1, 0, 2])
                     # PRMS sampling
-                    x_PRMS_sample = selectSubset(
-                        args, x_PRMS_train, iGrid, iT, rho + warm_up, has_grad=False
-                    ).permute([1, 0, 2])
-                    c_PRMS_sample = torch.tensor(
-                        c_PRMS[iGrid], device=args["device"], dtype=torch.float32
-                    )
+                    # x_PRMS_sample = selectSubset(
+                    #     args, x_PRMS_train, iGrid, iT, rho + warm_up, has_grad=False
+                    # ).permute([1, 0, 2])
+                    # c_PRMS_sample = torch.tensor(
+                    #     c_PRMS[iGrid], device=args["device"], dtype=torch.float32
+                    # )
                     # SNTEMP sampling
                     x_SNTEMP_sample = selectSubset(
                         args, x_SNTEMP_train, iGrid, iT, rho + warm_up, has_grad=False
@@ -216,10 +180,10 @@ def main(args):
                     )[warm_up - args["res_time_lenF_gwflow"]:, :, :].permute([1, 0, 2])
                     # observations
                     targets = args["target"]
-                    flowObs = selectSubset(
-                        args, np.expand_dims(y_train[:, :, targets.index("00060_Mean")], axis=2),
-                        iGrid, iT, rho + warm_up, has_grad=False
-                    )
+                    # flowObs = selectSubset(
+                    #     args, np.expand_dims(y_train[:, :, targets.index("00060_Mean")], axis=2),
+                    #     iGrid, iT, rho + warm_up, has_grad=False
+                    # )
                     tempObs = selectSubset(
                         args, np.expand_dims(y_train[:, :, targets.index("00010_Mean")], axis=2),
                         iGrid, iT, rho + warm_up, has_grad=False
@@ -232,44 +196,41 @@ def main(args):
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTrain_sample_scaled)
 
-                    params_PRMS = params[:, :, 0:ny_prms]
-                    params_SNTEMP = params[:, warm_up:, ny_prms:]
+                    # params_PRMS = params[:, :, 0:ny_prms]
+                    # params_SNTEMP = params[:, warm_up:, ny_prms:]
                     # params_PRMS = torch.load(r"G:\Farshid\fzr5082\params_PRMS.pt")
                     # params_SNTEMP = torch.load(r"G:\Farshid\fzr5082\params_SNTEMP.pt")
 
-                    flowSim_total = PRMS(
-                        x_PRMS_sample,
-                        c_PRMS_sample,
-                        params_PRMS,
-                        args,
-                        Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
-                        warm_up=warm_up,
-                    )
+                    # flowSim_total = PRMS(
+                    #     x_PRMS_sample,
+                    #     c_PRMS_sample,
+                    #     params_PRMS,
+                    #     args,
+                    #     Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
+                    #     warm_up=warm_up,
+                    # )
 
                     # converting mm/day to m3/ day
-                    varC_PRMS = args["varC_PRMS"]
-                    area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowSim_total.shape[1])
-                    # flow calculation. converting mm/day to m3/sec
-                    srflow = (1000 / 86400) * area * (
-                                flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4])   # Q_t - gw - ss
-                    ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4])   # ras
-                    gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])
+                    # varC_PRMS = args["varC_PRMS"]
+                    # area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowSim_total.shape[1])
+                    # # flow calculation. converting mm/day to m3/sec
+                    # srflow = (1000 / 86400) * area * (
+                    #             flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4])   # Q_t - gw - ss
+                    # ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4])   # ras
+                    # gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])
 
                     temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
-                                                                     params_SNTEMP, iGrid, iT,
+                                                                     params[:, warm_up:, :], iGrid, iT,
                                                                      args=args, air_sample_sr=air_sample_sr,
                                                                      air_sample_ss=air_sample_ss,
-                                                                     air_sample_gw=air_sample_gw,
-                                                                     srflow=srflow.unsqueeze(-1).repeat(1, 1, nmul),
-                                                                     ssflow=ssflow.unsqueeze(-1).repeat(1, 1, nmul),
-                                                                     gwflow=gwflow.unsqueeze(-1).repeat(1, 1, nmul))
+                                                                     air_sample_gw=air_sample_gw)
 
                     # mask_yp = flowSim.ge(1e-6)
                     # flow_sim = flowSim * mask_yp.int().float()
-                    flowObs = flowObs[warm_up:, :, :].permute([1, 0 , 2])  # to make it in flowSim format
-                    varC_PRMS = args["varC_PRMS"]
-                    area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
-                    flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
+                    # flowObs = flowObs[warm_up:, :, :].permute([1, 0 , 2])  # to make it in flowSim format
+                    # varC_PRMS = args["varC_PRMS"]
+                    # area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
+                    # flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
                     # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
                     # loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
                     #     flowSim_total[:, :, 0].unsqueeze(-1), temp_sim
@@ -280,9 +241,9 @@ def main(args):
                     optim.step()
                     model.zero_grad()
                     lossEp = lossEp + loss.item()
-                    if (iIter % 1 == 0) or (iIter == nIterEp):
-                        print(iIter," from ", nIterEp, " in the ", epoch,
-                            "th epoch, and Loss is ", loss.item())
+                    # if (iIter % 1 == 0) or (iIter == nIterEp):
+                    #     print(iIter," from ", nIterEp, " in the ", epoch,
+                    #         "th epoch, and Loss is ", loss.item())
                 lossEp = lossEp / nIterEp
                 logStr = "Epoch {} Loss {:.6f}, time {:.2f} sec, {} Kb allocated GPU memory".format(
                     epoch, lossEp, time.time() - t0,
@@ -314,7 +275,7 @@ def main(args):
             # getting the raw and normalized inputs
             x_test, y_test = train_val_test_split("t_test", args, time1, x_total_raw_NN, y_raw)
             x_test_scaled, y_test_scaled = train_val_test_split("t_test", args, time1, x_total_scaled, y_scaled)
-            x_PRMS_test, _ = train_val_test_split("t_test", args, time1, x_PRMS, y_raw)
+            # x_PRMS_test, _ = train_val_test_split("t_test", args, time1, x_PRMS, y_raw)
             x_SNTEMP_test, _ = train_val_test_split("t_test", args, time1, x_SNTEMP, y_raw)
             ave_air_total = Ts.ave_temp_general(args, x_total_raw_tensor, time_range=args["t_test"])
             mean_air_temp_test = (x_SNTEMP_test[:, :, args["varT_SNTEMP"].index("tmax(C)")] +
@@ -326,7 +287,7 @@ def main(args):
             np.save(os.path.join(args["out_dir"], "x.npy"), x_test)  # saves with the overlap in the beginning
             x_test_tensor = make_tensor(x_test, has_grad=False)
             x_test_scaled_tensor = make_tensor(x_test_scaled, device=args["device"], has_grad=False)
-            x_PRMS_test_tensor = make_tensor(x_PRMS_test,device=args["device"], has_grad=False)
+            # x_PRMS_test_tensor = make_tensor(x_PRMS_test,device=args["device"], has_grad=False)
             x_SNTEMP_test_tensor = make_tensor(x_SNTEMP_test, device=args["device"], has_grad=False)
             y_test_tensor = make_tensor(y_test, device=args["device"], has_grad=False)
 
@@ -353,10 +314,10 @@ def main(args):
                     xTemp_scaled = x_test_scaled_tensor[
                                    iS[i]: iE[i], j * rho: cut, :
                                    ]
-                    x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * rho: cut, :].type(torch.float32)
-                    c_PRMS_sample = torch.tensor(
-                        c_PRMS[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
-                    )
+                    # x_PRMS_sample = x_PRMS_test_tensor[iS[i]: iE[i], j * rho: cut, :].type(torch.float32)
+                    # c_PRMS_sample = torch.tensor(
+                    #     c_PRMS[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
+                    # )
 
                     x_SNTEMP_sample = x_SNTEMP_test_tensor[iS[i]: iE[i], j * rho: cut, :].type(
                         torch.float32)[:, warm_up:, :]
@@ -384,44 +345,38 @@ def main(args):
                     if type(model) in [CudnnLstmModel]:
                         params = model(xTemp_scaled.float())
 
-                    params_PRMS = params[:, :, 0:ny_prms]
-                    params_SNTEMP = params[:, warm_up:, ny_prms:]
+                    # params_PRMS = params[:, :, 0:ny_prms]
+                    # params_SNTEMP = params[:, warm_up:, ny_prms:]
 
                     iGrid = np.arange(xTemp_scaled.shape[0])
                     iT = np.zeros((len(iGrid)))
-                    flowSim_total = PRMS(
-                        x_PRMS_sample,
-                        c_PRMS_sample,
-                        params_PRMS,
-                        args,
-                        Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
-                        warm_up=warm_up,
-                    )
-                    varC_PRMS = args["varC_PRMS"]
-                    area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,
-                                                                                                flowSim_total.shape[
-                                                                                                    1])
-                    # flow calculation. converting mm/day to m3/sec to be fed to SNTEMP
-                    srflow = (1000 / 86400) * area * (
-                            flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :,
-                                                                              4])  # Q_t - gw - ss
-                    ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4])  # ras
-                    gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])  # bas
+                    # flowSim_total = PRMS(
+                    #     x_PRMS_sample,
+                    #     c_PRMS_sample,
+                    #     params_PRMS,
+                    #     args,
+                    #     Hamon_coef=params_SNTEMP[:, :, 5 * nmul: 6 * nmul],  # PET is in both temp and flow model
+                    #     warm_up=warm_up,
+                    # )
+                    # varC_PRMS = args["varC_PRMS"]
+                    # area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,
+                    #                                                                             flowSim_total.shape[
+                    #                                                                                 1])
+                    # # flow calculation. converting mm/day to m3/sec to be fed to SNTEMP
+                    # srflow = (1000 / 86400) * area * (
+                    #         flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :,
+                    #                                                           4])  # Q_t - gw - ss
+                    # ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4])  # ras
+                    # gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])  # bas
 
                     temp_sim, ave_air_temp, w_gwflow, w_ssflow, source_temps, SNTEMP_outs = Ts.forward(x_SNTEMP_sample,
-                                                                         params_SNTEMP, iGrid, iT,
+                                                                         params[:, warm_up:, :], iGrid, iT,
                                                                          args=args, air_sample_sr=air_sample_sr,
                                                                          air_sample_ss=air_sample_ss,
-                                                                         air_sample_gw=air_sample_gw,
-                                                                         srflow=srflow.unsqueeze(-1).repeat(1, 1,
-                                                                                                            nmul),
-                                                                         ssflow=ssflow.unsqueeze(-1).repeat(1, 1,
-                                                                                                            nmul),
-                                                                         gwflow=gwflow.unsqueeze(-1).repeat(1, 1,
-                                                                                                            nmul))
+                                                                         air_sample_gw=air_sample_gw)
 
                     if j == 0:
-                        Q_sim = torch.clone(flowSim_total.detach().cpu())
+                        # Q_sim = torch.clone(flowSim_total.detach().cpu())
                         T_sim = torch.clone(temp_sim.detach().cpu())
                         air_T = torch.clone(ave_air_temp.detach().cpu())
                         w_gw = torch.clone(w_gwflow.detach().cpu())
@@ -429,7 +384,7 @@ def main(args):
                         source_T = torch.clone(source_temps.detach().cpu())
                         outs = torch.clone(SNTEMP_outs.detach().cpu())
                     else:
-                        Q_sim = torch.cat((Q_sim, flowSim_total.detach().cpu()), dim=1)
+                        # Q_sim = torch.cat((Q_sim, flowSim_total.detach().cpu()), dim=1)
                         T_sim = torch.cat((T_sim, temp_sim.detach().cpu()), dim=1)
                         air_T = torch.cat((air_T, ave_air_temp.detach().cpu()), dim=1)
                         w_gw = torch.cat((w_gw, w_gwflow.detach().cpu()), dim=1)
@@ -437,7 +392,7 @@ def main(args):
                         source_T = torch.cat((source_T, source_temps.detach().cpu()), dim=1)
                         outs = torch.cat((outs, SNTEMP_outs.detach().cpu()), dim=1)
                 if i == 0:
-                    flow_pred = torch.clone(Q_sim)
+                    # flow_pred = torch.clone(Q_sim)
                     temp_pred = torch.clone(T_sim)
                     air_t = torch.clone(air_T)
                     weight_gw = torch.clone(w_gw)
@@ -446,31 +401,31 @@ def main(args):
                     SN_outs = torch.clone(outs)
 
                 else:
-                    flow_pred = torch.cat((flow_pred, Q_sim), dim=0)
+                    # flow_pred = torch.cat((flow_pred, Q_sim), dim=0)
                     temp_pred = torch.cat((temp_pred, T_sim), dim=0)
                     air_t = torch.cat((air_t, air_T), dim=0)
                     weight_gw = torch.cat((weight_gw, w_gw), dim=0)
                     weight_ss = torch.cat((weight_ss, w_ss), dim=0)
                     source_temp = torch.cat((source_temp, source_T), dim=0)
                     SN_outs = torch.cat((SN_outs, outs), dim=0)
-
-            varC_PRMS = args["varC_PRMS"]
-            area = np.expand_dims(c_PRMS[:, varC_PRMS.index("DRAIN_SQKM")], 1).repeat(1, flowSim_total.shape[1])
-            flow_obs = y_test[:, warm_up:, args["target"].index("00060_Mean")]
-            flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
-                    area * (10 ** 6))  # convert ft3/s to mm/day
+            #
+            # varC_PRMS = args["varC_PRMS"]
+            # area = np.expand_dims(c_PRMS[:, varC_PRMS.index("DRAIN_SQKM")], 1).repeat(1, flowSim_total.shape[1])
+            # flow_obs = y_test[:, warm_up:, args["target"].index("00060_Mean")]
+            # flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
+            #         area * (10 ** 6))  # convert ft3/s to mm/day
             temp_obs = y_test[:, warm_up:, args["target"].index("00010_Mean")]
-            q_pred = flow_pred[:,:,0].unsqueeze(-1)
-            loss_flow = lossFun(q_pred.detach().cpu(),
-                           np.expand_dims(flow_obs, 2))
+            # q_pred = flow_pred[:,:,0].unsqueeze(-1)
+            # loss_flow = lossFun(q_pred.detach().cpu(),
+            #                np.expand_dims(flow_obs, 2))
             loss_temp = lossFun(temp_pred.detach().cpu(),
                            np.expand_dims(temp_obs, 2))
 
-            print("loss_flow", loss_flow, "\n")
+            # print("loss_flow", loss_flow, "\n")
             print("loss_temp", loss_temp, "\n")
 
-            np.save(os.path.join(args["out_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())
-            np.save(os.path.join(args["out_dir"], "flow_obs.npy"), np.expand_dims(flow_obs, 2))
+            # np.save(os.path.join(args["out_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())
+            # np.save(os.path.join(args["out_dir"], "flow_obs.npy"), np.expand_dims(flow_obs, 2))
             np.save(os.path.join(args["out_dir"], "temp_pred.npy"), temp_pred.cpu().detach().numpy())
             np.save(os.path.join(args["out_dir"], "sr_sro.npy"), np.expand_dims(temp_obs, 2))
             np.save(os.path.join(args["out_dir"], "air_t.npy"), air_t.cpu().detach().numpy())
@@ -479,10 +434,10 @@ def main(args):
             np.save(os.path.join(args["out_dir"], "source_temp.npy"), source_temp.cpu().detach().numpy())
             np.save(os.path.join(args["out_dir"], "SN_outs.npy"), SN_outs.cpu().detach().numpy())
 
-            predLst_flow = list()
-            obsLst_flow = list()
-            predLst_flow.append(flow_pred[:, :, 0: 1].cpu().detach().numpy())
-            obsLst_flow.append(np.expand_dims(flow_obs, 2))
+            # predLst_flow = list()
+            # obsLst_flow = list()
+            # predLst_flow.append(flow_pred[:, :, 0: 1].cpu().detach().numpy())
+            # obsLst_flow.append(np.expand_dims(flow_obs, 2))
 
             predLst_temp = list()
             obsLst_temp = list()
@@ -510,23 +465,6 @@ def main(args):
             )
             mdstd.to_csv((os.path.join(args["out_dir"], "mdstd_temp.csv")))
 
-            statDictLst_flow = [
-                stat.statError(x.squeeze(), y.squeeze())
-                for (x, y) in zip(predLst_flow, obsLst_flow)
-            ]
-            count = 0
-            mdstd = np.zeros([len(statDictLst_flow[0]), 3])
-            for i in statDictLst_flow[0].values():
-                median = np.nanmedian((i))  # abs(i)
-                STD = np.nanstd((i))  # abs(i)
-                mean = np.nanmean((i))  # abs(i)
-                k = np.array([[median, STD, mean]])
-                mdstd[count] = k
-                count = count + 1
-            mdstd = pd.DataFrame(
-                mdstd, index=statDictLst_flow[0].keys(), columns=["median", "STD", "mean"]
-            )
-            mdstd.to_csv((os.path.join(args["out_dir"], "mdstd_flow.csv")))
 
             # Show boxplots of the results
             plt.rcParams["font.size"] = 14
@@ -565,6 +503,5 @@ def main(args):
 
 if __name__ == "__main__":
     args = config
-    # syntheticP(args)
-    main(args)
+    main_SNTEMP_only(args)
     print("END")

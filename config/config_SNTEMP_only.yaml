@@ -4,31 +4,21 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_40_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_40_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'
-#  varT: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean', "ccov"]
-varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
+varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
 
 varC_NN: [
-#  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-#  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-#  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-#  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-#  'dom_land_cover', 'soil_depth_pelletier',                  #'root_depth_50'
-#  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-#  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-#  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-#  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-#  'geol_permeability'
+
 
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
   'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
@@ -40,11 +30,10 @@ varC_NN: [
   'GEOL_REEDBUSH_DOM_PCT', 'GEOL_REEDBUSH_DOM',
    'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
 ]
-#  varT_PRMS: [
-#  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'month', "dayl(s)"
-#  ]
+
 varT_SNTEMP: [
-               'tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov", 'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)"
+               'tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov", 'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)",
+               '00060_Mean'
 ]
 varC_SNTEMP: [
                "stream_length_artificial", 'PPTAVG_BASIN', 'SLOPE_PCT',
@@ -53,22 +42,8 @@ varC_SNTEMP: [
 varT_PRMS: [
   'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)'
 ]
-#  varC_PRMS: [
-#      'cov_type', 'covden_sum', 'covden_win', 'snow_intcp', 'srain_intcp',
-#      'wrain_intcp', 'hru_percent_imperv', 'hru_area', "smidx_coef", "smidx_exp",
-#      'DRAIN_SQKM'
-#  ]
+
 varC_PRMS: [
-#  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-#  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-#  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-#  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-#  'dom_land_cover',  'soil_depth_pelletier',              #'root_depth_50',
-#  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-#  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-#  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-#  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-#  'geol_permeability'
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
   'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
   'FRAGUN_BASIN', 'FORESTNLCD06',  'AWCAVE', 'PERMAVE', 'BDAVE',
@@ -80,15 +55,11 @@ varC_PRMS: [
   'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
 ]
 
-target: ["00060_Mean", "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: [ "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
-t_train: [20101001, 20141001]   # there should be an overlap because of the warm_up
+t_train: [20101027, 20141001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [20131001, 20161001]    # there should be an overlap because of the warm_up
-#  tRange: [19800101, 20200101]
-#  t_train: [20100101, 20141001]
-#  t_val: [20151001, 20161001]
-#  t_test: [20141001, 20160930]
+t_test: [20131001, 20160930]    # there should be an overlap because of the warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -99,11 +70,11 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 20
-EPOCHS: 5
+batch_size: 208
+EPOCHS: 400
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 1
+saveEpoch: 50
 
 seq_lin_layers_hidden_size: 256
 
@@ -138,7 +109,7 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,5,6,7,8,9,10,11,12]
+static_params_list_SNTEMP: [0,1,2,3,4,5,6,7,8,9,10,11,12, 13, 14]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
@@ -150,17 +121,11 @@ SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
             [0, 1],                                                           # topo shade factor
             [0, 1],                             # shading
-            [0.1, 4] , #[0.01, 2],                                            # width coefficient nominator
-            # [0.01, 1],                                                         # width exponent
-            # [0.01, 1],                                                            # width A coefficient
-            [0.1, 1], #[0.5, 10], #[0.01, 1],                                  # width coefficient denominator
-            # [0.01, 40],                                                    # p
-            # [0.01, 2],                                                        # q
-            # [-1, 1],                     # correction factor for T_0 ()temp of water at beginning in lateral flow
-            # [0.01, 1],                       # cloud cover fraction
+            [0.1, 4],                                                           # width A coefficient
+            [0.1, 1],                                                            # width power coefficient
             [0.004, 0.008],                        # PET_ hamon coefficient
-
-            [-3, 5]                             # lateral temp adjusment
+            [-3, 5],                             # lateral temp adjusment
+            [0.01, 1], [0.01, 1], [0.01, 1]       # flow portions
 ]
 marrmot_paramCalLst: [
     [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]

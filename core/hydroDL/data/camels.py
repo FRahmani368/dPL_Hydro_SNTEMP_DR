@@ -300,7 +300,7 @@ def calStatbasinnorm(
     """
     y[y == (-999)] = np.nan
     y[y < 0] = 0
-    force_attr_list = args["varT"] + args["varC"]
+    force_attr_list = args["varT_NN"] + args["varC_NN"]
     # attr_data = read_attr_data(args, idLst=idLst)
     if "DRAIN_SQKM" in force_attr_list:
         area_name = "DRAIN_SQKM"
