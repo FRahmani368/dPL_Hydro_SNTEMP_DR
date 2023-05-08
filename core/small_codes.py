@@ -85,9 +85,9 @@ def create_output_dirs(args, seed):
         + "_ss_"
         + str(args["res_time_lenF_ssflow"])
         + "_adj_"
-        + str(args["lat_temp_adj"][0])
+        + str(args["lat_temp_adj"])[0]
         + "_fr_"
-        + str(args["frac_smoothening_mode"][0])
+        + str(args["frac_smoothening_mode"])[0]
         + str(args["frac_smoothening_gw_filter_size"])
         + "_stat_"
         + stat

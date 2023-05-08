@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
@@ -82,10 +82,10 @@ res_time_type: "Meisner"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
 res_time_lenF_gwflow: 365 #
 res_time_lenF_srflow: 1
-lat_temp_adj: "False"
-shade_smoothening: "False"
+lat_temp_adj: False
+shade_smoothening: False
 
-frac_smoothening_mode: "False"
+frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
 warm_up: 365
 make_sr_masked_by_precip: "False"
@@ -109,7 +109,7 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,5,6,10,11,12, 13, 14]
+static_params_list_SNTEMP: [0,1,2,3,4,5,9,10,11,12, 13, 14, 15]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
@@ -124,8 +124,10 @@ SNTEMP_paramCalLst: [
             [0.1, 4],                                                           # width A coefficient
             [0.1, 1],                                                            # width power coefficient
             [0.004, 0.008],                        # PET_ hamon coefficient
-            [-3, 5],                             # lateral temp adjusment
             [0.01, 1], [0.01, 1], [0.01, 1]       # flow portions
+]
+SNTEMP_lat_adj_paramCallLst: [
+[-3, 5]                            # lateral temp adjusment
 ]
 marrmot_paramCalLst: [
     [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]

@@ -32,13 +32,24 @@ from core.hydroDL.data.camels import initcamels
 def main_SNTEMP_only(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
-    lenF_gwflow_list = [365]
-    lenF_ssflow_list = [30, 30]
-    lat_temp_adj_list = ["True", "False"]
-    frac_smoothening_list = ["True", "False"]
-    s = [0]
-    # seeds = args['randomseed']
+    mode_type = ["Meisner","SNTEMP", "SNTEMP", "SNTEMP", "SNTEMP",
+                 "van Vliet", "van Vliet", "van Vliet","van Vliet",
+                 "Meisner", "Meisner", "Meisner", "Meisner"]  # ["van Vliet","Meisner","SNTEMP"]
+    lenF_gwflow_list = [365, 365, 365, 365,
+                        365, 365, 365, 365,
+                        365, 365, 365, 365]
+    lenF_ssflow_list = [30, 30, 30, 30,
+                        30, 30, 30, 30,
+                        30, 30, 30, 30]
+    lat_temp_adj_list = [False, False, True, True,
+                         False, False, True, True,
+                         False, False, True, True]
+    frac_smoothening_list = [True, False, True, False,
+                             True, False, True, False,
+                             True, False, True, False]
+    s = [0, 0, 0, 0,
+         0, 0, 0, 0,
+         0, 0, 0, 0]
     for seed, typ, LenF_gw, LenF_ss, adj, frac_smooth in zip(
         s,
         mode_type,
@@ -47,7 +58,7 @@ def main_SNTEMP_only(args):
         lat_temp_adj_list,
         frac_smoothening_list,
     ):
-        # updating args
+        # updating args. all settings are here
         args = update_args(args,
                             res_time_type=typ,
                             res_time_lenF_gwflow=LenF_gw,
@@ -94,6 +105,8 @@ def main_SNTEMP_only(args):
             ny_sntemp = args["nmul"] * (len(args["SNTEMP_paramCalLst"]) + len(args["conv_SNTEMP"]))
         else:
             ny_sntemp = args["nmul"] * len(args["SNTEMP_paramCalLst"])
+        if args["lat_temp_adj"] == True:
+            ny_sntemp = ny_sntemp + args["nmul"]
 
         model = CudnnLstmModel(
             nx=len(args["varT_NN"] + args["varC_NN"]),

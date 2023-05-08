@@ -814,7 +814,7 @@ class STREAM_TEMP_EQ(nn.Module):
         mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             gwflow_temp = gwflow_temp + lat_temp_adj
 
         T_l = (
@@ -1234,7 +1234,7 @@ class STREAM_TEMP_EQ(nn.Module):
             srflow_portion = srflow_portion * mask_precip.int().float()
             srflow_portion = torch.clamp(srflow_portion, min=0.00, max=1.0)
         # gw fractions smoothening
-        if args["frac_smoothening"]["mode"] == "True":
+        if args["frac_smoothening_mode"] == True:
             (
                 srflow_percentage,
                 ssflow_percentage,
@@ -1263,7 +1263,7 @@ class STREAM_TEMP_EQ(nn.Module):
                 # gwflow_percentage = gwflow_portion / (srflow_portion + gwflow_portion)
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        if args["shade_smoothening"] == "True":
+        if args["shade_smoothening"] == True:
             (
                 shade_fraction_riparian,
                 shade_fraction_topo,
@@ -1412,7 +1412,7 @@ class STREAM_TEMP_EQ(nn.Module):
             Q_0=obsQ,
         )
 
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             return (
                 torch.mean(T_w, -1).squeeze(),
                 torch.mean(ave_air_temp_new, 2).squeeze(),
@@ -2015,7 +2015,7 @@ class SNTEMP_EQ(nn.Module):
         mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             gwflow_temp = gwflow_temp + lat_temp_adj
 
         T_l = (
@@ -2470,7 +2470,7 @@ class SNTEMP_EQ(nn.Module):
 
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        if args["shade_smoothening"] == "True":
+        if args["shade_smoothening"] == True:
             (
                 shade_fraction_riparian,
                 shade_fraction_topo,
@@ -2642,7 +2642,7 @@ class SNTEMP_EQ(nn.Module):
         source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
                                     ssflow_temp.mean(-1, keepdim=True),
                                     gwflow_temp.mean(-1, keepdim=True)), dim=2)
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
                                      shade_fraction_riparian.mean(-1, keepdim=True),
                                      shade_fraction_topo.mean(-1, keepdim=True),
@@ -3239,7 +3239,7 @@ class SNTEMP_only(nn.Module):
         mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             gwflow_temp = gwflow_temp + lat_temp_adj
 
         T_l = (
@@ -3407,39 +3407,23 @@ class SNTEMP_only(nn.Module):
         nmul = args["nmul"]
         A = list()
         Q = gwflow_portion * Q_T
-        for i in range(nmul):
-            Q_gw = Q[:, :, i]
-            gw_filter_size = args["frac_smoothening_gw_filter_size"]
-            wgw = (
-                torch.ones(
-                    (gwflow_portion.shape[1], 1, gw_filter_size), device=args["device"]
+        gw_filter_size = args["frac_smoothening_gw_filter_size"]
+        wgw = (torch.ones(
+                    (gwflow_portion.shape[0], 1, gw_filter_size), device=args["device"]
                 )
                 / gw_filter_size
-            )
-
-            Q_gw_por = (
-                Q_gw.unsqueeze(-1)
-                .repeat((1, 1, gwflow_portion.shape[1]))
-                .permute(0, 2, 1)
-            )
-            B = F.conv1d(
-                Q_gw_por, wgw, padding=gw_filter_size, groups=gwflow_portion.shape[1]
-            )
-            Q_gw_por_mov = B[
-                :,
-                0,
-                math.floor(gw_filter_size / 2) : math.floor(gw_filter_size / 2)
-                + gwflow_portion.shape[1],
-            ]
-            # Q_gw_por_mov = torch.clamp(Q_gw_por_mov, min=0.0, max=Q_T)
+        )
+        for i in range(nmul):
+            Q_gw = Q[:, :, i]
+            B = self.UH_conv(Q_gw.unsqueeze(-1).permute([0, 2, 1]), wgw).permute([0, 2, 1])
             Q_gw_por_mov = torch.max(
-                torch.min(Q_gw_por_mov, Q_T[:, :, 0]), make_tensor(0.0)
+                torch.min(B, Q_T[:, :, 0].unsqueeze(-1)), make_tensor(0.0)
             )
             gwflow_portion_new = Q_gw_por_mov / (
-                Q_T[:, :, 0] + 0.001
+                Q_T[:, :, 0].unsqueeze(-1) + 0.001
             )  # 0.001 is for not having nan values
-            gwflow_portion_new = torch.clamp(gwflow_portion_new, min=0.01, max=1.0)
-            A.append(gwflow_portion_new.unsqueeze(-1))
+            gwflow_portion_new = torch.clamp(gwflow_portion_new, min=0.001, max=1.0)
+            A.append(gwflow_portion_new)
         gwflow_portion_new = torch.cat(A, dim=2)
         remain_frac = 1 - gwflow_portion_new
 
@@ -3601,10 +3585,9 @@ class SNTEMP_only(nn.Module):
         width_coef_nom = self.param_bounds(params, 3, args, bounds=args["SNTEMP_paramCalLst"][3])
         width_coef_denom = self.param_bounds(params, 4, args, bounds=args["SNTEMP_paramCalLst"][4])
         hamon_coef = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
-        lat_temp_adj = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
-        srflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][7])
-        ssflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][8])
-        gwflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][9])
+        srflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
+        ssflow_portion = self.param_bounds(params, 7, args, bounds=args["SNTEMP_paramCalLst"][7])
+        gwflow_portion = self.param_bounds(params, 8, args, bounds=args["SNTEMP_paramCalLst"][8])
         if args["routing_SNTEMP"] == True:
             No_params = len(args["SNTEMP_paramCalLst"])
             a_srflow = self.param_bounds(params, No_params, args, bounds=args["conv_SNTEMP"][0])
@@ -3613,6 +3596,11 @@ class SNTEMP_only(nn.Module):
             b_ssflow = self.param_bounds(params, No_params + 3, args, bounds=args["conv_SNTEMP"][3])
             a_gwflow = self.param_bounds(params, No_params + 4, args, bounds=args["conv_SNTEMP"][4])
             b_gwflow = self.param_bounds(params, No_params + 5, args, bounds=args["conv_SNTEMP"][5])
+            if args["lat_temp_adj"] == True:
+                lat_temp_adj = self.param_bounds(params, No_params + 6, args,
+                                                 bounds=args["SNTEMP_lat_adj_paramCallLst"][0])
+        if args["lat_temp_adj"] == False:
+            lat_temp_adj = 0.0 * srflow_portion
         nmul = args["nmul"]
         vars = args["varT_SNTEMP"] + args["varC_SNTEMP"]
         obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1,1,nmul) * 0.028316  # converting cfs to cms
@@ -3687,7 +3675,7 @@ class SNTEMP_only(nn.Module):
         # masking surface runoff fraction with precipitation.
         # if there is not any precipitaton, it cannot be more than 0.01
 
-        if args["frac_smoothening_mode"] == "True":
+        if args["frac_smoothening_mode"] == True:
             srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,
                                                                                              ssflow_portion,
                                                                                              gwflow_portion,
@@ -3704,7 +3692,7 @@ class SNTEMP_only(nn.Module):
                 ssflow_percentage = 0.0001 * ssflow_portion
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        if args["shade_smoothening"] == "True":
+        if args["shade_smoothening"] == True:
             (
                 shade_fraction_riparian,
                 shade_fraction_topo,
@@ -3815,12 +3803,12 @@ class SNTEMP_only(nn.Module):
             Q_0=obsQ,
         )
         # get rid of negative values:
-        T_w = torch.relu(T_w)
+        # T_w = torch.relu(T_w)
 
         source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
                                     ssflow_temp.mean(-1, keepdim=True),
                                     gwflow_temp.mean(-1, keepdim=True)), dim=2)
-        if args["lat_temp_adj"] == "True":
+        if args["lat_temp_adj"] == True:
             SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
                                      shade_fraction_riparian.mean(-1, keepdim=True),
                                      shade_fraction_topo.mean(-1, keepdim=True),
