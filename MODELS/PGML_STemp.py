@@ -3409,7 +3409,7 @@ class SNTEMP_only(nn.Module):
         Q = gwflow_portion * Q_T
         for i in range(nmul):
             Q_gw = Q[:, :, i]
-            gw_filter_size = args["frac_smoothening"]["gw_filter_size"]
+            gw_filter_size = args["frac_smoothening_gw_filter_size"]
             wgw = (
                 torch.ones(
                     (gwflow_portion.shape[1], 1, gw_filter_size), device=args["device"]
@@ -3443,7 +3443,7 @@ class SNTEMP_only(nn.Module):
         gwflow_portion_new = torch.cat(A, dim=2)
         remain_frac = 1 - gwflow_portion_new
 
-        if args["res_time_params"]["type"] != "Meisner":
+        if args["res_time_type"] != "Meisner":
             srflow_portion_new = (
                 srflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
             )

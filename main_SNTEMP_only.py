@@ -35,8 +35,8 @@ def main_SNTEMP_only(args):
     mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365]
     lenF_ssflow_list = [30, 30]
-    lat_temp_adj_list = ["False", "False"]
-    frac_smoothening_list = ["False", "False"]
+    lat_temp_adj_list = ["True", "False"]
+    frac_smoothening_list = ["True", "False"]
     s = [0]
     # seeds = args['randomseed']
     for seed, typ, LenF_gw, LenF_ss, adj, frac_smooth in zip(
