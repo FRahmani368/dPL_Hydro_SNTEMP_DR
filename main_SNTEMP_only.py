@@ -32,7 +32,7 @@ from core.hydroDL.data.camels import initcamels
 def main_SNTEMP_only(args):
     # setting random seeds
     # randomseed_config(args)
-    mode_type = ["Meisner","SNTEMP", "SNTEMP", "SNTEMP", "SNTEMP",
+    mode_type = ["SNTEMP", "SNTEMP", "SNTEMP", "SNTEMP",
                  "van Vliet", "van Vliet", "van Vliet","van Vliet",
                  "Meisner", "Meisner", "Meisner", "Meisner"]  # ["van Vliet","Meisner","SNTEMP"]
     lenF_gwflow_list = [365, 365, 365, 365,
