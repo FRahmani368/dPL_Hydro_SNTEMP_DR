@@ -2725,7 +2725,7 @@ class SNTEMP_only(nn.Module):
         return H_s
 
     def riparian_veg_longwave_radiation_heat(
-        self, T_a, iGrid, shade_fraction_riparian, args
+        self, T_a, shade_fraction_riparian, args
     ):
         """
         Incoming shortwave solar radiation is often intercepted by surrounding riparian vegetation.
@@ -2757,7 +2757,6 @@ class SNTEMP_only(nn.Module):
         top_width,
         up_inflow,
         T_g,
-        iGrid,
         shade_fraction_riparian,
         albedo,
         shade_total,
@@ -2804,7 +2803,7 @@ class SNTEMP_only(nn.Module):
             albedo=albedo, H_sw=swrad, shade_total=shade_total
         )  # shortwave solar radiation heat
         H_v = self.riparian_veg_longwave_radiation_heat(
-            T_a, iGrid, shade_fraction_riparian, args=args
+            T_a, shade_fraction_riparian, args=args
         )
 
         A = 5.4 * torch.pow(make_tensor(np.full((T_a.shape), 10)), (-8))
@@ -2814,8 +2813,7 @@ class SNTEMP_only(nn.Module):
         C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
         # Todo: need to check 10**6. it is in fortran code but it is not in the document
         D = (
-            H_f
-            + H_a
+            H_a
             + H_s
             + H_v
             + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1)
@@ -2837,7 +2835,7 @@ class SNTEMP_only(nn.Module):
         ## solving the equation with Newton's method
         for i in range(iter):
             next_geuss = T_e - (F(T_e) / Fprime(T_e))
-            T_e = next_geuss
+            T_e = next_geuss.clone()
 
         return T_e
 
@@ -2853,11 +2851,15 @@ class SNTEMP_only(nn.Module):
         """
         H_i = A * torch.pow((T_0 + 273.16), 4) - C * torch.pow(T_0, 2) + B * T_0 - D
         K1 = 4 * A * torch.pow((T_e + 273.16), 3) - 2 * C * T_e + B
-        denom = torch.pow((T_e - T_0), 2)
+        delt = T_0 - T_e
+        denom = torch.pow(delt, 2)
         mask_denom = denom.le(NEARZERO)
         denom1 = denom + mask_denom.int().float()
-        # K2 = (H_i - (K1 * (T_e - T_0))) / denom1
-        K2 = (-H_i + (K1 * (T_0 - T_e))) / denom1
+        K2 = ((K1 * delt) - H_i) / denom1
+        K2 = torch.where(torch.abs(delt) < NEARZERO,
+                         torch.zeros(K2.shape).to(K2),
+                         K2)
+        # K2 = (-H_i + (K1 * (T_0 - T_e))) / denom1
 
         return K1, K2
 
@@ -3267,19 +3269,39 @@ class SNTEMP_only(nn.Module):
         # # with zero lateral flow
         density = args["params_water_density"]
         c_w = args["params_C_w"]
+        b = K1 * ave_width / (density * c_w)
         mask_q_l = q_l.eq(0)
         q_l_pos = q_l + mask_q_l.int().float()
-        b = q_l + ((K1 * ave_width) / (density * c_w))
-        mask_Q_0 = Q_0.eq(0)
-        Q_0_pos = Q_0 + mask_Q_0.int().float()
-        R_0 = torch.exp(-(b * L) / Q_0_pos)
+        rexp = -1.0 * (b * L) / q_l_pos
+        r = torch.exp(rexp)    # No idea why it is torch.exp in stream_Temp.f90 (the headwater part)
+
+        delt = T_e - T_0
         mask_K1 = K1.eq(0)
         K1_masked = K1 + mask_K1.int().float()
-        denom = 1 + ((K2 / K1_masked) * (T_e - T_0) * (1 - R_0))
-        mask_denom = denom.eq(0)
-        denom_masked = denom + mask_denom.int().float()
-        Tw = T_e - ((T_e - T_0) * R_0 / denom_masked)
+        denom = 1 + ((K2 / K1_masked) * delt * (1 - r))
+        denom = torch.where(torch.abs(denom) < NEARZERO,
+                            torch.sign(denom) * NEARZERO,
+                            denom)
+        Tw = T_e - (delt * r / denom)
+        Tw = torch.clamp(Tw, min=0.0)
         return Tw
+
+        #
+        # density = args["params_water_density"]
+        # c_w = args["params_C_w"]
+        # mask_q_l = q_l.eq(0)
+        # q_l_pos = q_l + mask_q_l.int().float()
+        # b = q_l + ((K1 * ave_width) / (density * c_w))
+        # mask_Q_0 = Q_0.eq(0)
+        # Q_0_pos = Q_0 + mask_Q_0.int().float()
+        # R_0 = torch.exp(-(b * L) / Q_0_pos)
+        # mask_K1 = K1.eq(0)
+        # K1_masked = K1 + mask_K1.int().float()
+        # denom = 1 + ((K2 / K1_masked) * (T_e - T_0) * (1 - R_0))
+        # mask_denom = denom.eq(0)
+        # denom_masked = denom + mask_denom.int().float()
+        # Tw = T_e - ((T_e - T_0) * R_0 / denom_masked)
+        # return Tw
 
     def parameter_bounds(self, params, num, args):
         if params.dim() == 3:
@@ -3617,15 +3639,7 @@ class SNTEMP_only(nn.Module):
         vp = 0.01 * x[:, :, vars.index("vp(Pa)")].unsqueeze(-1).repeat(
             1, 1, nmul
         )  # converting to mbar
-        swrad = (
-            (
-                x[:, :, vars.index("srad(W/m2)")]
-                * x[:, :, vars.index("dayl(s)")]
-                / 86400
-            )
-            .unsqueeze(-1)
-            .repeat(1, 1, nmul)
-        )
+        swrad = (x[:, :, vars.index("srad(W/m2)")] * x[:, :, vars.index("dayl(s)")] / 86400).unsqueeze(-1).repeat(1, 1, nmul)
         elev = (
             x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
             .unsqueeze(-1)
@@ -3639,10 +3653,10 @@ class SNTEMP_only(nn.Module):
         # stream_length = x[:, :, vars.index("stream_length_artificial")]
         # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
         stream_length = (
-            x[:, :, vars.index("stream_length_artificial")]
+            x[:, :, vars.index("stream_length_square")]
             .unsqueeze(-1)
             .repeat(1, 1, nmul)
-        )
+        ) * 1000.0    # km to meter, now half the side
         # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
         # t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
@@ -3666,6 +3680,7 @@ class SNTEMP_only(nn.Module):
             * torch.pow(torch.abs(obsQ + 0.0001), torch.abs(width_coef_denom))
             + 0.5
         )
+
         # top_width = make_tensor(torch.ones(width_coef_nom.shape) * 10.0, device=args["device"])
         # if p.dim() == 3:
         #     top_width = p * torch.pow(basin_area, q)
@@ -3766,10 +3781,9 @@ class SNTEMP_only(nn.Module):
             elev=elev,
             slope=slope,
             top_width=top_width,
-            up_inflow=0.0,
+            up_inflow=0.0,  # should be obsQ
             E=PET,  # up_inflow
             T_g=gwflow_temp,
-            iGrid=iGrid,
             shade_fraction_riparian=shade_fraction_riparian,
             albedo=albedo,
             shade_total=shade_total,
@@ -3796,11 +3810,11 @@ class SNTEMP_only(nn.Module):
             K2,
             T_e,
             ave_width=top_width,
-            q_l=Q_0,
+            q_l=obsQ,
             L=stream_length,
             args=args,
-            T_0=T_0,
-            Q_0=obsQ,
+            T_0=T_0,   # because there is no upstream flow, it is lateral flow temp
+            Q_0=0.0,
         )
         # get rid of negative values:
         # T_w = torch.relu(T_w)

@@ -18,8 +18,6 @@ subset: 'All'
 varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)', '00060_Mean']
 
 varC_NN: [
-
-
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
   'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
   'FRAGUN_BASIN', 'FORESTNLCD06',  'AWCAVE', 'PERMAVE', 'BDAVE',
@@ -36,7 +34,7 @@ varT_SNTEMP: [
                '00060_Mean'
 ]
 varC_SNTEMP: [
-               "stream_length_artificial", 'PPTAVG_BASIN', 'SLOPE_PCT',
+               "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT',
                 'ELEV_MEAN_M_BASIN', # "NHDlength_tot(m)"
 ]
 varT_PRMS: [
@@ -121,8 +119,8 @@ SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
             [0, 1],                                                           # topo shade factor
             [0, 1],                             # shading
-            [0.1, 4],                                                           # width A coefficient
-            [0.1, 1],                                                            # width power coefficient
+            [0.0001, 1000],                                                           # width A coefficient
+            [0.0001, 2],                                                            # width power coefficient
             [0.004, 0.008],                        # PET_ hamon coefficient
             [0.01, 1], [0.01, 1], [0.01, 1]       # flow portions
 ]
