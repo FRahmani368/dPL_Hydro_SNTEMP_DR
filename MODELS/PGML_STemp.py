@@ -3386,39 +3386,37 @@ class SNTEMP_only(nn.Module):
         return out
 
     def shade_modification(self, w1_shade, w2_shade, w3_shade, args):
+        nmul = args["nmul"]
+        A = list()
+        C = list()
+        # w1 = torch.ones((365, 1, 40), device=args["device"]) / 40
+        w1 = torch.ones((w1_shade.shape[0], 1, 10), device=args["device"]) / 10
+        for i in range(nmul):
+            sh1 = w1_shade[:, :, i]
+            sh2 = w2_shade[:, :, i]
+            B1 = self.UH_conv(sh1.unsqueeze(-1).permute([0, 2, 1]), w1).permute([0, 2, 1])
+            w1_shade_mov = torch.clamp(B1, min=0.0001, max=1.0)
+            A.append(w1_shade_mov)
 
-        w1 = torch.ones((365, 1, 40), device=args["device"]) / 40
+            B2 = self.UH_conv(sh2.unsqueeze(-1).permute([0, 2, 1]), w1).permute([0, 2, 1])
+            w2_shade_mov = torch.clamp(B2, min=0.0001, max=1.0)
+            C.append(w2_shade_mov)
+        shade_fraction_riparian = torch.cat(A, dim=2)
+        w2_shade_por_mov = torch.cat(C, dim=2)
 
-        w1_shade = w1_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        B = F.conv1d(w1_shade, w1, padding=40, groups=365)
-        w1_shade_mov = B[:, 0, 20:385]
-
-        w2_shade = w2_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        B = F.conv1d(w2_shade, w1, padding=40, groups=365)
-        w2_shade_mov = B[:, 0, 20:385]
-
-        w3_shade = w3_shade.unsqueeze(-1).repeat((1, 1, 365)).permute(0, 2, 1)
-        B = F.conv1d(w3_shade, w1, padding=40, groups=365)
-        no_shade_mov = B[:, 0, 20:385]  # [:, 0, 5:370]
-
-        shade_fraction_riparian = w1_shade_mov
-        # shade_fraction_riparian = w1_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)  # + no_shade_mov
         shade_fraction_riparian = torch.clamp(
-            shade_fraction_riparian, min=0.01, max=1.0
+            shade_fraction_riparian, min=0.0001, max=1.0
         )
 
-        # shade_fraction_topo = w2_shade_mov / (w1_shade_mov + w2_shade_mov + no_shade_mov)
-        shade_fraction_topo = (
-                (1 - shade_fraction_riparian) * w2_shade_mov / (w2_shade_mov + no_shade_mov)
-        )  # + no_shade_mov
-        shade_fraction_topo = torch.clamp(shade_fraction_topo, min=0.01, max=1.0)
+        shade_fraction_topo = (1 - shade_fraction_riparian) * w2_shade_por_mov
+        shade_fraction_topo = torch.clamp(shade_fraction_topo, min=0.0001, max=1.0)
         shade_total = shade_fraction_riparian + shade_fraction_topo
-        shade_total = torch.clamp(shade_total, min=0.01, max=1.0)
+        shade_total = torch.clamp(shade_total, min=0.0001, max=1.0)
 
         return shade_fraction_riparian, shade_fraction_topo, shade_total
 
     def frac_modification(
-            self, srflow_portion, ssflow_portion, gwflow_portion, Q_T, args
+            self, srflow_portion, ssflow_portion, gwflow_portion, Q_T, args,
     ):
         nmul = args["nmul"]
         A = list()
@@ -3432,6 +3430,7 @@ class SNTEMP_only(nn.Module):
         for i in range(nmul):
             Q_gw = Q[:, :, i]
             B = self.UH_conv(Q_gw.unsqueeze(-1).permute([0, 2, 1]), wgw).permute([0, 2, 1])
+            # B = torch.flip(self.UH_conv(torch.flip(Q_gw.unsqueeze(-1).permute([0, 2, 1]), [2]), wgw).permute([0, 2, 1]), [1])
             Q_gw_por_mov = torch.max(
                 torch.min(B, Q_T[:, :, 0].unsqueeze(-1)), make_tensor(0.0)
             )
@@ -3444,18 +3443,14 @@ class SNTEMP_only(nn.Module):
         remain_frac = 1 - gwflow_portion_new
 
         if args["res_time_type"] != "Meisner":
-            srflow_portion_new = (
-                    srflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
-            )
-            ssflow_portion_new = (
-                    ssflow_portion * remain_frac / (srflow_portion + ssflow_portion + 0.001)
-            )
+            srflow_portion_new = srflow_portion * remain_frac
+            ssflow_portion_new = remain_frac - srflow_portion_new
         else:
             srflow_portion_new = remain_frac
-            ssflow_portion_new = ssflow_portion * 0.0 + 0.01
-        srflow_percentage = torch.clamp(srflow_portion_new, min=0.01, max=1.0)
-        ssflow_percentage = torch.clamp(ssflow_portion_new, min=0.01, max=1.0)
-        gwflow_percentage = torch.clamp(gwflow_portion_new, min=0.01, max=1.0)
+            ssflow_portion_new = ssflow_portion * 0.0 + 0.0001
+        srflow_percentage = torch.clamp(srflow_portion_new, min=0.0001, max=1.0)
+        ssflow_percentage = torch.clamp(ssflow_portion_new, min=0.0001, max=1.0)
+        gwflow_percentage = torch.clamp(gwflow_portion_new, min=0.0001, max=1.0)
 
         return srflow_percentage, ssflow_percentage, gwflow_percentage
 
@@ -3597,12 +3592,12 @@ class SNTEMP_only(nn.Module):
         NEARZERO = args["NEARZERO"]
         w1_shade = self.param_bounds(params, 0, args, bounds=args["SNTEMP_paramCalLst"][0])
         w2_shade = self.param_bounds(params, 1, args, bounds=args["SNTEMP_paramCalLst"][1])
-        w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        width_coef_nom = self.param_bounds(params, 3, args, bounds=args["SNTEMP_paramCalLst"][3])
-        width_coef_denom = self.param_bounds(params, 4, args, bounds=args["SNTEMP_paramCalLst"][4])
-        hamon_coef = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
-        srflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
-        ssflow_portion = self.param_bounds(params, 7, args, bounds=args["SNTEMP_paramCalLst"][7])
+        # w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
+        width_coef_nom = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
+        width_coef_denom = self.param_bounds(params, 3, args, bounds=args["SNTEMP_paramCalLst"][3])
+        hamon_coef = self.param_bounds(params, 4, args, bounds=args["SNTEMP_paramCalLst"][4])
+        srflow_portion = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
+        ssflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
         # gwflow_portion = self.param_bounds(params, 8, args, bounds=args["SNTEMP_paramCalLst"][8])
         if args["routing_SNTEMP"] == True:
             No_params = len(args["SNTEMP_paramCalLst"])
@@ -3693,33 +3688,32 @@ class SNTEMP_only(nn.Module):
                                                                                              obsQ,
                                                                                              args)
 
-        # if args["frac_smoothening_mode"] == True:
-        #     srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_portion,
-        #                                                                                      ssflow_portion,
-        #                                                                                      gwflow_portion,
-        #                                                                                      obsQ,
-        #                                                                                      args)
-        # else:
-        #     if args["res_time_type"] != "Meisner":
-        #         gwflow_percentage = gwflow_portion
-        #         srflow_percentage = ((1 - gwflow_portion) * srflow_portion) / (srflow_portion + ssflow_portion)
-        #         ssflow_percentage = ((1 - gwflow_portion) * ssflow_portion) / (srflow_portion + ssflow_portion)
-        #     else:
-        #         gwflow_percentage = gwflow_portion
-        #         srflow_percentage = 1 - gwflow_portion
-        #         ssflow_percentage = 0.0001 * ssflow_portion
+
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
+        shade_fraction_riparian = w1_shade
+        shade_fraction_topo = w2_shade * shade_fraction_riparian
+        shade_total = shade_fraction_riparian + shade_fraction_topo
         if args["shade_smoothening"] == True:
             (
                 shade_fraction_riparian,
                 shade_fraction_topo,
                 shade_total,
-            ) = self.shade_modification(w1_shade, w2_shade, w3_shade, args)
-        else:
-            shade_fraction_riparian = w1_shade
-            shade_fraction_topo = ((1 - shade_fraction_riparian) * w2_shade / (w2_shade + w3_shade))
-            shade_total = shade_fraction_riparian + shade_fraction_topo
+            ) = self.shade_modification(shade_fraction_riparian,
+                                        shade_fraction_topo,
+                                        shade_total,
+                                        args)
+
+        # if args["shade_smoothening"] == True:
+        #     (
+        #         shade_fraction_riparian,
+        #         shade_fraction_topo,
+        #         shade_total,
+        #     ) = self.shade_modification(w1_shade, w2_shade, w3_shade, args)
+        # else:
+        #     shade_fraction_riparian = w1_shade
+        #     shade_fraction_topo = ((1 - shade_fraction_riparian) * w2_shade / (w2_shade + w3_shade))
+        #     shade_total = shade_fraction_riparian + shade_fraction_topo
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
                                                                     srflow_factor=srflow_percentage,

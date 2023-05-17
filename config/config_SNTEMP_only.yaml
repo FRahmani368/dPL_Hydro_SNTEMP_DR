@@ -9,7 +9,7 @@ nmul: 1
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new"
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new2"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
@@ -107,7 +107,7 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,5,9,10,11,12, 13, 14, 15]
+static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11,12, 13]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param: [30, 30]
@@ -118,11 +118,10 @@ interval_for_semi_static_param_prms: [30, 30]
 SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
             [0, 1],                                                           # topo shade factor
-            [0, 1],                             # shading
             [0.0001, 1000],                                                           # width A coefficient
             [0.0001, 2],                                                            # width power coefficient
             [0.004, 0.008],                        # PET_ hamon coefficient
-            [0.01, 1], [0.01, 1],# [0.01, 1]       # flow portions
+            [0.01, 1], [0.01, 1],#        # flow portions
 ]
 SNTEMP_lat_adj_paramCallLst: [
 [-3, 5]                            # lateral temp adjusment
