@@ -3809,36 +3809,24 @@ class SNTEMP_only(nn.Module):
         source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
                                   ssflow_temp.mean(-1, keepdim=True),
                                   gwflow_temp.mean(-1, keepdim=True)), dim=2)
-        if args["lat_temp_adj"] == True:
-            SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
-                                     shade_fraction_riparian.mean(-1, keepdim=True),
-                                     shade_fraction_topo.mean(-1, keepdim=True),
-                                     top_width.mean(-1, keepdim=True),
-                                     hamon_coef.mean(-1, keepdim=True),
-                                     lat_temp_adj.mean(-1, keepdim=True),
-                                     srflow_percentage.mean(-1, keepdim=True),
-                                     ssflow_percentage.mean(-1, keepdim=True),
-                                     gwflow_percentage.mean(-1, keepdim=True)), dim=2)
-            return (T_w.mean(-1, keepdim=True),
-                    ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
-                    w_gwflow.permute([0, 2, 1]),
-                    w_ssflow.permute([0, 2, 1]),
-                    source_temps,
-                    SNTEMP_outs
-                    )
-        else:
-            SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
-                                     shade_fraction_riparian.mean(-1, keepdim=True),
-                                     shade_fraction_topo.mean(-1, keepdim=True),
-                                     top_width.mean(-1, keepdim=True),
-                                     hamon_coef.mean(-1, keepdim=True),
-                                     0.0 * hamon_coef.mean(-1, keepdim=True),
-                                     srflow_percentage.mean(-1, keepdim=True),
-                                     ssflow_percentage.mean(-1, keepdim=True),
-                                     gwflow_percentage.mean(-1, keepdim=True)), dim=2)
-            return (T_w.mean(-1, keepdim=True),
-                    ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
-                    w_gwflow.permute([0, 2, 1]),
-                    w_ssflow.permute([0, 2, 1]),
-                    source_temps,
-                    SNTEMP_outs)
+        if args["lat_temp_adj"] == False:
+            lat_temp_adj = 0.0 * hamon_coef
+        SNTEMP_outs = torch.cat((PET.mean(-1, keepdim=True),
+                                 shade_fraction_riparian.mean(-1, keepdim=True),
+                                 shade_fraction_topo.mean(-1, keepdim=True),
+                                 top_width.mean(-1, keepdim=True),
+                                 width_coef_nom.mean(-1, keepdim=True),
+                                 width_coef_denom.mean(-1, keepdim=True),
+                                 hamon_coef.mean(-1, keepdim=True),
+                                 lat_temp_adj.mean(-1, keepdim=True),
+                                 srflow_percentage.mean(-1, keepdim=True),
+                                 ssflow_percentage.mean(-1, keepdim=True),
+                                 gwflow_percentage.mean(-1, keepdim=True)), dim=2)
+        return (T_w.mean(-1, keepdim=True),
+                ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
+                w_gwflow.permute([0, 2, 1]),
+                w_ssflow.permute([0, 2, 1]),
+                source_temps,
+                SNTEMP_outs
+                )
+

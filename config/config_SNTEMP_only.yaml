@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 16
+nmul: 5
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
@@ -69,10 +69,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 400
+EPOCHS: 2
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 50
+saveEpoch: 2
 
 seq_lin_layers_hidden_size: 256
 
