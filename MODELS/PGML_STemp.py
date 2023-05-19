@@ -3590,65 +3590,58 @@ class SNTEMP_only(nn.Module):
             self, x, params, iGrid, iT, args, air_sample_sr, air_sample_ss, air_sample_gw):
         # restricting the params
         NEARZERO = args["NEARZERO"]
+        warm_up = args["warm_up"]
         w1_shade = self.param_bounds(params, 0, args, bounds=args["SNTEMP_paramCalLst"][0])
         w2_shade = self.param_bounds(params, 1, args, bounds=args["SNTEMP_paramCalLst"][1])
         # w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        width_coef_nom = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        width_coef_denom = self.param_bounds(params, 3, args, bounds=args["SNTEMP_paramCalLst"][3])
-        hamon_coef = self.param_bounds(params, 4, args, bounds=args["SNTEMP_paramCalLst"][4])
+        width_coef_nom = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
+        width_coef_denom = self.param_bounds(params[:, warm_up:, :], 3, args, bounds=args["SNTEMP_paramCalLst"][3])
+        hamon_coef = self.param_bounds(params[:, warm_up:, :], 4, args, bounds=args["SNTEMP_paramCalLst"][4])
         srflow_portion = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
         ssflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
         # gwflow_portion = self.param_bounds(params, 8, args, bounds=args["SNTEMP_paramCalLst"][8])
         if args["routing_SNTEMP"] == True:
             No_params = len(args["SNTEMP_paramCalLst"])
-            a_srflow = self.param_bounds(params, No_params, args, bounds=args["conv_SNTEMP"][0])
-            b_srflow = self.param_bounds(params, No_params + 1, args, bounds=args["conv_SNTEMP"][1])
-            a_ssflow = self.param_bounds(params, No_params + 2, args, bounds=args["conv_SNTEMP"][2])
-            b_ssflow = self.param_bounds(params, No_params + 3, args, bounds=args["conv_SNTEMP"][3])
-            a_gwflow = self.param_bounds(params, No_params + 4, args, bounds=args["conv_SNTEMP"][4])
-            b_gwflow = self.param_bounds(params, No_params + 5, args, bounds=args["conv_SNTEMP"][5])
+            a_srflow = self.param_bounds(params[:, warm_up:, :], No_params, args, bounds=args["conv_SNTEMP"][0])
+            b_srflow = self.param_bounds(params[:, warm_up:, :], No_params + 1, args, bounds=args["conv_SNTEMP"][1])
+            a_ssflow = self.param_bounds(params[:, warm_up:, :], No_params + 2, args, bounds=args["conv_SNTEMP"][2])
+            b_ssflow = self.param_bounds(params[:, warm_up:, :], No_params + 3, args, bounds=args["conv_SNTEMP"][3])
+            a_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 4, args, bounds=args["conv_SNTEMP"][4])
+            b_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 5, args, bounds=args["conv_SNTEMP"][5])
             if args["lat_temp_adj"] == True:
-                lat_temp_adj = self.param_bounds(params, No_params + 6, args,
+                lat_temp_adj = self.param_bounds(params[:, warm_up:, :], No_params + 6, args,
                                                  bounds=args["SNTEMP_lat_adj_paramCallLst"][0])
         if args["lat_temp_adj"] == False:
-            lat_temp_adj = 0.0 * srflow_portion
+            lat_temp_adj = 0.0 * hamon_coef
         nmul = args["nmul"]
         vars = args["varT_SNTEMP"] + args["varC_SNTEMP"]
         obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1, 1, nmul) * 0.028316  # converting cfs to cms
         precip = (
-            x[:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
+            x[:, warm_up:, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
         )
         up_inflow = make_tensor(torch.zeros(obsQ.size()))
         mean_air_temp = (
-            ((x[:, :, vars.index("tmax(C)")] + x[:, :, vars.index("tmin(C)")]) / 2)
+            ((x[:, warm_up:, vars.index("tmax(C)")] + x[:, warm_up:, vars.index("tmin(C)")]) / 2)
             .unsqueeze(-1)
             .repeat(1, 1, nmul)
         )
-        dayl = x[:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
-        vp = 0.01 * x[:, :, vars.index("vp(Pa)")].unsqueeze(-1).repeat(
-            1, 1, nmul
-        )  # converting to mbar
-        swrad = (x[:, :, vars.index("srad(W/m2)")] * x[:, :, vars.index("dayl(s)")] / 86400).unsqueeze(-1).repeat(1, 1,
+        dayl = x[:, warm_up:, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+        vp = 0.01 * x[:, warm_up:, vars.index("vp(Pa)")].unsqueeze(-1).repeat(1, 1, nmul)  # converting to mbar
+        swrad = (x[:, warm_up:, vars.index("srad(W/m2)")] * x[:, warm_up:, vars.index("dayl(s)")] / 86400).unsqueeze(-1).repeat(1, 1,
                                                                                                                   nmul)
-        elev = (
-            x[:, :, vars.index("ELEV_MEAN_M_BASIN")]
-            .unsqueeze(-1)
-            .repeat(1, 1, nmul)
-        )
-        slope = 0.01 * x[:, :, vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(
-            1, 1, nmul
-        )  # adding the percentage, it is a watershed slope not a stream slope
+        elev = x[:, warm_up:, vars.index("ELEV_MEAN_M_BASIN")].unsqueeze(-1).repeat(1, 1, nmul)
+        slope = 0.01 * x[:, warm_up:, vars.index("SLOPE_PCT")].unsqueeze(-1).repeat(1, 1, nmul)  # adding the percentage, it is a watershed slope not a stream slope
         # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
         # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
         # stream_length = x[:, :, vars.index("stream_length_artificial")]
         # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
         stream_length = (
-                            x[:, :, vars.index("stream_length_square")]
+                            x[:, warm_up:, vars.index("stream_length_square")]
                             .unsqueeze(-1)
                             .repeat(1, 1, nmul)
                         ) * 1000.0  # km to meter
         # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
-        cloud_fraction = x[:, :, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
+        cloud_fraction = x[:, warm_up:, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
         # t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         albedo = args["STemp_default_albedo"]
 
@@ -3663,7 +3656,7 @@ class SNTEMP_only(nn.Module):
         # top_width = 5 + p * torch.pow(d, q)
         # top_width = width_coef_nom * obsQ + width_coef_denom
         # top_width = width_coef_nom * (obsQ ** width_coef_denom) + 0.5
-        top_width = width_coef_nom * torch.pow(obsQ + 0.0001, width_coef_denom) + 0.2
+        top_width = width_coef_nom * torch.pow(obsQ[:, warm_up:,:] + 0.0001, width_coef_denom) + 0.2
 
         # top_width = make_tensor(torch.ones(width_coef_nom.shape) * 10.0, device=args["device"])
         # if p.dim() == 3:
@@ -3704,16 +3697,14 @@ class SNTEMP_only(nn.Module):
                                         shade_total,
                                         args)
 
-        # if args["shade_smoothening"] == True:
-        #     (
-        #         shade_fraction_riparian,
-        #         shade_fraction_topo,
-        #         shade_total,
-        #     ) = self.shade_modification(w1_shade, w2_shade, w3_shade, args)
-        # else:
-        #     shade_fraction_riparian = w1_shade
-        #     shade_fraction_topo = ((1 - shade_fraction_riparian) * w2_shade / (w2_shade + w3_shade))
-        #     shade_total = shade_fraction_riparian + shade_fraction_topo
+        # get rid of the warm-up period which was used in flow and shade smoothening
+        obsQ = obsQ[:, warm_up:, :]
+        srflow_percentage = srflow_percentage[:, warm_up:, :]
+        ssflow_percentage = ssflow_percentage[:, warm_up:, :]
+        gwflow_percentage = gwflow_percentage[:, warm_up:, :]
+        shade_fraction_riparian = shade_fraction_riparian[:, warm_up:, :]
+        shade_fraction_topo = shade_fraction_topo[:, warm_up:, :]
+        shade_total = shade_total[:, warm_up:, :]
 
         srflow, ssflow, gwflow = self.srflow_ssflow_gwflow_portions(discharge=obsQ,
                                                                     srflow_factor=srflow_percentage,

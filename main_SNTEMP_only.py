@@ -174,7 +174,7 @@ def main_SNTEMP_only(args):
                     # SNTEMP sampling
                     x_SNTEMP_sample = selectSubset(
                         args, x_SNTEMP_train, iGrid, iT, rho + warm_up, has_grad=False
-                    )[warm_up:,:, :].permute([1, 0, 2])    # there is no need for warm up in temp section yet
+                    ).permute([1, 0, 2])    # [warm_up:,:, :]there is no need for warm up in temp section yet
                     # c_SNTEMP_sample = torch.tensor(
                     #     c_SNTEMP[iGrid], device=args["device"], dtype=torch.float32
                     # )
@@ -233,7 +233,7 @@ def main_SNTEMP_only(args):
                     # gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])
 
                     temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
-                                                                     params[:, warm_up:, :], iGrid, iT,
+                                                                     params, iGrid, iT,   #params[:, warm_up:, :]
                                                                      args=args, air_sample_sr=air_sample_sr,
                                                                      air_sample_ss=air_sample_ss,
                                                                      air_sample_gw=air_sample_gw)
@@ -333,7 +333,7 @@ def main_SNTEMP_only(args):
                     # )
 
                     x_SNTEMP_sample = x_SNTEMP_test_tensor[iS[i]: iE[i], j * rho: cut, :].type(
-                        torch.float32)[:, warm_up:, :]
+                        torch.float32)#[:, warm_up:, :]
                     c_SNTEMP_sample = torch.tensor(
                         c_SNTEMP[iS[i]: iE[i], :], device=args["device"], dtype=torch.float32
                     )
@@ -383,7 +383,7 @@ def main_SNTEMP_only(args):
                     # gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3])  # bas
 
                     temp_sim, ave_air_temp, w_gwflow, w_ssflow, source_temps, SNTEMP_outs = Ts.forward(x_SNTEMP_sample,
-                                                                         params[:, warm_up:, :], iGrid, iT,
+                                                                         params, iGrid, iT,   # [:, warm_up:, :]
                                                                          args=args, air_sample_sr=air_sample_sr,
                                                                          air_sample_ss=air_sample_ss,
                                                                          air_sample_gw=air_sample_gw)
