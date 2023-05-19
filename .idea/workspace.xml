@@ -5,10 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="466ed71b-94ff-4401-b47c-7b04772b46ca" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/PGML_STemp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/PGML_STemp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_SNTEMP_only.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_SNTEMP_only.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_SNTEMP_only.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_SNTEMP_only.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,14 +33,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "G:/Farshid/GitHub/PGML_STemp/config",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;G:/Farshid/GitHub/PGML_STemp/config&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="G:\Farshid\GitHub\PGML_STemp\config" />
@@ -100,16 +97,6 @@
           <url>file://$PROJECT_DIR$/main.py</url>
           <line>115</line>
           <option name="timeStamp" value="147" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MODELS/PGML_STemp.py</url>
-          <line>3713</line>
-          <option name="timeStamp" value="205" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MODELS/PGML_STemp.py</url>
-          <line>3689</line>
-          <option name="timeStamp" value="206" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
