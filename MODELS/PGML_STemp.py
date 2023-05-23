@@ -3190,7 +3190,7 @@ class SNTEMP_only(nn.Module):
             mask_srflow_temp = srflow_temp.ge(0.0)
             srflow_temp = srflow_temp * mask_srflow_temp.int().float()
 
-            ssflow_temp = ave_air_temp[:, :, :, 1]
+            ssflow_temp = ave_air_temp[:, :, :, 0]
             mask_ssflow_temp = ssflow_temp.ge(0.0)
             ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
 
@@ -3454,6 +3454,29 @@ class SNTEMP_only(nn.Module):
 
         return srflow_percentage, ssflow_percentage, gwflow_percentage
 
+    def frac_modification2(self, portion, Q_T, filter_size, args):
+        nmul = args["nmul"]
+        A = list()
+        w = torch.ones((portion.shape[0], 1, filter_size), device=args["device"]) / filter_size
+        Q = portion * Q_T
+        for i in range(nmul):
+            Q_w = Q[:, :, i]
+            B = self.UH_conv(Q_w.unsqueeze(-1).permute([0, 2, 1]), w).permute([0, 2, 1])
+            # B = torch.flip(self.UH_conv(torch.flip(Q_gw.unsqueeze(-1).permute([0, 2, 1]), [2]), wgw).permute([0, 2, 1]), [1])
+            Q_w_por_mov = torch.max(
+                torch.min(B, Q_T[:, :, 0].unsqueeze(-1)), make_tensor(0.0)
+            )
+            wflow_portion_new = Q_w_por_mov / (
+                    Q_T[:, :, 0].unsqueeze(-1) + 0.001
+            )  # 0.001 is for not having nan values
+            wflow_portion_new = torch.clamp(wflow_portion_new, min=0.001, max=1.0)
+            A.append(wflow_portion_new)
+        wflow_portion_new = torch.cat(A, dim=2)
+
+        wflow_percentage = torch.clamp(wflow_portion_new, min=0.0001, max=1.0)
+
+        return wflow_percentage
+
     def semi_static_params(self, params, param_no, interval=30, method="average"):
         # seperate the piece for each interval
         param = params[:, :, param_no]
@@ -3597,19 +3620,19 @@ class SNTEMP_only(nn.Module):
         width_coef_nom = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
         width_coef_denom = self.param_bounds(params[:, warm_up:, :], 3, args, bounds=args["SNTEMP_paramCalLst"][3])
         hamon_coef = self.param_bounds(params[:, warm_up:, :], 4, args, bounds=args["SNTEMP_paramCalLst"][4])
-        srflow_portion = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
+        gwflow_portion = self.param_bounds(params, 5, args, bounds=args["SNTEMP_paramCalLst"][5])
         ssflow_portion = self.param_bounds(params, 6, args, bounds=args["SNTEMP_paramCalLst"][6])
         # gwflow_portion = self.param_bounds(params, 8, args, bounds=args["SNTEMP_paramCalLst"][8])
         if args["routing_SNTEMP"] == True:
             No_params = len(args["SNTEMP_paramCalLst"])
-            a_srflow = self.param_bounds(params[:, warm_up:, :], No_params, args, bounds=args["conv_SNTEMP"][0])
-            b_srflow = self.param_bounds(params[:, warm_up:, :], No_params + 1, args, bounds=args["conv_SNTEMP"][1])
-            a_ssflow = self.param_bounds(params[:, warm_up:, :], No_params + 2, args, bounds=args["conv_SNTEMP"][2])
-            b_ssflow = self.param_bounds(params[:, warm_up:, :], No_params + 3, args, bounds=args["conv_SNTEMP"][3])
-            a_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 4, args, bounds=args["conv_SNTEMP"][4])
-            b_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 5, args, bounds=args["conv_SNTEMP"][5])
+            # a_srflow = self.param_bounds(params[:, warm_up:, :], No_params, args, bounds=args["conv_SNTEMP"][0])
+            # b_srflow = self.param_bounds(params[:, warm_up:, :], No_params + 1, args, bounds=args["conv_SNTEMP"][1])
+            a_ssflow = self.param_bounds(params[:, warm_up:, :], No_params , args, bounds=args["conv_SNTEMP"][0])
+            b_ssflow = self.param_bounds(params[:, warm_up:, :], No_params + 1, args, bounds=args["conv_SNTEMP"][1])
+            a_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 2, args, bounds=args["conv_SNTEMP"][2])
+            b_gwflow = self.param_bounds(params[:, warm_up:, :], No_params + 3, args, bounds=args["conv_SNTEMP"][3])
             if args["lat_temp_adj"] == True:
-                lat_temp_adj = self.param_bounds(params[:, warm_up:, :], No_params + 6, args,
+                lat_temp_adj = self.param_bounds(params[:, warm_up:, :], No_params + 4, args,
                                                  bounds=args["SNTEMP_lat_adj_paramCallLst"][0])
         if args["lat_temp_adj"] == False:
             lat_temp_adj = 0.0 * hamon_coef
@@ -3635,11 +3658,7 @@ class SNTEMP_only(nn.Module):
         # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
         # stream_length = x[:, :, vars.index("stream_length_artificial")]
         # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
-        stream_length = (
-                            x[:, warm_up:, vars.index("stream_length_square")]
-                            .unsqueeze(-1)
-                            .repeat(1, 1, nmul)
-                        ) * 1000.0  # km to meter
+        stream_length = x[:, warm_up:, vars.index("stream_length_square")].unsqueeze(-1).repeat(1, 1, nmul) * 1000.0  # km to meter
         # basin_area = x[:, :, vars.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1,1,nmul)
         cloud_fraction = x[:, warm_up:, vars.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
         # t_monthly = x[:, :, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
@@ -3667,25 +3686,43 @@ class SNTEMP_only(nn.Module):
         # masking surface runoff fraction with precipitation.
         # if there is not any precipitaton, it cannot be more than 0.01
 
-        # making the flow percentages:
-        if args["res_time_type"] == "Meisner":
-            ssflow_portion = 0.0001 * ssflow_portion
-        srflow_percentage = srflow_portion
-        ssflow_percentage = (1 - srflow_percentage) * ssflow_portion
-        gwflow_percentage = 1 - srflow_percentage - ssflow_percentage
-
         if args["frac_smoothening_mode"] == True:
-            srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_percentage,
-                                                                                             ssflow_percentage,
-                                                                                             gwflow_percentage,
-                                                                                             obsQ,
-                                                                                             args)
+            gwflow_percentage = self.frac_modification2(gwflow_portion, obsQ,
+                                                        args["frac_smoothening_gw_filter_size"], args)
+            if args["res_time_type"] == "Meisner":
+                ssflow_percentage = 0.0 * ssflow_portion + 0.0001
+            else:
+                ssflow_percentage = self.frac_modification2(ssflow_portion * (1 - gwflow_percentage), obsQ,
+                                                            args["frac_smoothening_ss_filter_size"], args)
+        else:
+            gwflow_percentage = gwflow_portion
+            if args["res_time_type"] == "Meisner":
+                ssflow_percentage = 0.0 * ssflow_portion + 0.0001
+            else:
+                ssflow_percentage = (1.0 - gwflow_percentage) * ssflow_portion
+        srflow_percentage = 1.0 - gwflow_percentage - ssflow_percentage
+
+
+        # making the flow percentages:
+        # if args["res_time_type"] == "Meisner":
+        #     ssflow_portion = 0.0001 * ssflow_portion
+        # srflow_percentage = srflow_portion
+        # ssflow_percentage = (1 - srflow_percentage) * ssflow_portion
+        # gwflow_percentage = 1 - srflow_percentage - ssflow_percentage
+        #
+        # if args["frac_smoothening_mode"] == True:
+        #     srflow_percentage, ssflow_percentage, gwflow_percentage = self.frac_modification(srflow_percentage,
+        #                                                                                      ssflow_percentage,
+        #                                                                                      gwflow_percentage,
+        #                                                                                      obsQ,
+        #                                                                                      args)
 
 
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
         shade_fraction_riparian = w1_shade
-        shade_fraction_topo = w2_shade * shade_fraction_riparian
+        # shade_fraction_riparian = 0.01 * x[:, :, vars.index("RIP100_FOREST")].unsqueeze(-1).repeat(1, 1, nmul)
+        shade_fraction_topo = w2_shade * (1 - shade_fraction_riparian)
         shade_total = shade_fraction_riparian + shade_fraction_topo
         if args["shade_smoothening"] == True:
             (
@@ -3711,15 +3748,15 @@ class SNTEMP_only(nn.Module):
                                                                     ssflow_factor=ssflow_percentage,
                                                                     gwlow_factor=gwflow_percentage)
 
-        a_srflow_new = a_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
-        b_srflow_new = b_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
-        w_srflow = self.UH_gamma(a=a_srflow_new, b=b_srflow_new,
-                                 lenF=args["res_time_lenF_srflow"])
-        air_sample_sr = air_sample_sr.permute([0, 2, 1])  # dim:gage*var*time
-        w_srflow = w_srflow.permute([1, 2, 0])  # dim: gage*var*time
-        ave_air_sr = self.UH_conv(air_sample_sr, w_srflow)[:, :, args["res_time_lenF_srflow"]:].permute(
-            [0, 2, 1]).repeat(1, 1, nmul)
-
+        # a_srflow_new = a_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
+        # b_srflow_new = b_srflow.mean(-1, keepdim=True).permute([1, 0, 2])
+        # w_srflow = self.UH_gamma(a=a_srflow_new, b=b_srflow_new,
+        #                          lenF=args["res_time_lenF_srflow"])
+        # air_sample_sr = air_sample_sr.permute([0, 2, 1])  # dim:gage*var*time
+        # w_srflow = w_srflow.permute([1, 2, 0])  # dim: gage*var*time
+        # ave_air_sr = self.UH_conv(air_sample_sr, w_srflow)[:, :, args["res_time_lenF_srflow"]:].permute(
+        #     [0, 2, 1]).repeat(1, 1, nmul)
+        ave_air_sr = (air_sample_sr[:, args["res_time_lenF_srflow"]:, :]).repeat(1, 1, nmul)
         a_ssflow_new = a_ssflow.mean(-1, keepdim=True).permute([1, 0, 2])
         b_ssflow_new = b_ssflow.mean(-1, keepdim=True).permute([1, 0, 2])
         w_ssflow = self.UH_gamma(a=a_ssflow_new, b=b_ssflow_new,

@@ -440,7 +440,7 @@ def main_SNTEMP_only(args):
             # np.save(os.path.join(args["out_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())
             # np.save(os.path.join(args["out_dir"], "flow_obs.npy"), np.expand_dims(flow_obs, 2))
             np.save(os.path.join(args["out_dir"], "temp_pred.npy"), temp_pred.cpu().detach().numpy())
-            np.save(os.path.join(args["out_dir"], "sr_sro.npy"), np.expand_dims(temp_obs, 2))
+            np.save(os.path.join(args["out_dir"], "temp_obs.npy"), np.expand_dims(temp_obs, 2))
             np.save(os.path.join(args["out_dir"], "air_t.npy"), air_t.cpu().detach().numpy())
             np.save(os.path.join(args["out_dir"], "weight_gw.npy"), weight_gw.cpu().detach().numpy())
             np.save(os.path.join(args["out_dir"], "weight_ss.npy"), weight_ss.cpu().detach().numpy())

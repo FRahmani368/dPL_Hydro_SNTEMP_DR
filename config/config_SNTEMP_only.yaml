@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 5
+nmul: 2
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
@@ -35,7 +35,7 @@ varT_SNTEMP: [
 ]
 varC_SNTEMP: [
                "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT',
-                'ELEV_MEAN_M_BASIN', # "NHDlength_tot(m)"
+                'ELEV_MEAN_M_BASIN', "RIP100_FOREST", # "NHDlength_tot(m)"
 ]
 varT_PRMS: [
   'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)'
@@ -69,10 +69,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 2
+EPOCHS: 1000
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 2
+saveEpoch: 100
 
 seq_lin_layers_hidden_size: 256
 
@@ -85,6 +85,7 @@ shade_smoothening: False
 
 frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
+frac_smoothening_ss_filter_size: 14
 warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
@@ -110,7 +111,7 @@ Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is compu
 static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11,12, 13]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
-interval_for_semi_static_param_SNTEMP: [30, 30]
+interval_for_semi_static_param_SNTEMP: [5, 5]
 static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19]
 semi_static_params_list_prms: []
 method_for_semi_static_param_prms: ["average", "average", "average", "average"]
@@ -150,7 +151,7 @@ routing_PRMS: True
 routing_SNTEMP: True
 conv_SNTEMP: [
   # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-  [ 0.1, 5 ], [ 0.1, 5 ], [ 0.01, 2.5 ], [ 0.01, 6 ], [ 0.01, 2.5 ], [ 0.01, 6 ],  # a (k) and b (theta)
+   [ 0.01, 2.5 ], [ 0.01, 6 ], [ 0.01, 2.5 ], [ 0.01, 6 ],  # a (k) and b (theta)
   #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
   # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
 ]
