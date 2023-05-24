@@ -3692,7 +3692,7 @@ class SNTEMP_only(nn.Module):
             if args["res_time_type"] == "Meisner":
                 ssflow_percentage = 0.0 * ssflow_portion + 0.0001
             else:
-                ssflow_percentage = self.frac_modification2(ssflow_portion * (1 - gwflow_percentage), obsQ,
+                ssflow_percentage = self.frac_modification2(ssflow_portion, obsQ * (1 - gwflow_percentage),
                                                             args["frac_smoothening_ss_filter_size"], args)
         else:
             gwflow_percentage = gwflow_portion
@@ -3858,7 +3858,11 @@ class SNTEMP_only(nn.Module):
                                  lat_temp_adj.mean(-1, keepdim=True),
                                  srflow_percentage.mean(-1, keepdim=True),
                                  ssflow_percentage.mean(-1, keepdim=True),
-                                 gwflow_percentage.mean(-1, keepdim=True)), dim=2)
+                                 gwflow_percentage.mean(-1, keepdim=True),
+                                 a_ssflow_new.permute([1,0,2]).mean(-1, keepdim=True),
+                                 b_ssflow_new.permute([1,0,2]).mean(-1, keepdim=True),
+                                 a_gwflow_new.permute([1,0,2]).mean(-1, keepdim=True),
+                                 b_gwflow_new.permute([1,0,2]).mean(-1, keepdim=True)), dim=2)
         return (T_w.mean(-1, keepdim=True),
                 ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
                 w_gwflow.permute([0, 2, 1]),

@@ -69,7 +69,7 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 1000
+EPOCHS: 400
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 100
@@ -85,7 +85,7 @@ shade_smoothening: False
 
 frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
-frac_smoothening_ss_filter_size: 14
+frac_smoothening_ss_filter_size: 10
 warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
@@ -151,7 +151,7 @@ routing_PRMS: True
 routing_SNTEMP: True
 conv_SNTEMP: [
   # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-   [ 0.01, 2.5 ], [ 0.01, 6 ], [ 0.01, 2.5 ], [ 0.01, 6 ],  # a (k) and b (theta)
+   [ 0.01, 12 ], [ 0.01, 12 ], [ 0.01, 12 ], [ 0.01, 12 ],  # a (k) and b (theta)
   #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
   # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
 ]
