@@ -2,7 +2,7 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [ 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 2
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -69,7 +69,7 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 400
+EPOCHS: 100
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 100

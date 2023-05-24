@@ -3464,12 +3464,12 @@ class SNTEMP_only(nn.Module):
             B = self.UH_conv(Q_w.unsqueeze(-1).permute([0, 2, 1]), w).permute([0, 2, 1])
             # B = torch.flip(self.UH_conv(torch.flip(Q_gw.unsqueeze(-1).permute([0, 2, 1]), [2]), wgw).permute([0, 2, 1]), [1])
             Q_w_por_mov = torch.max(
-                torch.min(B, Q_T[:, :, 0].unsqueeze(-1)), make_tensor(0.0)
+                torch.min(B, Q_T[:, :, i].unsqueeze(-1)), make_tensor(0.0)
             )
             wflow_portion_new = Q_w_por_mov / (
-                    Q_T[:, :, 0].unsqueeze(-1) + 0.001
+                    Q_T[:, :, i].unsqueeze(-1) + 0.001
             )  # 0.001 is for not having nan values
-            wflow_portion_new = torch.clamp(wflow_portion_new, min=0.001, max=1.0)
+            wflow_portion_new = torch.clamp(wflow_portion_new, min=0.0001, max=1.0)
             A.append(wflow_portion_new)
         wflow_portion_new = torch.cat(A, dim=2)
 
@@ -3692,8 +3692,10 @@ class SNTEMP_only(nn.Module):
             if args["res_time_type"] == "Meisner":
                 ssflow_percentage = 0.0 * ssflow_portion + 0.0001
             else:
-                ssflow_percentage = self.frac_modification2(ssflow_portion, obsQ * (1 - gwflow_percentage),
+                ssflow_por_remain = self.frac_modification2(ssflow_portion,
+                                                            obsQ * (1 - gwflow_percentage),
                                                             args["frac_smoothening_ss_filter_size"], args)
+                ssflow_percentage = ssflow_por_remain * (1 - gwflow_percentage)
         else:
             gwflow_percentage = gwflow_portion
             if args["res_time_type"] == "Meisner":
