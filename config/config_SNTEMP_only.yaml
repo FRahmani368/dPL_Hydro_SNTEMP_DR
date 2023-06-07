@@ -2,12 +2,12 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [ 1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
-#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov.feather" #          no_dam_forcing_99%_days34sites.feather
+nmul: 16
+#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov_fillNa.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new2"
 data: "//home//fzr5082//PGML_STemp_results//data"
@@ -55,9 +55,9 @@ varC_PRMS: [
 
 target: [ "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
-t_train: [20101027, 20141001]   # there should be an overlap because of the warm_up
+t_train: [20101001, 20141001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [20131001, 20160930]    # there should be an overlap because of the warm_up
+t_test: [20131001, 20161001]    # there should be an overlap because of the warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -69,10 +69,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 100
+EPOCHS: 300
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 100
+saveEpoch: 50
 
 seq_lin_layers_hidden_size: 256
 
@@ -85,7 +85,7 @@ shade_smoothening: False
 
 frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
-frac_smoothening_ss_filter_size: 10
+frac_smoothening_ss_filter_size: 30
 warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
@@ -119,8 +119,8 @@ interval_for_semi_static_param_prms: [30, 30]
 SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
             [0, 1],                                                           # topo shade factor
-            [0.0001, 1000],                                                           # width A coefficient
-            [0.0001, 2],                                                            # width power coefficient
+            [0.0001, 25],                                                           # width A coefficient
+            [0.0001, 0.25],                                                            # width power coefficient
             [0.004, 0.008],                        # PET_ hamon coefficient
             [0.01, 1], [0.01, 1],#        # flow portions
 ]

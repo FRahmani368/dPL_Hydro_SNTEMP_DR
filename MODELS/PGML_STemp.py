@@ -3197,7 +3197,7 @@ class SNTEMP_only(nn.Module):
             gwflow_temp = ave_air_temp[:, :, :, 2]
             mask_gwflow_temp = gwflow_temp.ge(5.0)
             gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
-
+            gwflow_temp = torch.clamp(gwflow_temp, min=5.0)
             lat_flow_temp = torch.cat(
                 (
                     srflow_temp.unsqueeze(-1),
@@ -3458,6 +3458,8 @@ class SNTEMP_only(nn.Module):
         nmul = args["nmul"]
         A = list()
         w = torch.ones((portion.shape[0], 1, filter_size), device=args["device"]) / filter_size
+        # a = torch.arange(filter_size, device=args["device"], dtype=torch.float32) * (1.0 - 0.1) / filter_size + 0.1
+        # w = (torch.flip(a / a.sum(), [0])).repeat(portion.shape[0], 1).unsqueeze(-1).permute([0, 2, 1])
         Q = portion * Q_T
         for i in range(nmul):
             Q_w = Q[:, :, i]
@@ -3722,9 +3724,9 @@ class SNTEMP_only(nn.Module):
 
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        shade_fraction_riparian = w1_shade
+        shade_fraction_riparian =  w1_shade
         # shade_fraction_riparian = 0.01 * x[:, :, vars.index("RIP100_FOREST")].unsqueeze(-1).repeat(1, 1, nmul)
-        shade_fraction_topo = w2_shade * (1 - shade_fraction_riparian)
+        shade_fraction_topo = 0.0 * w2_shade * (1 - shade_fraction_riparian)
         shade_total = shade_fraction_riparian + shade_fraction_topo
         if args["shade_smoothening"] == True:
             (
