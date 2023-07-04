@@ -57,7 +57,7 @@ target: [ "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_013
 tRange: [19800101, 20230101]
 t_train: [20101001, 20141001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [20131001, 20161001]    # there should be an overlap because of the warm_up
+t_test: [20091001, 20161001]    # there should be an overlap because of the warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -69,10 +69,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 300
+EPOCHS: 2
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 50
+saveEpoch: 2
 
 seq_lin_layers_hidden_size: 256
 
@@ -85,7 +85,7 @@ shade_smoothening: False
 
 frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
-frac_smoothening_ss_filter_size: 30
+frac_smoothening_ss_filter_size: 40
 warm_up: 365
 make_sr_masked_by_precip: "False"
 params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
@@ -108,7 +108,7 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11,12, 13]
+static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param_SNTEMP: [5, 5]

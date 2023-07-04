@@ -3726,7 +3726,7 @@ class SNTEMP_only(nn.Module):
         # total shade (solar shade) is accumulative shade of vegetation and topography
         shade_fraction_riparian =  w1_shade
         # shade_fraction_riparian = 0.01 * x[:, :, vars.index("RIP100_FOREST")].unsqueeze(-1).repeat(1, 1, nmul)
-        shade_fraction_topo = 0.0 * w2_shade * (1 - shade_fraction_riparian)
+        shade_fraction_topo = w2_shade * (1 - shade_fraction_riparian)
         shade_total = shade_fraction_riparian + shade_fraction_topo
         if args["shade_smoothening"] == True:
             (
