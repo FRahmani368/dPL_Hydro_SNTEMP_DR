@@ -5,12 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="466ed71b-94ff-4401-b47c-7b04772b46ca" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/config/config_marrmot_PRMS_only.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/main_marrmot_PRMS_only.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/PGML_STemp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/PGML_STemp.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PGML_STemp.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PGML_STemp_mod.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PGML_STemp_new.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/config_SNTEMP_only.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_SNTEMP_only.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/marrmot/prms_marrmot.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/read_configurations.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/read_configurations.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,21 +37,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;G:/Farshid/GitHub/PGML_STemp/config&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "G:/Farshid/GitHub/PGML_STemp/main_marrmot_PRMS_only.py",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="G:\Farshid\GitHub\PGML_STemp\config" />
     </key>
   </component>
   <component name="RunManager">
-    <configuration name="main_SNTEMP_only" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="main_marrmot_PRMS_only" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PGML_STemp" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -64,7 +63,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main_SNTEMP_only.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main_marrmot_PRMS_only.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -75,7 +74,7 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.main_SNTEMP_only" />
+        <item itemvalue="Python.main_marrmot_PRMS_only" />
       </list>
     </recent_temporary>
   </component>

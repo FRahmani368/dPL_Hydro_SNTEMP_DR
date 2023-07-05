@@ -1334,10 +1334,11 @@ class prms_marrmot(torch.nn.Module):
         k4 = self.param_bounds(params, 15, args, bounds=args["marrmot_paramCalLst"][15])
         k5 = self.param_bounds(params, 16, args, bounds=args["marrmot_paramCalLst"][16])
         k6 = self.param_bounds(params, 17, args, bounds=args["marrmot_paramCalLst"][17]) # because we don't have any sink in the watersheds! Do we?
+        hamon_coef = self.param_bounds(params, 18, args, bounds=args["marrmot_paramCalLst"][18])
 
         if routing == True:
-            tempa = self.param_bounds(params, 18, args, bounds=args["conv_PRMS"][0])
-            tempb = self.param_bounds(params, 19, args, bounds=args["conv_PRMS"][1])
+            tempa = self.param_bounds(params, 19, args, bounds=args["conv_PRMS"][0])
+            tempb = self.param_bounds(params, 20, args, bounds=args["conv_PRMS"][1])
             # tempa = self.multi_comp_parameter_bounds(params, 18, args)
             # tempb = self.multi_comp_parameter_bounds(params, 19, args)
         #################
@@ -1357,7 +1358,7 @@ class prms_marrmot(torch.nn.Module):
         # )
         # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # it is poorly coded. need to fix it later.
-        hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][5])
+        # hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][5])
         PET = get_potet(
             args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
         ) * 86400 * 1000  # converting m/sec to mm/day
