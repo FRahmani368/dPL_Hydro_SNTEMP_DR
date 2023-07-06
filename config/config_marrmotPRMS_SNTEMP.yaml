@@ -2,13 +2,13 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [ 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 2
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov_fillNa.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_camels141_tmean_ccov.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_camels141_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov_fillNa.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new2"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
@@ -16,7 +16,6 @@ data: "//home//fzr5082//PGML_STemp_results//data"
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'
 varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
-
 varC_NN: [
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
   'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
@@ -29,29 +28,16 @@ varC_NN: [
    'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
 ]
 
-varT_SNTEMP: []
-varC_SNTEMP: []
-varT_PRMS: [
-  'prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)'
-]
+varT_SNTEMP: ['tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov", 'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)"]
+varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT', 'ELEV_MEAN_M_BASIN', "RIP100_FOREST"]
+varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)']
+varC_PRMS: ['DRAIN_SQKM']
 
-varC_PRMS: [
-  'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
-  'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
-  'FRAGUN_BASIN', 'FORESTNLCD06',  'AWCAVE', 'PERMAVE', 'BDAVE',
-  'ROCKDEPAVE', 'CLAYAVE', 'SILTAVE', 'SANDAVE', 'HGA', 'HGB',
-  'HGC', 'HGVAR', 'HGD', 'PPTAVG_BASIN', 'SNOW_PCT_PRECIP',
-  'PRECIP_SEAS_IND', 'T_AVG_BASIN',  'T_MAX_BASIN',
-  'T_MAXSTD_BASIN', 'RH_BASIN',
-  'GEOL_REEDBUSH_DOM_PCT', 'GEOL_REEDBUSH_DOM',
-  'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
-]
-
-target: [ "00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: [ "00060_Mean", "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
-t_train: [19800101, 19950101]   # there should be an overlap because of the warm_up
+t_train: [20101001, 20141001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [19950101, 20050101]    # there should be an overlap because of the warm_up
+t_test: [20141001, 20161001]    # there should be an overlap because of the warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -62,7 +48,7 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 141
+batch_size: 208
 EPOCHS: 2
 hidden_size: 256
 dropout: 0.5
@@ -102,7 +88,7 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11]
+static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param_SNTEMP: [5, 5]
