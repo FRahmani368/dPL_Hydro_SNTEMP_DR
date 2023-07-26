@@ -1,4 +1,4 @@
-from core.read_configurations import config
+from core.read_configurations import config_PRMS_SNTEMP as config
 from core.randomseed_config import randomseed_config
 from core.data_prep import (
     load_df,
@@ -202,7 +202,9 @@ def main_marrmotPRMS_SNTEMP(args):
                             flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1, nmul)   # Q_t - gw - ss
                 ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1, nmul)   # ras
                 gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3]).unsqueeze(-1).repeat(1, 1, nmul)
-
+                srflow = torch.clamp(srflow, min=0.0)   # to remove the small negative values
+                ssflow = torch.clamp(ssflow, min=0.0)
+                gwflow = torch.clamp(gwflow, min=0.0)
                 temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
                                                                  params, iGrid, iT,   #params[:, warm_up:, :]
                                                                  args=args, air_sample_sr=air_sample_sr,

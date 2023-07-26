@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov_fillNa.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_camels141_tmean_ccov.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
@@ -49,9 +49,9 @@ varC_PRMS: [
 
 target: [ "00060_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
-t_train: [19800101, 19950101]   # there should be an overlap because of the warm_up
+t_train: [20100101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [19950101, 20050101]    # there should be an overlap because of the warm_up
+t_test: [19990101, 20100101]    # there should be an overlap because of the warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -62,11 +62,11 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 141
-EPOCHS: 2
+batch_size: 104
+EPOCHS: 400
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 2
+saveEpoch: 50
 
 seq_lin_layers_hidden_size: 256
 

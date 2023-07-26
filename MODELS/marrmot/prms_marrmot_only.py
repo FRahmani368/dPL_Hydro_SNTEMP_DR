@@ -1334,11 +1334,11 @@ class prms_marrmot(torch.nn.Module):
         k4 = self.param_bounds(params, 15, args, bounds=args["marrmot_paramCalLst"][15])
         k5 = self.param_bounds(params, 16, args, bounds=args["marrmot_paramCalLst"][16])
         k6 = self.param_bounds(params, 17, args, bounds=args["marrmot_paramCalLst"][17]) * 0.0 # because we don't have any sink in the watersheds! Do we?
-        # hamon_coef = self.param_bounds(params, 18, args, bounds=args["marrmot_paramCalLst"][18])
+        hamon_coef = self.param_bounds(params, 18, args, bounds=args["marrmot_paramCalLst"][18])
 
         if routing == True:
-            tempa = self.param_bounds(params, 18, args, bounds=args["conv_PRMS"][0])
-            tempb = self.param_bounds(params, 19, args, bounds=args["conv_PRMS"][1])
+            tempa = self.param_bounds(params, 19, args, bounds=args["conv_PRMS"][0])
+            tempb = self.param_bounds(params, 20, args, bounds=args["conv_PRMS"][1])
             # tempa = self.multi_comp_parameter_bounds(params, 18, args)
             # tempb = self.multi_comp_parameter_bounds(params, 19, args)
         #################
@@ -1358,7 +1358,7 @@ class prms_marrmot(torch.nn.Module):
         # )
         # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # it is poorly coded. need to fix it later.
-        hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][4])
+        # hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][5])
         PET = get_potet(
             args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
         ) * 86400 * 1000  # converting m/sec to mm/day
@@ -1410,7 +1410,7 @@ class prms_marrmot(torch.nn.Module):
             flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
             RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
 
-د
+
             sro_lin_ratio = scn[:, t, :] + (scx[:, t, :] - scn[:, t, :]) * (RECHR_storage / remx[:, t, :])
             sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
             flux_sro = sro_lin_ratio * (flux_msm + flux_ptf + flux_pby)
@@ -1511,7 +1511,7 @@ class prms_marrmot(torch.nn.Module):
                 Qras_rout,
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
-            return torch.clamp(Qall, min = 0.0)
+            return torch.clamp(Qall, min=0.0)
 
 def UH_gamma(a,b,lenF=10):
     # UH. a [time (same all time steps), batch, var]

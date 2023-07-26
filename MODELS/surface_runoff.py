@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 import os
-from core.read_configurations import config
+# from core.read_configurations import config
 
 
 # def perv_comp(args, Pptp, Ptc, Infil, Srp, Soil_moist, Smidx_coef, Smidx_exp, Carea_max):

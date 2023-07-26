@@ -252,7 +252,7 @@ class RmseLoss_temp_flow(torch.nn.Module):
             pa = p1[mask_flow2]
             ta = t1[mask_flow2]
             loss_flow2 = torch.sqrt(((pa - ta) ** 2).mean())  # Log-Sqrt RMSE item
-            loss_flow_total = (1.0-self.alpha) * loss_flow1 + (self.alpha) * loss_flow2
+            loss_flow_total = (1.0-self.alpha) * loss_flow1 + self.alpha * loss_flow2
         else:
             loss_flow_total = 0.0
 
@@ -265,5 +265,5 @@ class RmseLoss_temp_flow(torch.nn.Module):
         else:
             loss_temp = 0.0
 
-        loss = (self.w) * (loss_flow_total) + (1 - self.w) * (loss_temp)
+        loss = self.w * loss_flow_total + (1 - self.w) * loss_temp
         return loss

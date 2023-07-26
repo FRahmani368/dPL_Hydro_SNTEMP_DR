@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 import math
 import time
-from core.read_configurations import config
+# from core.read_configurations import config
 
 # from rnn import CudnnLstmModel
 import matplotlib.pyplot as plt

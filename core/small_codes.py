@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import pandas as pd
 import os
-from core.read_configurations import config
+# from core.read_configurations import config
 import datetime as dt
 from core import hydroDL
 from ruamel.yaml import YAML
@@ -10,7 +10,7 @@ import json
 import shutil
 
 
-def make_tensor(*values, has_grad=False, dtype=torch.float32, device=config["device"]):
+def make_tensor(*values, has_grad=False, dtype=torch.float32, device="cuda"):
 
     if len(values) > 1:
         tensor_list = []

@@ -1,4 +1,4 @@
-from core.read_configurations import config
+from core.read_configurations import config_SNTEMP as config
 from core.randomseed_config import randomseed_config
 from core.data_prep import (
     load_df,
