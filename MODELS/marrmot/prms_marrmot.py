@@ -1410,7 +1410,6 @@ class prms_marrmot(torch.nn.Module):
             flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
             RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
 
-د
             sro_lin_ratio = scn[:, t, :] + (scx[:, t, :] - scn[:, t, :]) * (RECHR_storage / remx[:, t, :])
             sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
             flux_sro = sro_lin_ratio * (flux_msm + flux_ptf + flux_pby)
