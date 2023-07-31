@@ -1275,10 +1275,11 @@ class prms_marrmot(torch.nn.Module):
             with torch.no_grad():
                 xinit = x[:, 0:warm_up, :]
                 paramsinit = params[:, :warm_up, :]
+                Hamoninit = Hamon_coef[:, :warm_up, :]
                 warm_up_model = prms_marrmot()
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
-                    RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, Hamon_coef,
+                    RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, Hamoninit,
                                                             warm_up=0, init=True)
         else:
 
@@ -1313,6 +1314,7 @@ class prms_marrmot(torch.nn.Module):
 
         ## parameters for prms_marrmot. there are 18 parameters in it
         params = params[:, warm_up:, :]
+        Hamon_coef = Hamon_coef[:, warm_up:, :]
         tt = self.param_bounds(params, 0, args, bounds=args["marrmot_paramCalLst"][0])
         ddf = self.param_bounds(params, 1, args, bounds=args["marrmot_paramCalLst"][1])
         alpha = self.param_bounds(params, 2, args, bounds=args["marrmot_paramCalLst"][2])  # can br found in attr

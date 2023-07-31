@@ -5,13 +5,11 @@ randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 16
-#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov_fillNa.feather" #          no_dam_forcing_99%_days34sites.feather
-#attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_415_tmean_ccov_fillNa.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new2"
-data: "//home//fzr5082//PGML_STemp_results//data"
-
+#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP\\forcing415_NaNflow_20100101_20230101.feather" #          no_dam_forcing_99%_days34sites.feather
+#attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP\\attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing415_NaNflow_20100101_20230101.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP"
 
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'
@@ -49,10 +47,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 208
-EPOCHS: 100
+EPOCHS: 400
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 20
+saveEpoch: 50
 
 seq_lin_layers_hidden_size: 256
 

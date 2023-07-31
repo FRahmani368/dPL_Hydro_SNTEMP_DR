@@ -183,7 +183,7 @@ def main_marrmotPRMS_SNTEMP(args):
                     params = model(xTrain_sample_scaled)
 
                 params_PRMS = params[:, :, 0:ny_prms]
-                params_SNTEMP = params[:, warm_up:, ny_prms:]
+                params_SNTEMP = params[:, :, ny_prms:]
 
                 flowSim_total = PRMS(
                     x_PRMS_sample,
@@ -206,7 +206,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 ssflow = torch.clamp(ssflow, min=0.0)
                 gwflow = torch.clamp(gwflow, min=0.0)
                 temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
-                                                                 params, iGrid, iT,   #params[:, warm_up:, :]
+                                                                 params_SNTEMP, iGrid, iT,   #params[:, warm_up:, :]
                                                                  args=args, air_sample_sr=air_sample_sr,
                                                                  air_sample_ss=air_sample_ss,
                                                                  air_sample_gw=air_sample_gw,
@@ -335,7 +335,7 @@ def main_marrmotPRMS_SNTEMP(args):
                     params = model(xTemp_scaled.float())
 
                 params_PRMS = params[:, :, 0:ny_prms]
-                params_SNTEMP = params[:, warm_up:, ny_prms:]
+                params_SNTEMP = params[:, :, ny_prms:]
 
                 iGrid = np.arange(xTemp_scaled.shape[0])
                 iT = np.zeros((len(iGrid)))
@@ -359,7 +359,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3]).unsqueeze(-1).repeat(1, 1, nmul)  # bas
 
                 temp_sim, ave_air_temp, w_gwflow, w_ssflow, source_temps, SNTEMP_outs = Ts.forward(x_SNTEMP_sample,
-                                                                     params, iGrid, iT,   # [:, warm_up:, :]
+                                                                     params_SNTEMP, iGrid, iT,   #
                                                                      args=args, air_sample_sr=air_sample_sr,
                                                                      air_sample_ss=air_sample_ss,
                                                                      air_sample_gw=air_sample_gw,
