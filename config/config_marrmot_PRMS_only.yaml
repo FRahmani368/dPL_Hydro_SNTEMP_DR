@@ -7,9 +7,9 @@ device: "cuda"
 nmul: 16
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//forcing_415_tmean_ccov_fillNa.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\forcing_camels141_tmean_ccov.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\attr_camels141_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\415_sites_new2"
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing50.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\marrmot_PRMS_only\\PRMS_only_PUB_183"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
@@ -62,7 +62,7 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 104
+batch_size: 183
 EPOCHS: 400
 hidden_size: 256
 dropout: 0.5

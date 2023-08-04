@@ -359,7 +359,7 @@ def calStatAll(args, x, y):
     # # statDict['usgsFlow'] = calStatgamma(y)
     # ##statDict['00060_Mean'] = calStatbasinnorm(y)
     for i in range(len(args["target"])):
-        if args["target"] == ["00060_Mean"]:
+        if "00060_Mean" in args["target"]:
             statDict[args["target"][i]] = calStatbasinnorm(y, x, args)
         # elif args['optData']['target'] == ['combine_discharge']:
         #     statDict['00060_Mean'] = calStatbasinnorm(y, idLst)
