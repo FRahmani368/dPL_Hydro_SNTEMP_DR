@@ -1,6 +1,7 @@
 import torch
 import numpy as np
-
+import json
+import os
 # import RMSEbasin
 import time
 
@@ -232,13 +233,16 @@ class RmseLossComb(torch.nn.Module):
         return loss
 
 class RmseLoss_temp_flow(torch.nn.Module):
-    def __init__(self, w=0.5, alpha=0.25, beta=1e-6):
+    def __init__(self, w1=0.5, w2=None, alpha=0.25, beta=1e-6):
         super(RmseLoss_temp_flow, self).__init__()
-        self.w = w
+        self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
+        self.w2 = w2
 
     def forward(self, obs_flow, obs_temp, sim_flow, sim_temp):
+        if self.w2 == None:    # w1 + w2 =1
+            self.w2 = 1 - self.w1
         # flow
         if len(obs_flow[obs_flow==obs_flow]) > 0:
             mask_flow1 = obs_flow == obs_flow
@@ -265,5 +269,53 @@ class RmseLoss_temp_flow(torch.nn.Module):
         else:
             loss_temp = 0.0
 
-        loss = self.w * loss_flow_total + (1 - self.w) * loss_temp
+        loss = self.w1 * loss_flow_total + self.w2 * loss_temp
+        return loss
+
+class RmseLoss_temp_flow_norm(torch.nn.Module):
+    def __init__(self, args, w1=0.5, w2=None, alpha=0.25, beta=1e-6, normalizing_flag=True):
+        super(RmseLoss_temp_flow_norm, self).__init__()
+        self.args = args
+        self.w1 = w1
+        self.alpha = alpha  # weights of log-sqrt RMSE
+        self.beta = beta
+        self.normalizing_flag = normalizing_flag
+        self.w2=w2
+    def forward(self, obs_flow, obs_temp, sim_flow, sim_temp):
+        # flow
+        if self.w2 == None:    # w1 + w2 =1
+            self.w2 = 1 - self.w1
+        if len(obs_flow[obs_flow==obs_flow]) > 0:
+            mask_flow1 = obs_flow == obs_flow
+            p = sim_flow[mask_flow1]
+            t = obs_flow[mask_flow1]
+            loss_flow1 = torch.sqrt(((p - t) ** 2).mean())  # RMSE item
+
+            p1 = torch.log10(torch.sqrt(sim_flow + self.beta) + 0.1)
+            t1 = torch.log10(torch.sqrt(obs_flow + self.beta) + 0.1)
+            mask_flow2 = t1 == t1
+            pa = p1[mask_flow2]
+            ta = t1[mask_flow2]
+            loss_flow2 = torch.sqrt(((pa - ta) ** 2).mean())  # Log-Sqrt RMSE item
+            loss_flow_total = (1.0-self.alpha) * loss_flow1 + self.alpha * loss_flow2
+        else:
+            loss_flow_total = 0.0
+
+        # temp
+        if len(obs_temp[obs_temp==obs_temp]) > 0:
+            mask_temp1 = obs_temp == obs_temp
+            p_temp = sim_temp[mask_temp1]
+            t_temp = obs_temp[mask_temp1]
+            loss_temp = torch.sqrt(((p_temp - t_temp) ** 2).mean())  # RMSE item
+        else:
+            loss_temp = 0.0
+
+        if self.normalizing_flag == True:
+            statFile = os.path.join(self.args["out_dir"], "Statistics_basinnorm.json")
+            with open(statFile, "r") as fp:
+                statDict = json.load(fp)
+            loss_flow_total = loss_flow_total / abs(statDict["00060_Mean"][2])  # divided by mean
+            loss_temp = loss_temp / statDict["00010_Mean"][2]
+
+        loss = self.w1 * loss_flow_total + self.w2 * loss_temp
         return loss

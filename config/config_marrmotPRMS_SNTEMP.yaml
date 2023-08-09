@@ -9,7 +9,7 @@ nmul: 16
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP\\attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing50.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\PRMS_SNTEMP_PUB_183" #\\PRMS_SNTEMP_415_208"
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\PRMS_SNTEMP_test" #\\PRMS_SNTEMP_415_208"
 
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'

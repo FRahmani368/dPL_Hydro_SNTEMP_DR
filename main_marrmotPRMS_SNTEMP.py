@@ -96,7 +96,8 @@ def main_marrmotPRMS_SNTEMP(args):
 
     # loss function
     # lossFun = crit.RmseLoss()    # simple rmse loss function
-    lossFun = crit.RmseLoss_temp_flow(w=0.80)   #0.20 for stream temperature
+    lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
+    # lossFun = crit.RmseLoss_temp_flow_norm(args, w1=1.0, w2=1.0)
     # lossFun = crit.RmseLossComb(alpha=0.25)
     optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
     # optim = torch.optim.SGD(model.parameters(), lr=10)
