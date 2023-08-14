@@ -3937,10 +3937,10 @@ class SNTEMP_flowSim(nn.Module):
         :param T_a: average daily air temperature
         :return: riparian vegetation longwave radiation
         """
-        St_Boltzman_ct = make_tensor(5.670373) * torch.pow(
-            make_tensor(10), (-8.0)
-        )  # (J/s*m^2 * K^4)
-        emissivity_veg = make_tensor(args["STemp_default_emissivity_veg"])
+        St_Boltzman_ct = 5.670373 * torch.pow(
+                    make_tensor(10, device=args["device"]), (-8.0)
+                ).to(device=args["device"])
+        emissivity_veg = make_tensor(args["STemp_default_emissivity_veg"], device=args["device"])
         H_v = (
                 emissivity_veg
                 * St_Boltzman_ct
@@ -3995,8 +3995,8 @@ class SNTEMP_flowSim(nn.Module):
 
         B_c = 0.00061 * P / denom2
         B_c1 = 0.00061 * P / (e_s - e_a)
-        K_g = make_tensor(1.65)
-        delta_Z = make_tensor(args["STemp_default_delta_Z"])
+        K_g = make_tensor(1.65, device=args["device"])
+        delta_Z = make_tensor(args["STemp_default_delta_Z"], device=args["device"])
         # we don't need H_a, because we hae swrad directly from inputs
         H_a = self.atm_longwave_radiation_heat(
             T_a, e_a, shade_total, cloud_fraction, args=args
@@ -4010,17 +4010,17 @@ class SNTEMP_flowSim(nn.Module):
             T_a, shade_fraction_riparian, args=args
         )
 
-        A = 5.4 * torch.pow(make_tensor(np.full((T_a.shape), 10)), (-8))
-        B = torch.pow(make_tensor(10), 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (
+        A = 5.4 * (10 ** (-8)) #torch.pow(make_tensor(np.full((T_a.shape), 10), device=), (-8))
+        B = (10 ** 6) * E * (B_c * (2495 + 2.36 * T_a) - 2.36) + (
                 K_g / delta_Z
         )
-        C = torch.pow(make_tensor(10), 6) * E * B_c * 2.36
+        C = (10 ** 6) * E * B_c * 2.36
         # Todo: need to check 10**6. it is in fortran code but it is not in the document
         D = (
                 H_a
                 + H_s
                 + H_v
-                + 2495 * torch.pow(make_tensor(10), 6) * E * ((B_c * T_a) - 1)
+                + 2495 * (10 ** 6) * E * ((B_c * T_a) - 1)
                 + (T_g * K_g / delta_Z)
         )
         # D = H_a + swrad + H_v + 2495 * E * ((B_c * T_a) - 1) + (T_g * K_g / delta_Z)
