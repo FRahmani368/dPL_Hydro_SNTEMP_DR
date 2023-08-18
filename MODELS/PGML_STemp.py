@@ -3938,8 +3938,8 @@ class SNTEMP_flowSim(nn.Module):
         :return: riparian vegetation longwave radiation
         """
         St_Boltzman_ct = 5.670373 * torch.pow(
-                    make_tensor(10, device=args["device"]), (-8.0)
-                ).to(device=args["device"])
+            make_tensor(10, device=args["device"]), (-8.0)
+        ).to(device=args["device"])
         emissivity_veg = make_tensor(args["STemp_default_emissivity_veg"], device=args["device"])
         H_v = (
                 emissivity_veg
