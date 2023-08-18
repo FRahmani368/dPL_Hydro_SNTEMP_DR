@@ -4306,7 +4306,7 @@ class SNTEMP_flowSim(nn.Module):
             groups = nb
 
         # y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
-        y = F.conv1d(xx, w, groups=groups, padding=padd, stride=1, bias=None)  # we don't need flip
+        y = F.conv1d(xx, w, groups=groups, padding=padd, stride=1, bias=None)  # we don't need flip- double checked 08/18/2023
         if padd != 0:
             y = y[:, :, 0:-padd]
         return y.view(mm)

@@ -217,7 +217,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 # flowSim = flowSim_total[:, :, 0:1]
                 # mask_yp = flowSim.ge(1e-6)
                 # flow_sim = flowSim * mask_yp.int().float()
-                flowObs = flowObs[warm_up:, :, :].permute([1, 0 , 2])  # to make it in flowSim format
+                flowObs = flowObs[warm_up:, :, :].permute([1, 0, 2])  # to make it in flowSim format
                 varC_PRMS = args["varC_PRMS"]
                 area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                 flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
