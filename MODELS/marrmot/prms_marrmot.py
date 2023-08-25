@@ -1280,7 +1280,7 @@ class prms_marrmot(torch.nn.Module):
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
                     RES_storage, GW_storage = warm_up_model(xinit, c_PRMS, paramsinit, args, Hamoninit,
-                                                            warm_up=0, init=True)
+                                                            warm_up=0, init=True, routing=args["routing_PRMS"])
         else:
 
             # snow storage

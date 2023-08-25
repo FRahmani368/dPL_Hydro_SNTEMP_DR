@@ -193,6 +193,7 @@ def main_marrmotPRMS_SNTEMP(args):
                     args,
                     Hamon_coef=params_SNTEMP[:, :, 4 * nmul: 5 * nmul],  # PET is in both temp and flow model
                     warm_up=warm_up,
+                    routing=args["routing_PRMS"]
                 )
 
                 # converting mm/day to m3/ day
@@ -347,6 +348,7 @@ def main_marrmotPRMS_SNTEMP(args):
                     args,
                     params_SNTEMP[:, :, 4 * nmul: 5 * nmul],  # PET is in both temp and flow model
                     warm_up=warm_up,
+                    routing=args["routing_PRMS"]
                 )
                 varC_PRMS = args["varC_PRMS"]
                 area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).unsqueeze(-1).repeat(1,
