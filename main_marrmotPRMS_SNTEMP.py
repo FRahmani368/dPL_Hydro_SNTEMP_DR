@@ -234,7 +234,7 @@ def main_marrmotPRMS_SNTEMP(args):
 
                 loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
                                flowSim_total[:, :, 0:1], temp_sim,
-                               0.01 * BFI_gagesII, gwflow / (srflow + ssflow + gwflow + 0.00001)
+                               0.01 * BFI_gagesII, (gwflow / (srflow + ssflow + gwflow + 0.00001))[:, :, 0:1]
                                )
                 # loss = lossFun(temp_sim, tempObs[warm_up:, :, :].permute([1, 0, 2]))
                 # loss = lossFun(flowSim, flowObs)
