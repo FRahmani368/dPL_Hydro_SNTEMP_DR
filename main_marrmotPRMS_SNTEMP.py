@@ -96,8 +96,8 @@ def main_marrmotPRMS_SNTEMP(args):
 
     # loss function
     # lossFun = crit.RmseLoss()    # simple rmse loss function
-    lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
-    # lossFun = crit.RmseLoss_temp_flow_norm(args, w1=1.0, w2=1.0)
+    # lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
+    lossFun = crit.RmseLoss_temp_flow_BFI(w1=1.0, w2=1.0, w3=2.0)
     # lossFun = crit.RmseLossComb(alpha=0.25)
     optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
     # optim = torch.optim.SGD(model.parameters(), lr=10)
@@ -175,6 +175,11 @@ def main_marrmotPRMS_SNTEMP(args):
                     args, np.expand_dims(y_train[:, :, targets.index("00010_Mean")], axis=2),
                     iGrid, iT, rho + warm_up, has_grad=False
                 )
+                BFI_gagesII = selectSubset(
+                    args, np.expand_dims(y_train[:, :, targets.index("BFI_AVE")], axis=2),
+                    iGrid, iT, rho + warm_up, has_grad=False
+                )[warm_up:, :, :].permute([1, 0, 2])
+
 
                 ### MLP
                 if type(model) in [MLP]:
@@ -223,9 +228,14 @@ def main_marrmotPRMS_SNTEMP(args):
                 area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                 flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
                 # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
+                # loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
+                #     flowSim_total[:, :, 0:1], temp_sim
+                # )
+
                 loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
-                    flowSim_total[:, :, 0:1], temp_sim
-                )
+                               flowSim_total[:, :, 0:1], temp_sim,
+                               0.01 * BFI_gagesII, gwflow / (srflow + ssflow + gwflow + 0.00001)
+                               )
                 # loss = lossFun(temp_sim, tempObs[warm_up:, :, :].permute([1, 0, 2]))
                 # loss = lossFun(flowSim, flowObs)
                 loss.backward()  # retain_graph=True

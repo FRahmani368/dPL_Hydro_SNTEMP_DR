@@ -574,10 +574,13 @@ class DataframeCamels(Dataframe):
         if type(varLst) is str:
             varLst = [varLst]
         inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
+        inputfile_attr = os.path.join(os.path.realpath(args["attr_path"]))
         if inputfile.endswith(".csv"):
-            dfMain = pd.read_csv(inputfiles)
+            dfMain = pd.read_csv(inputfile)
+            dfMain_attr = pd.read_csv(inputfile_attr)
         elif inputfile.endswith(".feather"):
             dfMain = pd.read_feather(inputfile)
+            dfMain_attr = pd.read_feather(inputfile_attr)
         else:
             print("data type is not supported")
             exit()
@@ -588,16 +591,33 @@ class DataframeCamels(Dataframe):
         ntobs = len(tLstobs)
         nNodes = len(sites)
 
+        varLst_forcing = []
+        varLst_attr = []
+        for var in varLst:
+            if var in dfMain.columns:
+                varLst_forcing.append(var)
+            elif var in dfMain_attr.columns:
+                varLst_attr.append(var)
+            else:
+                print("the target is not in forcing file nor in attr file")
         # x = np.empty([nNodes, ntobs, len(varLst)])
         # for k, kk in enumerate(sites):
         #     data = dfMain.loc[dfMain["site_no"] == kk, varLst].to_numpy()
         #     x[k, :, :] = data
 
         ## Farshid : trying a faster method compared to the upper four lines ##
-        xt = dfMain.loc[:, varLst].values
+        xt = dfMain.loc[:, varLst_forcing].values
         g = dfMain.reset_index(drop=True).groupby("site_no")
         xtg = [xt[i.values, :] for k, i in g.groups.items()]
         x = np.array(xtg)
+
+        ## for attr
+        if len(varLst_attr) > 0:
+            x_attr_t = dfMain_attr.loc[:, varLst_attr].values
+            x_attr_t = np.expand_dims(x_attr_t, axis=2)
+            xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
+            xattr = np.transpose(xattr, (0, 2, 1))
+            x = np.concatenate((x, xattr), axis=2)
 
         data = x
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)

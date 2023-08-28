@@ -31,7 +31,7 @@ varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT', 'ELEV_MEAN_M_
 varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)']
 varC_PRMS: ['DRAIN_SQKM']
 
-target: [ "00060_Mean", "00010_Mean"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: [ "00060_Mean", "00010_Mean", "BFI_AVE"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
 t_train: [20100101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
@@ -46,7 +46,7 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 50
+batch_size: 208
 EPOCHS: 400
 hidden_size: 256
 dropout: 0.5

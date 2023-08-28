@@ -272,6 +272,56 @@ class RmseLoss_temp_flow(torch.nn.Module):
         loss = self.w1 * loss_flow_total + self.w2 * loss_temp
         return loss
 
+class RmseLoss_temp_flow_BFI(torch.nn.Module):
+    def __init__(self, w1=0.5, w2=None, w3=2.0, alpha=0.25, beta=1e-6):
+        super(RmseLoss_temp_flow_BFI, self).__init__()
+        self.w1 = w1
+        self.alpha = alpha  # weights of log-sqrt RMSE
+        self.beta = beta
+        self.w2 = w2
+        self.w3 = w3
+
+    def forward(self, obs_flow, obs_temp, sim_flow, sim_temp, obs_BFI, sim_BFI):
+        if self.w2 == None:    # w1 + w2 =1
+            self.w2 = 1 - self.w1
+        # flow
+        if len(obs_flow[obs_flow==obs_flow]) > 0:
+            mask_flow1 = obs_flow == obs_flow
+            p = sim_flow[mask_flow1]
+            t = obs_flow[mask_flow1]
+            loss_flow1 = torch.sqrt(((p - t) ** 2).mean())  # RMSE item
+
+            p1 = torch.log10(torch.sqrt(sim_flow + self.beta) + 0.1)
+            t1 = torch.log10(torch.sqrt(obs_flow + self.beta) + 0.1)
+            mask_flow2 = t1 == t1
+            pa = p1[mask_flow2]
+            ta = t1[mask_flow2]
+            loss_flow2 = torch.sqrt(((pa - ta) ** 2).mean())  # Log-Sqrt RMSE item
+            loss_flow_total = (1.0-self.alpha) * loss_flow1 + self.alpha * loss_flow2
+        else:
+            loss_flow_total = 0.0
+
+        # temp
+        if len(obs_temp[obs_temp==obs_temp]) > 0:
+            mask_temp1 = obs_temp == obs_temp
+            p_temp = sim_temp[mask_temp1]
+            t_temp = obs_temp[mask_temp1]
+            loss_temp = torch.sqrt(((p_temp - t_temp) ** 2).mean())  # RMSE item
+        else:
+            loss_temp = 0.0
+
+        # BFI calculation
+        if len(obs_BFI[obs_BFI==obs_BFI]) > 0:
+            mask_BFI1 = obs_BFI == obs_BFI
+            p_BFI = sim_BFI[mask_BFI1]
+            t_BFI = obs_BFI[mask_BFI1]
+            loss_BFI = torch.sqrt(((p_BFI - t_BFI) ** 2).mean())  # RMSE item
+        else:
+            loss_BFI = 0.0
+
+        loss = self.w1 * loss_flow_total + self.w2 * loss_temp + self.w3 * loss_BFI
+        return loss
+
 class RmseLoss_temp_flow_norm(torch.nn.Module):
     def __init__(self, args, w1=0.5, w2=None, alpha=0.25, beta=1e-6, normalizing_flag=True):
         super(RmseLoss_temp_flow_norm, self).__init__()
