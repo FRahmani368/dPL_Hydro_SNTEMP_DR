@@ -86,11 +86,11 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]
+static_params_list_SNTEMP: [6,7, 8, 9] #[0,1,2,3,4,5, 6,7, 8, 9]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param_SNTEMP: [5, 5]
-static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
+static_params_list_prms: [19, 20] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
 semi_static_params_list_prms: []
 method_for_semi_static_param_prms: ["average", "average", "average", "average"]
 interval_for_semi_static_param_prms: [30, 30]

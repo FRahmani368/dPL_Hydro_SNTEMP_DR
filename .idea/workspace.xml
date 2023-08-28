@@ -6,7 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="58245d29-b43b-4023-bbc3-36a582b22c6f" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/PGML_STemp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/PGML_STemp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,6 +15,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_HOME_DIR$/plugins/python-ce/helpers/pydev/_pydev_imps/_pydev_execfile.py" root0="SKIP_INSPECTION" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
