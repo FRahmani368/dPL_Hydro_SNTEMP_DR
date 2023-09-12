@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 16
+nmul: 1
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//forcing415_NaNflow_20100101_20230101.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing50.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
@@ -31,11 +31,11 @@ varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT', 'ELEV_MEAN_M_
 varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)']
 varC_PRMS: ['DRAIN_SQKM']
 
-target: [ "00060_Mean", "00010_Mean", "BFI_AVE"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
 tRange: [19800101, 20230101]
 t_train: [20100101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [19990101, 20100101]    # there should be an overlap because of the warm_up
+t_test: [19990101, 20100101]    # the first year is for warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -47,10 +47,10 @@ fdcopt: False
 
 rho: 365
 batch_size: 25
-EPOCHS: 40
+EPOCHS: 1
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 20
+saveEpoch: 1
 
 seq_lin_layers_hidden_size: 256
 
@@ -86,11 +86,11 @@ no_basins: 20
 potet_module: "potet_hamon"
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [6,7, 8, 9] #[0,1,2,3,4,5, 6,7, 8, 9]
+static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]
 semi_static_params_list_SNTEMP: []
 method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
 interval_for_semi_static_param_SNTEMP: [5, 5]
-static_params_list_prms: [19, 20] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
+static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
 semi_static_params_list_prms: []
 method_for_semi_static_param_prms: ["average", "average", "average", "average"]
 interval_for_semi_static_param_prms: [30, 30]
@@ -129,7 +129,7 @@ routing_PRMS: True
 routing_SNTEMP: True
 conv_SNTEMP: [
   # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-   [ 0.01, 0.011 ], [ 0.01, 0.011 ], [ 0.01, 0.011 ], [ 0.01, 0.011 ],  # a (k) and b (theta)
+   [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ],  # a (k) and b (theta)
   #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
   # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
 ]

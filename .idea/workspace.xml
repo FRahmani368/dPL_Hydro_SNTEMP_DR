@@ -8,7 +8,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/crit.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/crit.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/hydroDL/data/camels.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/hydroDL/data/camels.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -54,6 +53,11 @@
           <url>file://$PROJECT_DIR$/main_marrmot_PRMS_only.py</url>
           <line>47</line>
           <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py</url>
+          <line>441</line>
+          <option name="timeStamp" value="104" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

@@ -97,7 +97,8 @@ def main_marrmotPRMS_SNTEMP(args):
     # loss function
     # lossFun = crit.RmseLoss()    # simple rmse loss function
     # lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
-    lossFun = crit.RmseLoss_temp_flow_BFI(w1=1.0, w2=1.0, w3=2.0)
+    # lossFun = crit.RmseLoss_temp_flow_BFI(w1=1.0, w2=1.0, w3=2.0)
+    lossFun = crit.RmseLoss_temp_flow_BFI_PET(w1=9.0, w2=1.0, w3=4.0, w4=0.005)
     # lossFun = crit.RmseLossComb(alpha=0.25)
     optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
     # optim = torch.optim.SGD(model.parameters(), lr=10)
@@ -180,6 +181,11 @@ def main_marrmotPRMS_SNTEMP(args):
                     iGrid, iT, rho + warm_up, has_grad=False
                 )[warm_up:, :, :].permute([1, 0, 2])
 
+                PET_gagesII = selectSubset(
+                    args, np.expand_dims(y_train[:, :, targets.index("PET")], axis=2),
+                    iGrid, iT, rho + warm_up, has_grad=False
+                )[warm_up:, :, :].permute([1, 0, 2])
+
 
                 ### MLP
                 if type(model) in [MLP]:
@@ -212,7 +218,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 srflow = torch.clamp(srflow, min=0.0)   # to remove the small negative values
                 ssflow = torch.clamp(ssflow, min=0.0)
                 gwflow = torch.clamp(gwflow, min=0.0)
-                temp_sim, _, _, _, _, _ = Ts.forward(x_SNTEMP_sample,
+                temp_sim, _, _, _, _, SN_outs = Ts.forward(x_SNTEMP_sample,
                                                                  params_SNTEMP, iGrid, iT,   #params[:, warm_up:, :]
                                                                  args=args, air_sample_sr=air_sample_sr,
                                                                  air_sample_ss=air_sample_ss,
@@ -231,10 +237,13 @@ def main_marrmotPRMS_SNTEMP(args):
                 # loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
                 #     flowSim_total[:, :, 0:1], temp_sim
                 # )
+                BFI_sim = torch.sum(gwflow, dim=1).squeeze() / (torch.sum(srflow + ssflow + gwflow, dim=1) + 0.00001).squeeze(-1)
+                PET_sim = torch.sum(SN_outs[:, :, 0], dim=1) * 1000 * 86400   # the first one is PET , converting from m /s to mm/year
 
                 loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
                                flowSim_total[:, :, 0:1], temp_sim,
-                               0.01 * BFI_gagesII, (gwflow / (srflow + ssflow + gwflow + 0.00001))[:, :, 0:1]
+                               0.01 * BFI_gagesII[:,0,0], BFI_sim,
+                               PET_gagesII[:,0,0], PET_sim
                                )
                 # loss = lossFun(temp_sim, tempObs[warm_up:, :, :].permute([1, 0, 2]))
                 # loss = lossFun(flowSim, flowObs)
