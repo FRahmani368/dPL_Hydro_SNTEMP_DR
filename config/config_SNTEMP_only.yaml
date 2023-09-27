@@ -105,7 +105,9 @@ Epan_coef: 1.0
 
 initial_values_shade_fraction: 0.1
 no_basins: 20
-potet_module: "potet_hamon"
+potet_module: "potet_hamon" # "potet_hargreaves" , "dataset"
+potet_dataset_name: "PET_hargreaves(mm/day)" # if "potet_module" == "dataset
+
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
 static_params_list_SNTEMP: [7, 8, 9,10]

@@ -96,9 +96,9 @@ def main_marrmotPRMS_SNTEMP(args):
 
     # loss function
     # lossFun = crit.RmseLoss()    # simple rmse loss function
-    # lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
+    lossFun = crit.RmseLoss_temp_flow(w1=1.0, w2=1.0)   # stream temperature (w2)
     # lossFun = crit.RmseLoss_temp_flow_BFI(w1=1.0, w2=1.0, w3=2.0)
-    lossFun = crit.RmseLoss_temp_flow_BFI_PET(w1=9.0, w2=1.0, w3=4.0, w4=0.005)
+    # lossFun = crit.RmseLoss_temp_flow_BFI_PET(w1=9.0, w2=1.0, w3=4.0, w4=0.005)
     # lossFun = crit.RmseLossComb(alpha=0.25)
     optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
     # optim = torch.optim.SGD(model.parameters(), lr=10)
@@ -193,6 +193,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 ### CudnnLstm
                 if type(model) in [CudnnLstmModel]:
                     params = model(xTrain_sample_scaled)
+                    # params = (model(xTrain_sample_scaled.permute([1,0,2]))).permute([1, 0, 2])
 
                 params_PRMS = params[:, :, 0:ny_prms]
                 params_SNTEMP = params[:, :, ny_prms:]
@@ -242,8 +243,8 @@ def main_marrmotPRMS_SNTEMP(args):
 
                 loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
                                flowSim_total[:, :, 0:1], temp_sim,
-                               0.01 * BFI_gagesII[:,0,0], BFI_sim[:, 0],
-                               PET_gagesII[:,0,0], PET_sim
+                               # 0.01 * BFI_gagesII[:,0,0], BFI_sim[:, 0],
+                               # PET_gagesII[:,0,0], PET_sim
                                )
                 # loss = lossFun(temp_sim, tempObs[warm_up:, :, :].permute([1, 0, 2]))
                 # loss = lossFun(flowSim, flowObs)
@@ -354,6 +355,7 @@ def main_marrmotPRMS_SNTEMP(args):
                 ### CudnnLstm
                 if type(model) in [CudnnLstmModel]:
                     params = model(xTemp_scaled.float())
+                    # params = (model(xTemp_scaled.float().permute([1,0,2]))).permute([1, 0, 2])
 
                 params_PRMS = params[:, :, 0:ny_prms]
                 params_SNTEMP = params[:, :, ny_prms:]

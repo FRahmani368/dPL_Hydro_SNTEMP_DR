@@ -9,7 +9,7 @@ nmul: 16
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing50.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\marrmot_PRMS_only\\PRMS_only_PUB_183"
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\marrmot_PRMS_only\\jobs_sep27"
 data: "//home//fzr5082//PGML_STemp_results//data"
 
 
@@ -62,7 +62,7 @@ lckernel: None
 fdcopt: False
 
 rho: 365
-batch_size: 183
+batch_size: 331
 EPOCHS: 400
 hidden_size: 256
 dropout: 0.5
@@ -99,7 +99,9 @@ Epan_coef: 1.0
 
 initial_values_shade_fraction: 0.1
 no_basins: 20
-potet_module: "potet_hamon"
+potet_module: "potet_hamon" # "potet_hargreaves" , "dataset"
+potet_dataset_name: "PET_hargreaves(mm/day)" # if "potet_module" == "dataset
+
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
 static_params_list_SNTEMP: [0,1,2,3,4,7, 8, 9,10,11]

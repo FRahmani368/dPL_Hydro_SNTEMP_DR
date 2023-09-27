@@ -4875,9 +4875,19 @@ class SNTEMP_flowSim(nn.Module):
         albedo = args["STemp_default_albedo"]
 
         # hamon PET equation. We can add other methods too, such as Penman monteith
-        PET = get_potet(
-            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
-        )
+        if args["potet_module"] == "potet_hamon":
+            PET = get_potet(
+                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
+            )
+        elif args["potet_module"] == "potet_hargreaves":
+            PET = get_potet(
+                args=args, tmin=x[:, warm_up:, vars.index("tmin(C)")], tmax=x[:, warm_up:, vars.index("tmax(C)")],
+                tmean=mean_air_temp, lat=x[:, warm_up:, vars.index("lat")].unsqueeze(-1).repeat(1, 1, nmul),
+                trange=trange
+            )
+        elif args["potet_module"] == "dataset":
+            PET = x[:, warm_up:, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))
 
@@ -4932,7 +4942,7 @@ class SNTEMP_flowSim(nn.Module):
 
 
         # total shade (solar shade) is accumulative shade of vegetation and topography
-        shade_fraction_riparian =  w1_shade
+        shade_fraction_riparian = w1_shade
         # shade_fraction_riparian = 0.01 * x[:, :, vars.index("RIP100_FOREST")].unsqueeze(-1).repeat(1, 1, nmul)
         shade_fraction_topo = w2_shade * (1 - shade_fraction_riparian)
         shade_total = shade_fraction_riparian + shade_fraction_topo

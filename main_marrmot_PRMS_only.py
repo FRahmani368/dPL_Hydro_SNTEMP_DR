@@ -87,9 +87,9 @@ def main_marrmot_PRMS_only(args):
     # Ts = SNTEMP_only()
 
     # loss function
-    lossFun = crit.RmseLoss()    # simple rmse loss function
+    # lossFun = crit.RmseLoss()    # simple rmse loss function
     # lossFun = crit.RmseLoss_temp_flow(w=0.75)   #0.25 for streamflow
-    # lossFun = crit.RmseLossComb(alpha=0.25)
+    lossFun = crit.RmseLossComb(alpha=0.25)
     optim = torch.optim.Adadelta(model.parameters())  # , lr=0.1
     # optim = torch.optim.SGD(model.parameters(), lr=10)
 
@@ -208,7 +208,11 @@ def main_marrmot_PRMS_only(args):
                 flow_sim = flowSim * mask_yp.int().float()
                 flowObs = flowObs[warm_up:, :, :].permute([1, 0 , 2])  # to make it in flowSim format
                 varC_PRMS = args["varC_PRMS"]
-                area = c_PRMS_sample[:, varC_PRMS.index("DRAIN_SQKM")].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
+                if "DRAIN_SQKM" in varC_PRMS:
+                    A = "DRAIN_SQKM"
+                elif "area_gages2" in varC_PRMS:
+                    A = "area_gages2"
+                area = c_PRMS_sample[:, varC_PRMS.index(A)].unsqueeze(-1).repeat(1, flowObs.shape[1]).unsqueeze(-1)
                 flowObs = (10 ** 3) * flowObs * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  #convert ft3/s to mm/day
                 # flowSim = flowSim * 0.001 * area * (10 ** 6) * 0.000408735   #converting mm/day to ft3/s
                 # loss = lossFun(flowObs, tempObs[warm_up:, :, :].permute([1, 0, 2]),
@@ -389,19 +393,23 @@ def main_marrmot_PRMS_only(args):
                 # SN_outs = torch.cat((SN_outs, outs), dim=0)
         #
         varC_PRMS = args["varC_PRMS"]
+        if "DRAIN_SQKM" in varC_PRMS:
+            A = "DRAIN_SQKM"
+        elif "area_gages2" in varC_PRMS:
+            A = "area_gages2"
         flow_obs = y_test[:, warm_up:, args["target"].index("00060_Mean")]
-        area = np.repeat(np.expand_dims(c_PRMS[:, varC_PRMS.index("DRAIN_SQKM")], 1),
+        area = np.repeat(np.expand_dims(c_PRMS[:, varC_PRMS.index(A)], 1),
                          flow_obs.shape[1]).reshape(c_PRMS.shape[0], flow_obs.shape[1])
         flow_obs = (10 ** 3) * flow_obs * 0.0283168 * 3600 * 24 / (
                 area * (10 ** 6))  # convert ft3/s to mm/day
         # temp_obs = y_test[:, warm_up:, args["target"].index("00010_Mean")]
         q_pred = flow_pred[:,:,0].unsqueeze(-1)
-        loss_flow = lossFun(q_pred.detach().cpu(),
-                       np.expand_dims(flow_obs, 2))
+        # loss_flow = lossFun(q_pred.detach().cpu(),
+        #                np.expand_dims(flow_obs, 2))
         # loss_temp = lossFun(temp_pred.detach().cpu(),
         #                np.expand_dims(temp_obs, 2))
 
-        print("loss_flow", loss_flow, "\n")
+        # print("loss_flow", loss_flow, "\n")
         # print("loss_temp", loss_temp, "\n")
 
         np.save(os.path.join(args["out_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())

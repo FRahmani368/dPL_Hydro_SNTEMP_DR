@@ -1361,9 +1361,19 @@ class prms_marrmot(torch.nn.Module):
         # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # it is poorly coded. need to fix it later.
         hamon_coef = self.param_bounds(Hamon_coef, 0, args, bounds=args["SNTEMP_paramCalLst"][4])
-        PET = get_potet(
-            args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
-        ) * 86400 * 1000  # converting m/sec to mm/day
+        if args["potet_module"] == "potet_hamon":
+            PET = get_potet(
+                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
+            ) * 86400 * 1000  # converting m/sec to mm/day
+        elif args["potet_module"] == "potet_hargreaves":
+            PET = get_potet(
+                args=args, tmin=x[:, warm_up:, vars.index("tmin(C)")], tmax=x[:, warm_up:, vars.index("tmax(C)")],
+                tmean=mean_air_temp, lat=x[:, warm_up:, vars.index("lat")].unsqueeze(-1).repeat(1, 1, nmul),
+                trange=trange
+            )
+        elif args["potet_module"] == "dataset":
+            PET = x[:, warm_up:, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+
 
         # initialize the Q_sim and other fluxes
         Q_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])

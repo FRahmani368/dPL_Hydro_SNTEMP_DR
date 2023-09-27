@@ -4,12 +4,12 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 4
-#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//forcing415_NaNflow_20100101_20230101.feather" #          no_dam_forcing_99%_days34sites.feather
-#attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\forcing50.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\PRMS_SNTEMP\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
-output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\PRMS_SNTEMP_test" #\\PRMS_SNTEMP_415_208"
+nmul: 1
+#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//forcing415_NaNflow_20100101_20230101.feather" #          no_dam_forcing_99%_days34sites.feather
+#attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20230923\\forcing_50_20230923.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20230923\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
+output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
 
 name: 'hydroDL.data.camels.DataframeCamels'
 subset: 'All'
@@ -26,16 +26,18 @@ varC_NN: [
    'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
 ]
 
-varT_SNTEMP: ['tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov", 'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)"]
-varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT', 'ELEV_MEAN_M_BASIN', "RIP100_FOREST"]
-varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)']
-varC_PRMS: ['DRAIN_SQKM']
+varT_SNTEMP: ['tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov",
+              'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)", "dayofyear"]
+varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT',
+              'ELEV_MEAN_M_BASIN', "RIP100_FOREST", "lat"]
+varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)', "dayofyear"]
+varC_PRMS: ['DRAIN_SQKM', "lat"]
 
-target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     # ['synth_T_1030365']   #   #     #['synth_shade_0130365']   ['synth_T_0520180']
+target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
-t_train: [20100101, 20230101]   # there should be an overlap because of the warm_up
+t_train: [20040101, 20060101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [19990101, 20100101]    # the first year is for warm_up
+t_test: [20060101, 20230101]    # the first year is for warm_up
 doNorm: [True, False]
 rmNan: [True, False]
 daObs: 0
@@ -47,7 +49,7 @@ fdcopt: False
 
 rho: 365
 batch_size: 25
-EPOCHS: 1
+EPOCHS: 5
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
@@ -83,7 +85,9 @@ Epan_coef: 1.0
 
 initial_values_shade_fraction: 0.1
 no_basins: 20
-potet_module: "potet_hamon"
+potet_module: "potet_hamon" # "potet_hargreaves" , "dataset"
+potet_dataset_name: "PET_hargreaves(mm/day)" # if "potet_module" == "dataset
+
 srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
 Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
 static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]

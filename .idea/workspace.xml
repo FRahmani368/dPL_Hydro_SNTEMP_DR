@@ -6,8 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="58245d29-b43b-4023-bbc3-36a582b22c6f" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_marrmotPRMS_SNTEMP.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_marrmot_PRMS_only.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_marrmot_PRMS_only.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_marrmot_PRMS_only.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_marrmot_PRMS_only.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,12 +28,13 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -48,11 +49,6 @@
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main_marrmot_PRMS_only.py</url>
-          <line>47</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main_marrmotPRMS_SNTEMP.py</url>
           <line>441</line>
