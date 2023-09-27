@@ -192,8 +192,8 @@ def main_marrmotPRMS_SNTEMP(args):
                     params = model(c_tensorTrain[iGrid])
                 ### CudnnLstm
                 if type(model) in [CudnnLstmModel]:
-                    params = model(xTrain_sample_scaled)
-                    # params = (model(xTrain_sample_scaled.permute([1,0,2]))).permute([1, 0, 2])
+                    # params = model(xTrain_sample_scaled)
+                    params = (model(xTrain_sample_scaled.permute([1,0,2]))).permute([1, 0, 2])
 
                 params_PRMS = params[:, :, 0:ny_prms]
                 params_SNTEMP = params[:, :, ny_prms:]
@@ -354,8 +354,8 @@ def main_marrmotPRMS_SNTEMP(args):
                     params = model(xTemp_scaled)
                 ### CudnnLstm
                 if type(model) in [CudnnLstmModel]:
-                    params = model(xTemp_scaled.float())
-                    # params = (model(xTemp_scaled.float().permute([1,0,2]))).permute([1, 0, 2])
+                    # params = model(xTemp_scaled.float())
+                    params = (model(xTemp_scaled.float().permute([1,0,2]))).permute([1, 0, 2])
 
                 params_PRMS = params[:, :, 0:ny_prms]
                 params_SNTEMP = params[:, :, ny_prms:]
