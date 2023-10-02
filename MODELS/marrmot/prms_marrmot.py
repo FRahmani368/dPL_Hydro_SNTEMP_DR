@@ -1366,14 +1366,15 @@ class prms_marrmot(torch.nn.Module):
                 args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=hamon_coef
             ) * 86400 * 1000  # converting m/sec to mm/day
         elif args["potet_module"] == "potet_hargreaves":
+            day_of_year = x[:, warm_up:, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
+            lat = c_PRMS[:, vars_c_PRMS.index("lat")].unsqueeze(-1).unsqueeze(-1).repeat(1, dayl.shape[1], nmul)
             PET = get_potet(
-                args=args, tmin=x[:, warm_up:, vars.index("tmin(C)")], tmax=x[:, warm_up:, vars.index("tmax(C)")],
-                tmean=mean_air_temp, lat=x[:, warm_up:, vars.index("lat")].unsqueeze(-1).repeat(1, 1, nmul),
-                trange=trange
+                args=args, tmin=Tminf, tmax=Tmaxf,
+                tmean=mean_air_temp, lat=lat,
+                day_of_year=day_of_year
             )
         elif args["potet_module"] == "dataset":
             PET = x[:, warm_up:, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
-
 
         # initialize the Q_sim and other fluxes
         Q_sim = torch.zeros(PET.shape, dtype=torch.float32, device=args["device"])
