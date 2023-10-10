@@ -1,0 +1,520 @@
+import pandas as pd
+import torch
+from MODELS.PET_models.potet import get_potet
+# from functorch import vmap, jacrev, jacfwd, vjp
+import torch.nn.functional as F
+
+
+class prms_marrmot(torch.nn.Module):
+    def __init__(self):
+        super(prms_marrmot, self).__init__()
+        self.sigmoid = torch.nn.Sigmoid()
+        self.parameters_bound = [
+            [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
+            [0, 20],    # ddf,  Degree-day factor for snowmelt [mm/oC/d]
+            [0, 1],     # alpha, Fraction of rainfall on soil moisture going to interception [-]
+            [0, 1],    # beta, Fraction of catchment where rain goes to soil moisture [-]
+            [0, 5],    # stor, Maximum interception capcity [mm]
+            [0, 50],    # retip, Maximum impervious area storage [mm]
+            [0, 1],    # fscn, Fraction of SCX where SCN is located [-]
+            [0, 1],    # scx, Maximum contributing fraction area to saturation excess flow [-]
+            [0.005, 0.995],    # flz, Fraction of total soil moisture that is the lower zone [-]
+            [1, 2000],    # stot, Total soil moisture storage [mm]: REMX+SMAX
+            [0, 20],    # cgw, Constant drainage to deep groundwater [mm/d]
+            [1, 300],    # resmax, Maximum flow routing reservoir storage (used for scaling only, there is no overflow) [mm]
+            [0, 1],    # k1, Groundwater drainage coefficient [d-1]
+            [1, 5],    # k2, Groundwater drainage non-linearity [-]
+            [0, 1],    # k3, Interflow coefficient 1 [d-1]
+            [0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
+            [0, 1],    # k5, Baseflow coefficient [d-1]
+            [0, 1],    # k6, Groundwater sink coefficient [d-1],
+        ]
+        self.conv_routing_hydro_model_bound = [
+            [0, 2.9],  # routing parameter a
+            [0, 6.5]   # routing parameter b
+        ]
+
+    def source_flow_calculation(self, args, flowSim_total, c_hydro_model):
+        varC_hydro_model = args["varC_hydro_model"]
+        if "DRAIN_SQKM" in varC_hydro_model:
+            area_name = "DRAIN_SQKM"
+        elif "area_gage2" in varC_hydro_model:
+            area_name = "area_gage2"
+        else:
+            print("area of basins are not available among attributes dataset")
+        area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+            flowSim_total.shape[
+                0], 1, 1)
+        # flow calculation. converting mm/day to m3/sec
+        srflow = (1000 / 86400) * area * (
+                flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1,
+                                                                                                               args[
+                                                                                                                "nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3]).unsqueeze(-1).repeat(1, 1, args["nmul"])
+        srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
+        ssflow = torch.clamp(ssflow, min=0.0)
+        gwflow = torch.clamp(gwflow, min=0.0)
+        return srflow, ssflow, gwflow
+    def multi_comp_semi_static_params(
+        self, params, param_no, args, interval=30, method="average"
+    ):
+        # seperate the piece for each interval
+        nmul = args["nmul"]
+        param = params[:, :, param_no * nmul : (param_no + 1) * nmul]
+        no_basins, no_days = param.shape[0], param.shape[1]
+        interval_no = math.floor(no_days / interval)
+        remainder = no_days % interval
+        param_name_list = list()
+        if method == "average":
+            for i in range(interval_no):
+                if (remainder != 0) & (i == 0):
+                    param00 = torch.mean(
+                        param[:, 0:remainder, :], 1, keepdim=True
+                    ).repeat((1, remainder, 1))
+                    param_name_list.append(param00)
+                param_name = "param" + str(i)
+                param_name = torch.mean(
+                    param[
+                        :,
+                        ((i * interval) + remainder) : (
+                            ((i + 1) * interval) + remainder
+                        ),
+                        :,
+                    ],
+                    1,
+                    keepdim=True,
+                ).repeat((1, interval, 1))
+                param_name_list.append(param_name)
+        elif method == "single_val":
+            for i in range(interval_no):
+                if (remainder != 0) & (i == 0):
+                    param00 = (param[:, 0:1, :]).repeat((1, remainder, 1))
+                    param_name_list.append(param00)
+                param_name = "param" + str(i)
+                param_name = (
+                    param[
+                        :,
+                        (((i) * interval) + remainder) : (((i) * interval) + remainder)
+                        + 1,
+                        :,
+                    ]
+                ).repeat((1, interval, 1))
+                param_name_list.append(param_name)
+        else:
+            print("this method is not defined yet in function semi_static_params")
+        new_param = torch.cat(param_name_list, 1)
+        return new_param
+
+    def param_bounds(self, params, num, args, bounds):
+        nmul = args["nmul"]
+        if num in args["static_params_list_prms"]:
+            out_temp = (
+                    params[:, -1, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+            out = out_temp.repeat(1, params.shape[1]).reshape(
+                params.shape[0], params.shape[1], nmul
+            )
+
+        elif num in args["semi_static_params_list_prms"]:
+            out_temp = self.multi_comp_semi_static_params(
+                params,
+                num,
+                args,
+                interval=args["interval_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
+                ],
+                method=args["method_for_semi_static_param_prms"][
+                    args["semi_static_params_list_prms"].index(num)
+                ],
+            )
+            out = (
+                    out_temp * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+
+        else:  # dynamic
+            out = (
+                    params[:, :, num * nmul: (num + 1) * nmul]
+                    * (bounds[1] - bounds[0])
+                    + bounds[0]
+            )
+        return out
+
+
+    def UH_gamma(self, a, b, lenF=10):
+        # UH. a [time (same all time steps), batch, var]
+        m = a.shape
+        lenF = min(a.shape[0], lenF)
+        w = torch.zeros([lenF, m[1], m[2]])
+        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
+        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+        t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        t = t.cuda(aa.device)
+        denom = (aa.lgamma().exp()) * (theta ** aa)
+        mid = t ** (aa - 1)
+        right = torch.exp(-t / theta)
+        w = 1 / denom * mid * right
+        w = w / w.sum(0)  # scale to 1 for each UH
+
+        return w
+
+    def UH_conv(self, x, UH, viewmode=1):
+        # UH is a vector indicating the unit hydrograph
+        # the convolved dimension will be the last dimension
+        # UH convolution is
+        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+        # hence we flip the UH
+        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+        # view
+        # x: [batch, var, time]
+        # UH:[batch, var, uhLen]
+        # batch needs to be accommodated by channels and we make use of groups
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+        # https://pytorch.org/docs/stable/nn.functional.html
+
+        mm = x.shape;
+        nb = mm[0]
+        m = UH.shape[-1]
+        padd = m - 1
+        if viewmode == 1:
+            xx = x.view([1, nb, mm[-1]])
+            w = UH.view([nb, 1, m])
+            groups = nb
+
+        y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+        if padd != 0:
+            y = y[:, :, 0:-padd]
+        return y.view(mm)
+
+    def param_bounds_2D(self, params, num, bounds, ndays, nmul):
+
+        out_temp = (
+                params[:, num * nmul: (num + 1) * nmul]
+                * (bounds[1] - bounds[0])
+                + bounds[0]
+        )
+        out = out_temp.unsqueeze(0).repeat(ndays, 1, 1).reshape(
+            ndays, params.shape[0], nmul
+        )
+        return out
+    def forward(self, x_hydro_model, c_hydro_model, params, args, PET_coef, warm_up=0, init=False, routing=True):
+        NEARZERO = args["NEARZERO"]
+        nmul = args["nmul"]
+        vars = args["varT_hydro_model"]
+        vars_c = args["varC_hydro_model"]
+        if warm_up > 0:
+            with torch.no_grad():
+                xinit = x_hydro_model[0:warm_up, :, :]
+                # paramsinit = params[:, :warm_up, :]
+                # PET_coefinit = PET_coef[:, :warm_up, :]
+                warm_up_model = prms_marrmot()
+                Q_init, snow_storage, XIN_storage, RSTOR_storage, \
+                    RECHR_storage, SMAV_storage, \
+                    RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params, args, PET_coef,
+                                                            warm_up=0, init=True, routing=False)
+        else:
+
+            # snow storage
+            snow_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+            # interception storage
+            XIN_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 0.75
+            # RSTOR storage
+            RSTOR_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+            #storage in upper soil moisture zone
+            RECHR_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+            # storage in lower soil moisture zone
+            SMAV_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+            # storage in runoff reservoir
+            RES_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+            # GW storage
+            GW_storage = torch.zeros(
+                [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
+            ) + 2
+
+        ## parameters for prms_marrmot. there are 18 parameters in it
+        No_days = x_hydro_model.shape[0] - warm_up
+        tt = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
+        ddf = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
+        alpha = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])  # can br found in attr
+        beta = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=args["nmul"])    # can be found in attr
+        stor = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=args["nmul"])
+        retip = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=args["nmul"])
+        fscn = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=args["nmul"])
+        scx = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=args["nmul"])
+        scn = fscn * scx
+        flz = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=args["nmul"])
+        stot = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=args["nmul"])
+        remx = (1 - flz) * stot
+        smax = flz * stot
+        cgw = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=args["nmul"])
+        resmax = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
+        k1 = self.param_bounds_2D(params, 12, bounds=self.parameters_bound[12], ndays=No_days, nmul=args["nmul"])
+        k2 = self.param_bounds_2D(params, 13, bounds=self.parameters_bound[13], ndays=No_days, nmul=args["nmul"])
+        k3 = self.param_bounds_2D(params, 14, bounds=self.parameters_bound[14], ndays=No_days, nmul=args["nmul"])
+        k4 = self.param_bounds_2D(params, 15, bounds=self.parameters_bound[15], ndays=No_days, nmul=args["nmul"])
+        k5 = self.param_bounds_2D(params, 16, bounds=self.parameters_bound[16], ndays=No_days, nmul=args["nmul"])
+        k6 = self.param_bounds_2D(params, 17, bounds=self.parameters_bound[17], ndays=No_days, nmul=args["nmul"]) * 0.0 # because we don't have any sink in the watersheds! Do we?
+
+
+        if routing == True:
+            conv_params = params[:, len(self.parameters_bound):]
+            tempa = self.param_bounds_2D(conv_params, 0,
+                                         bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days, nmul=1)
+            tempb = self.param_bounds_2D(conv_params, 1,
+                                         bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days, nmul=1)
+            # tempa = self.param_bounds_2D(params, 18, args, bounds=self.conv_routing_hydro_model_bound[0])
+            # tempb = self.param_bounds_2D(params, 19, args, bounds=self.conv_routing_hydro_model_bound[1])
+            # tempa = self.multi_comp_parameter_bounds(params, 18, args)
+            # tempb = self.multi_comp_parameter_bounds(params, 19, args)
+        #################
+        # inputs
+        Precip = (
+            x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul)
+        )
+        Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        mean_air_temp = (Tmaxf + Tminf) / 2
+        dayl = (
+            x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+        )
+        Ndays, Ngrid = Precip.shape[0], Precip.shape[1]
+        # PET = (
+        #     x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
+        # )
+        # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # it is poorly coded. need to fix it later.
+
+        if args["potet_module"] == "potet_hamon":
+            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
+            AET = get_potet(
+                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
+            )     # mm/day
+        elif args["potet_module"] == "potet_hargreaves":
+
+            day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
+            lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
+            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+                                              nmul=args["nmul"])
+
+            PET = get_potet(
+                args=args, tmin=Tminf, tmax=Tmaxf,
+                tmean=mean_air_temp, lat=lat,
+                day_of_year=day_of_year
+            )
+            AET = PET_coef * PET     # here PET_coef converts PET to Actual ET here
+        elif args["potet_module"] == "dataset":
+            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+                                            nmul=args["nmul"])
+            # here PET_coef converts PET to Actual ET
+            PET = x_hydro_model[warm_up:, :, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+            AET = PET_coef * PET
+        # initialize the Q_sim and other fluxes
+        Q_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        sas_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        sro_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        bas_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        ras_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        snk_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
+        for t in range(Ndays):
+            delta_t = 1 # timestep (day)
+            P = Precip[t, :, :]
+            Ep = AET[t, :, :]
+            T = mean_air_temp[t, :, :]
+
+            # fluxes
+            flux_ps = torch.mul(P, (T <= tt[t, :, :]).type(torch.float32))
+            flux_pr = torch.mul(P, (T > tt[t, :, :]).type(torch.float32))
+            snow_storage = snow_storage + flux_ps
+            flux_m = ddf[t, :, :] * (T - tt[t, :, :])
+            flux_m = torch.min(flux_m, snow_storage/delta_t)
+            flux_m = torch.clamp(flux_m, min=0.0)
+            snow_storage = snow_storage - flux_m
+            snow_storage = torch.clamp(snow_storage, min=NEARZERO)  # to prevent NaN  gradient, it is set to NEARZERO
+
+            flux_pim = flux_pr * (1 - beta[t, :, :])
+            flux_psm = flux_pr * beta[t, :, :]
+            flux_pby = flux_psm * (1 - alpha[t, :, :])
+            flux_pin = flux_psm * alpha[t, :, :]
+
+            XIN_storage = XIN_storage + flux_pin
+            flux_ptf = XIN_storage - stor[t, :, :]
+            flux_ptf = torch.clamp(flux_ptf, min=0.0)
+            XIN_storage = torch.clamp(XIN_storage - flux_ptf, min=NEARZERO)
+            evap_max_in = Ep * beta[t, :, :]   # only can happen in pervious area
+            flux_ein = torch.min(evap_max_in, XIN_storage/delta_t)
+            XIN_storage = torch.clamp(XIN_storage - flux_ein, min=NEARZERO)
+
+
+            flux_mim = flux_m * (1 - beta[t, :, :])
+            flux_msm = flux_m * beta[t, :, :]
+            RSTOR_storage = RSTOR_storage + flux_mim + flux_pim
+            flux_sas = RSTOR_storage - retip[t, :, :]
+            flux_sas = torch.clamp(flux_sas, min=0.0)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_sas, min=NEARZERO)
+            evap_max_im = (1 - beta[t, :, :]) * Ep
+            flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
+
+            sro_lin_ratio = scn[t, :, :] + (scx[t, :, :] - scn[t, :, :]) * (RECHR_storage / remx[t, :, :])
+            sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
+            flux_sro = sro_lin_ratio * (flux_msm + flux_ptf + flux_pby)
+            flux_inf = torch.clamp(flux_msm + flux_ptf + flux_pby - flux_sro, min=0.0)
+            RECHR_storage = RECHR_storage + flux_inf
+            flux_pc = RECHR_storage - remx[t, :, :]
+            flux_pc = torch.clamp(flux_pc, min=0.0)
+            RECHR_storage = RECHR_storage - flux_pc
+            evap_max_a = (RECHR_storage / remx[t, :, :]) * (Ep - flux_ein - flux_eim)
+            evap_max_a = torch.clamp(evap_max_a, min=0.0)
+            flux_ea = torch.min(evap_max_a, RECHR_storage / delta_t)
+            RECHR_storage = torch.clamp(RECHR_storage - flux_ea, min=NEARZERO)
+
+            SMAV_storage = SMAV_storage + flux_pc
+            flux_excs = SMAV_storage - smax[t, :, :]
+            flux_excs = torch.clamp(flux_excs, min=0.0)
+            SMAV_storage = SMAV_storage - flux_excs
+            transp = torch.where(RECHR_storage < (Ep - flux_ein - flux_eim),
+                                 (SMAV_storage/smax[t, :, :]) * (Ep - flux_ein - flux_eim - flux_ea),
+                                 torch.zeros(flux_excs.shape, dtype=torch.float32, device=args["device"]))
+            transp = torch.clamp(transp, min=0.0)    # in case Ep - flux_ein - flux_eim - flux_ea was negative
+            SMAV_storage = torch.clamp(SMAV_storage - transp, min=NEARZERO)
+
+            flux_sep = torch.min(cgw[t, :, :], flux_excs)
+            flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
+
+            RES_storage = RES_storage + flux_qres
+            flux_ras = k3[t, :, :] * RES_storage + k4[t, :, :] * (RES_storage ** 2)
+            flux_ras = torch.min(flux_ras, RES_storage)
+            RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
+            # RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
+            # RES_excess = torch.clamp(RES_excess, min=0.0)
+            # flux_ras = flux_ras + RES_excess
+            # RES_storage = torch.clamp(RES_storage - RES_excess, min=NEARZERO)
+
+            flux_gad = k1[t, :, :] * ((RES_storage / resmax[t, :, :]) ** k2[t, :, :])
+            flux_gad = torch.min(flux_gad, RES_storage)
+            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
+
+            GW_storage = GW_storage + flux_gad + flux_sep
+            flux_bas = k5[t, :, :] * GW_storage
+            GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
+            flux_snk = k6[t, :, :] * GW_storage
+            GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
+
+            Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
+            sas_sim[t, :, :] = flux_sas
+            sro_sim[t, :, :] = flux_sro
+            bas_sim[t, :, :] = flux_bas
+            ras_sim[t, :, :] = flux_ras
+            snk_sim[t, :, :] = flux_snk
+
+        if routing == True:
+            # routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
+            # routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
+            # UH = self.UH_gamma_notCum(tempa.unsqueeze(-1), tempb.unsqueeze(-1), lenF=15)  # lenF: folter
+            # rf = Q_sim.unsqueeze(-1).permute([0, 1, 3, 2])
+            # UH = UH.permute(1, 2, 0, 3)  # dim: gage*var*time
+            # Qsrout = self.UH_conv(rf, UH, bias=None).squeeze(-1)
+            tempa_new = tempa.mean(-1, keepdim=True).permute(1,0,2)
+            tempb_new = tempb.mean(-1, keepdim=True).permute(1,0,2)
+            # Q_sim_new = Q_sim.mean(-1, keepdim=True).permute(1,0,2)
+            UH = self.UH_gamma(tempa_new, tempb_new, lenF=15)  # lenF: folter
+            rf = Q_sim.mean(-1, keepdim=True).permute([0, 2, 1])  # dim:gage*var*time
+            UH = UH.permute([1, 2, 0])  # dim: gage*var*time
+            Qsrout = self.UH_conv(rf, UH).permute([0, 2, 1])
+
+            rf_sas = sas_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qsas_rout = self.UH_conv(rf_sas, UH).permute([0, 2, 1])
+
+            rf_sro = sro_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qsro_rout = self.UH_conv(rf_sro, UH).permute([0, 2, 1])
+
+            rf_ras = ras_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qras_rout = self.UH_conv(rf_ras, UH).permute([0, 2, 1])
+
+            rf_bas = bas_sim.mean(-1, keepdim=True).permute([0, 2, 1])
+            Qbas_rout = self.UH_conv(rf_bas, UH).permute([0, 2, 1])
+
+        else:
+            Qsrout = Q_sim.mean(-1, keepdim=True)
+            Qsas_rout = sas_sim.mean(-1, keepdim=True)
+            Qsro_rout = sro_sim.mean(-1, keepdim=True)
+            Qbas_rout = bas_sim.mean(-1, keepdim=True)
+            Qras_rout = ras_sim.mean(-1, keepdim=True)
+
+
+        if init:  # means we are in warm up
+            return Qsrout, snow_storage, XIN_storage, RSTOR_storage, \
+                RECHR_storage, SMAV_storage, RES_storage, GW_storage
+        else:
+            Qall = torch.cat((
+                # Qsrout,
+                Qsas_rout + Qsro_rout + Qbas_rout + Qras_rout,
+                Qsas_rout,
+                Qsro_rout,
+                Qbas_rout,
+                Qras_rout,
+                torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
+                    )
+            return torch.clamp(Qall, min=0.0)
+
+def UH_gamma(a,b,lenF=10):
+    # UH. a [time (same all time steps), batch, var]
+    m = a.shape
+    lenF = min(a.shape[0], lenF)
+    w = torch.zeros([lenF, m[1],m[2]])
+    aa = F.relu(a[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.1 # minimum 0.1. First dimension of a is repeat
+    theta = F.relu(b[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.5 # minimum 0.5
+    t = torch.arange(0.5,lenF*1.0).view([lenF,1,1]).repeat([1,m[1],m[2]])
+    t = t.cuda(aa.device)
+    denom = (aa.lgamma().exp())*(theta**aa)
+    mid= t**(aa-1)
+    right=torch.exp(-t/theta)
+    w = 1/denom*mid*right
+    w = w/w.sum(0)  # scale to 1 for each UH
+
+    return w
+
+def UH_conv(x,UH,viewmode=1):
+    # UH is a vector indicating the unit hydrograph
+    # the convolved dimension will be the last dimension
+    # UH convolution is
+    # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+    # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+    # hence we flip the UH
+    # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+    # view
+    # x: [batch, var, time]
+    # UH:[batch, var, uhLen]
+    # batch needs to be accommodated by channels and we make use of groups
+    # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+    # https://pytorch.org/docs/stable/nn.functional.html
+
+    mm= x.shape; nb=mm[0]
+    m = UH.shape[-1]
+    padd = m-1
+    if viewmode==1:
+        xx = x.view([1,nb,mm[-1]])
+        w = UH.view([nb,1,m])
+        groups = nb
+
+    y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+    if padd != 0:
+        y = y[:, :, 0:-padd]
+    return y.view(mm)
+

@@ -2,13 +2,8 @@
 # Purpose: This code solves ODEs Hydrological models with AD
 # Farshid changed it to a complete model with PRMS
 import torch
-import torch.nn as nn
-import numpy as np
-import pandas as pd
-import time
 from ODEsolver import NRBacksolveFunction
 from HydroModels.PRMS import PRMS
-import matplotlib.pyplot as plt
 from HydroModels.config.read_configurations import config
 torch.cuda.set_device(0)
 device = torch.device("cuda")
@@ -17,31 +12,24 @@ dtype=torch.double
 
 
 # from core.read_configurations import config
-from core.randomseed_config import randomseed_config
-from core.data_prep import (
+from core.utils.randomseed_config import randomseed_config
+from core.load_data.data_prep import (
     load_df,
     scaling,
     train_val_test_split,
     randomIndex,
     selectSubset,
 )
-from core.small_codes import create_output_dirs
-from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, CudnnLstm, CudnnLstmModel
-from MODELS.PRMS import PRMS_pytorch
-from MODELS.marrmot.prms_marrmot import prms_marrmot
-from MODELS import crit
+from core.utils.small_codes import create_output_dirs
+from MODELS.temp_models.PGML_STemp import MLP, CudnnLstmModel
+from MODELS.loss_functions import crit
 from core import hydroDL
-from core.small_codes import make_tensor, tRange2Array, intersect
+from core.utils.small_codes import make_tensor
 import torch
-import torch.nn as nn
-import numpy as np
-import pandas as pd
 import time
 import os
-import matplotlib.pyplot as plt
 from sklearn import preprocessing
-from post import stat#, plot
-import math
+
 
 def main():
     mode_type = ["SNTEMP", "SNTEMP"]  # ["van Vliet","Meisner","SNTEMP"]

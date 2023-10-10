@@ -2,17 +2,31 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 1
+nmul: 2
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//forcing_415_20230923.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20230923\\forcing_50_20230923.feather"   # forcing_415_tmean_ccov_fillNa.feather" #        forcing_10%_days_415sites_ccov.feather  no_dam_forcing_99%_days34sites.feather
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20230923\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather  no_dam_attr_temp99%_days34sites.feather
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
 
-name: 'hydroDL.data.camels.DataframeCamels'
-subset: 'All'
+### neural network configuration
+NN_model_name: "LSTM"   # it can be "MLP" too
+loss_function: "RmseLoss_temp_flow_BFI_PET2"
+target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     #
+tRange: [19800101, 20230101]
+t_train: [20040101, 20060101]   # there should be an overlap because of the warm_up
+t_val: [20101001, 20111001]
+t_test: [20060101, 20230101]    # the first year is for warm_up
+warm_up: 365
+rho: 365
+batch_size: 25
+EPOCHS: 5
+hidden_size: 256
+dropout: 0.5
+saveEpoch: 1
+no_basins: 20
 varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
 varC_NN: [
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
@@ -26,50 +40,17 @@ varC_NN: [
    'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
 ]
 
-varT_SNTEMP: ['tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov",
-              'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)", "dayofyear"]
-varC_SNTEMP: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT',
-              'ELEV_MEAN_M_BASIN', "RIP100_FOREST", "lat"]
-varT_PRMS: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)', "dayofyear"]
-varC_PRMS: ['DRAIN_SQKM', "lat"]
-
-target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     #
-tRange: [19800101, 20230101]
-t_train: [20040101, 20060101]   # there should be an overlap because of the warm_up
-t_val: [20101001, 20111001]
-t_test: [20060101, 20230101]    # the first year is for warm_up
-doNorm: [True, False]
-rmNan: [True, False]
-daObs: 0
-damean: False
-davar: 'StreamTemp'
-dameanopt: 0
-lckernel: None
-fdcopt: False
-
-rho: 365
-batch_size: 25
-EPOCHS: 5
-hidden_size: 256
-dropout: 0.5
-saveEpoch: 1
-
-seq_lin_layers_hidden_size: 256
-
+### process based stream temperature model configuration
+temp_model_name: "SNTEMP"
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
 res_time_lenF_gwflow: 365 #
 res_time_lenF_srflow: 1
 lat_temp_adj: False
 shade_smoothening: False
-
 frac_smoothening_mode: False
 frac_smoothening_gw_filter_size: 40
 frac_smoothening_ss_filter_size: 40
-warm_up: 365
-make_sr_masked_by_precip: "False"
-params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
-one_param_target: ["shade_fraction"]
 STemp_default_shade_fraction: 0.05
 STemp_default_longwave_reflect_fraction: 0.0
 STemp_default_cloud_fraction: 0.1
@@ -84,20 +65,11 @@ NEARZERO: 1e-10
 Epan_coef: 1.0
 
 initial_values_shade_fraction: 0.1
-no_basins: 20
-potet_module: "potet_hargreaves" #"potet_hamon" # "potet_hargreaves" , "dataset"
-potet_dataset_name: "PET_hargreaves(mm/day)" # if "potet_module" == "dataset
+varT_temp_model: ['tmax(C)', 'tmin(C)','dayl(s)', "t_monthly(C)", "ccov",
+              'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)", "dayofyear"]
+varC_temp_model: ["stream_length_square", 'PPTAVG_BASIN', 'SLOPE_PCT',
+              'ELEV_MEAN_M_BASIN', "RIP100_FOREST", "lat"]
 
-srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
-Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
-static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]
-semi_static_params_list_SNTEMP: []
-method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
-interval_for_semi_static_param_SNTEMP: [5, 5]
-static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
-semi_static_params_list_prms: []
-method_for_semi_static_param_prms: ["average", "average", "average", "average"]
-interval_for_semi_static_param_prms: [30, 30]
 SNTEMP_paramCalLst: [
             [0, 1],                                                    # rip shade factor
             [0, 1],                                                           # topo shade factor
@@ -108,6 +80,22 @@ SNTEMP_paramCalLst: [
 ]
 SNTEMP_lat_adj_paramCallLst: [
 [-3, 5]                            # lateral temp adjusment
+]
+
+routing_temp_model: True
+conv_temp_model: [
+   [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ],  # a (k) and b (theta)
+]
+
+
+### process based streamflow model configurations
+hydro_model_name: "marrmot_PRMS"
+varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "t_monthly(C)", 'dayl(s)', "dayofyear"]
+varC_hydro_model: ['DRAIN_SQKM', "lat"]
+routing_hydro_model: True
+conv_hydro_model: [
+    [0, 2.9],  # routing parameter a
+    [0, 6.5]   # routing parameter b
 ]
 marrmot_paramCalLst: [
     [-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
@@ -129,15 +117,36 @@ marrmot_paramCalLst: [
     [0, 1],    # k5, Baseflow coefficient [d-1]
     [0, 1],    # k6, Groundwater sink coefficient [d-1],
 ]
-routing_PRMS: True
-routing_SNTEMP: True
-conv_SNTEMP: [
-  # [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5], [0.01, 9], [0.01, 5],      # a and b
-   [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ], [ 0.01, 12.0 ],  # a (k) and b (theta)
-  #            [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5],  # a (k) and b (theta)
-  # [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2], [0.5, 9], [0.5, 2],  # a (k) and b (theta)
-]
-conv_PRMS: [
-    [0, 2.9],  # routing parameter a
-    [0, 6.5]   # routing parameter b
-]
+
+
+# PET model configurations
+potet_module: "potet_hargreaves" #"potet_hamon" # "potet_hargreaves" , "dataset"
+potet_dataset_name: "PET_hargreaves(mm/day)" # if "potet_module" == "dataset
+
+doNorm: [True, False]
+rmNan: [True, False]
+daObs: 0
+damean: False
+davar: 'StreamTemp'
+dameanopt: 0
+lckernel: None
+fdcopt: False
+seq_lin_layers_hidden_size: 256
+make_sr_masked_by_precip: "False"
+params_target: ["res_time_srflow", "res_time_ssflow", "res_time_gwflow"]
+one_param_target: ["shade_fraction"]
+
+
+
+srunoff_module: "srunoff_smidx"   # the nonlinear method, "srunoff_carea" linear method
+Dprst_flag: 1      # Dprst_flag = 1 means depression storage simulation is computed ( 0= no, 1 = yes)
+static_params_list_SNTEMP: [0,1,2,3,4,5, 6,7, 8, 9]
+semi_static_params_list_SNTEMP: []
+method_for_semi_static_param_SNTEMP: ["average", "average", "average", "average"]
+interval_for_semi_static_param_SNTEMP: [5, 5]
+static_params_list_prms: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17, 18, 19, 20]
+semi_static_params_list_prms: []
+method_for_semi_static_param_prms: ["average", "average", "average", "average"]
+interval_for_semi_static_param_prms: [30, 30]
+
+

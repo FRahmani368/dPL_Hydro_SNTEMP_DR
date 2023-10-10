@@ -1,25 +1,26 @@
 import numpy as np
 import scipy.stats
+import warnings
 
 keyLst = ["Bias", "RMSE", "ubRMSE", "Corr", "MSE"]
-
-
 def statError(pred, target):
     ngrid, nt = pred.shape
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
     # Bias
-    Bias = np.nanmean(pred - target, axis=1)
-    # RMSE
-    RMSE = np.sqrt(np.nanmean((pred - target)**2, axis=1))
-    # ubRMSE
-    predMean = np.tile(np.nanmean(pred, axis=1), (nt, 1)).transpose()
-    targetMean = np.tile(np.nanmean(target, axis=1), (nt, 1)).transpose()
-    predAnom = pred - predMean
-    targetAnom = target - targetMean
-    ubRMSE = np.sqrt(np.nanmean((predAnom - targetAnom)**2, axis=1))
-    # FDC metric
-    predFDC = calFDC(pred)
-    targetFDC = calFDC(target)
-    FDCRMSE = np.sqrt(np.nanmean((predFDC - targetFDC) ** 2, axis=1))
+        Bias = np.nanmean(pred - target, axis=1)
+        # RMSE
+        RMSE = np.sqrt(np.nanmean((pred - target)**2, axis=1))
+        # ubRMSE
+        predMean = np.tile(np.nanmean(pred, axis=1), (nt, 1)).transpose()
+        targetMean = np.tile(np.nanmean(target, axis=1), (nt, 1)).transpose()
+        predAnom = pred - predMean
+        targetAnom = target - targetMean
+        ubRMSE = np.sqrt(np.nanmean((predAnom - targetAnom)**2, axis=1))
+        # FDC metric
+        predFDC = calFDC(pred)
+        targetFDC = calFDC(target)
+        FDCRMSE = np.sqrt(np.nanmean((predFDC - targetFDC) ** 2, axis=1))
     # rho R2 NSE
     Corr = np.full(ngrid, np.nan)
     CorrSp = np.full(ngrid, np.nan)

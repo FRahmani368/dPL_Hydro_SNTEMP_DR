@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pandas as pd
 import torch
-from MODELS.potet import get_potet
+from MODELS.PET_models.potet import get_potet
 from MODELS.surface_runoff import srunoff
 
 

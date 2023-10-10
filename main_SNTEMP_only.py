@@ -1,6 +1,6 @@
-from core.read_configurations import config_SNTEMP as config
-from core.randomseed_config import randomseed_config
-from core.data_prep import (
+from config.read_configurations import config_SNTEMP as config
+from core.utils.randomseed_config import randomseed_config
+from core.load_data.data_prep import (
     load_df,
     scaling,
     train_val_test_split,
@@ -8,24 +8,19 @@ from core.data_prep import (
     randomIndex,
     selectSubset,
 )
-from core.small_codes import create_output_dirs
-from MODELS.PGML_STemp import MLP, STREAM_TEMP_EQ, SNTEMP_EQ, CudnnLstmModel, SNTEMP_only
-from MODELS.PRMS import PRMS_pytorch
-from MODELS.marrmot.prms_marrmot import prms_marrmot
-from MODELS import crit
+from core.utils.small_codes import create_output_dirs
+from MODELS.temp_models.PGML_STemp import MLP, CudnnLstmModel, SNTEMP_only
+from MODELS.loss_functions import crit
 from core import hydroDL
-from core.small_codes import make_tensor, tRange2Array, intersect, update_args
+from core.utils.small_codes import make_tensor, update_args
 import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
 import time
 import os
 import matplotlib.pyplot as plt
-from sklearn import preprocessing
 from post import stat, plot
 import math
-from ruamel.yaml import YAML
 from core.hydroDL.data.camels import initcamels
 
 
