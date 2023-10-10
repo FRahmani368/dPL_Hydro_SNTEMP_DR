@@ -45,14 +45,14 @@ class diff_hydro_temp_model(torch.nn.Module):
         # output size of NN
         if self.args["routing_hydro_model"] == True:  # needs a and b for routing with conv method
             ny_hydro = self.args["nmul"] * (len(self.hydro_model.parameters_bound)) + len(
-                self.args["conv_hydro_model"])
+                self.hydro_model.conv_routing_hydro_model_bound)
         else:
             ny_hydro = self.args["nmul"] * len(self.hydro_model.parameters_bound)
 
         # SNTEMP  # needs a and b for calculating different source flow temperatures with conv method
         if self.args["routing_temp_model"] == True:
             ny_temp = self.args["nmul"] * (len(self.temp_model.parameters_bound)) + len(
-                self.args["conv_temp_model"])
+                self.temp_model.conv_temp_model_bound)
         else:
             ny_temp = self.args["nmul"] * len(self.temp_model.parameters_bound)
         if self.args["lat_temp_adj"] == True:

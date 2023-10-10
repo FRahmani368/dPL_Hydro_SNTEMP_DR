@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from core.load_data.normalizing import transNorm
-
+from core.load_data.time import tRange2Array
 
 # def load_df(args):
 #     """
@@ -52,7 +52,7 @@ def scaling(args, x, y, c):
 
 
 def train_val_test_split(set_name, args, time1, x_total, y_total):
-    t = hydroDL.utils.time.tRange2Array(args[set_name])
+    t = tRange2Array(args[set_name])
     c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]
@@ -62,7 +62,7 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
 
 def No_iter_nt_ngrid(set_name, args, x):
     ngrid, nt, nx = x.shape
-    t = hydroDL.utils.time.tRange2Array(args[set_name])
+    t = tRange2Array(args[set_name])
     if t.shape[0] < args["rho"]:
         rho = t.shape[0]
     else:
@@ -76,7 +76,7 @@ def No_iter_nt_ngrid(set_name, args, x):
     return ngrid, nIterEp, nt, args["batch_size"]
 
 def train_val_test_split_action1(set_name, args, time1, x_total, y_total):
-    t = hydroDL.utils.time.tRange2Array(args[set_name])
+    t = tRange2Array(args[set_name])
     c, ind1, ind2 = np.intersect1d(time1, t, return_indices=True)
     x = x_total[:, ind1, :]
     y = y_total[:, ind1, :]

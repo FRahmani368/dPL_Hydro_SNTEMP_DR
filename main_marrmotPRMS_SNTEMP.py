@@ -7,8 +7,10 @@ from config.read_configurations import config_PRMS_SNTEMP as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
 from core.load_data.normalizing import init_norm_stats
+from MODELS.loss_functions.crit import *
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
+
 
 
 def main_marrmotPRMS_SNTEMP(args):
