@@ -10,7 +10,7 @@ except ModuleNotFoundError:
 """pycharm path"""
 config_path_SNTEMP = "config/config_SNTEMP_only.yaml"
 config_path_PRMS = "config/config_marrmot_PRMS_only.yaml"
-config_path_PRMS_SNTEMP = "config/config_marrmotPRMS_SNTEMP.yaml"
+config_path_PRMS_SNTEMP = "config/config_hydro_temp.yaml"
 yaml = YAML(typ="safe")
 path_SNTEMP = os.path.realpath(config_path_SNTEMP)
 path_PRMS = os.path.realpath(config_path_PRMS)
