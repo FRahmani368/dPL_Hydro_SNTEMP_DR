@@ -33,6 +33,9 @@ class prms_marrmot(torch.nn.Module):
             [0, 2.9],  # routing parameter a
             [0, 6.5]   # routing parameter b
         ]
+        self.PET_coef_bound = [
+            [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
+        ]
 
     def source_flow_calculation(self, args, flowSim_total, c_hydro_model):
         varC_hydro_model = args["varC_hydro_model"]
@@ -201,7 +204,7 @@ class prms_marrmot(torch.nn.Module):
             ndays, params.shape[0], nmul
         )
         return out
-    def forward(self, x_hydro_model, c_hydro_model, params, args, PET_coef, warm_up=0, init=False, routing=True):
+    def forward(self, x_hydro_model, c_hydro_model, params, args, PET_param, warm_up=0, init=False, routing=True):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
         vars = args["varT_hydro_model"]
@@ -214,7 +217,7 @@ class prms_marrmot(torch.nn.Module):
                 warm_up_model = prms_marrmot()
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
-                    RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params, args, PET_coef,
+                    RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params, args, PET_param,
                                                             warm_up=0, init=True, routing=False)
         else:
 
@@ -271,7 +274,6 @@ class prms_marrmot(torch.nn.Module):
         k5 = self.param_bounds_2D(params, 16, bounds=self.parameters_bound[16], ndays=No_days, nmul=args["nmul"])
         k6 = self.param_bounds_2D(params, 17, bounds=self.parameters_bound[17], ndays=No_days, nmul=args["nmul"]) * 0.0 # because we don't have any sink in the watersheds! Do we?
 
-
         if routing == True:
             conv_params = params[:, len(self.parameters_bound):]
             tempa = self.param_bounds_2D(conv_params, 0,
@@ -282,6 +284,8 @@ class prms_marrmot(torch.nn.Module):
             # tempb = self.param_bounds_2D(params, 19, args, bounds=self.conv_routing_hydro_model_bound[1])
             # tempa = self.multi_comp_parameter_bounds(params, 18, args)
             # tempb = self.multi_comp_parameter_bounds(params, 19, args)
+        # PWT_coef , for converting PET to AET
+        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=args["nmul"])
         #################
         # inputs
         Precip = (
@@ -294,36 +298,31 @@ class prms_marrmot(torch.nn.Module):
             x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
         )
         Ndays, Ngrid = Precip.shape[0], Precip.shape[1]
-        # PET = (
-        #     x[:, warm_up:, vars.index("pet_nldas")].unsqueeze(-1).repeat(1, 1, nmul)
-        # )
-        # t_monthly = x[:, warm_up:, vars.index("t_monthly(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        # it is poorly coded. need to fix it later.
 
         if args["potet_module"] == "potet_hamon":
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
-            AET = get_potet(
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
+            PET = get_potet(
                 args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
             )     # mm/day
         elif args["potet_module"] == "potet_hargreaves":
 
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
-                                              nmul=args["nmul"])
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+            #                                   nmul=args["nmul"])
 
             PET = get_potet(
                 args=args, tmin=Tminf, tmax=Tmaxf,
                 tmean=mean_air_temp, lat=lat,
                 day_of_year=day_of_year
             )
-            AET = PET_coef * PET     # here PET_coef converts PET to Actual ET here
+            # AET = PET_coef * PET     # here PET_coef converts PET to Actual ET here
         elif args["potet_module"] == "dataset":
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
-                                            nmul=args["nmul"])
+            # PET_coef = self.param_bounds_2D(PET_param, 0, bounds=[0.01, 1.0], ndays=No_days,
+            #                                 nmul=args["nmul"])
             # here PET_coef converts PET to Actual ET
             PET = x_hydro_model[warm_up:, :, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
-            AET = PET_coef * PET
+        AET = PET_coef * PET
         # initialize the Q_sim and other fluxes
         Q_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
         sas_sim = torch.zeros(AET.shape, dtype=torch.float32, device=args["device"])
@@ -472,49 +471,3 @@ class prms_marrmot(torch.nn.Module):
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
             return torch.clamp(Qall, min=0.0)
-
-def UH_gamma(a,b,lenF=10):
-    # UH. a [time (same all time steps), batch, var]
-    m = a.shape
-    lenF = min(a.shape[0], lenF)
-    w = torch.zeros([lenF, m[1],m[2]])
-    aa = F.relu(a[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.1 # minimum 0.1. First dimension of a is repeat
-    theta = F.relu(b[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.5 # minimum 0.5
-    t = torch.arange(0.5,lenF*1.0).view([lenF,1,1]).repeat([1,m[1],m[2]])
-    t = t.cuda(aa.device)
-    denom = (aa.lgamma().exp())*(theta**aa)
-    mid= t**(aa-1)
-    right=torch.exp(-t/theta)
-    w = 1/denom*mid*right
-    w = w/w.sum(0)  # scale to 1 for each UH
-
-    return w
-
-def UH_conv(x,UH,viewmode=1):
-    # UH is a vector indicating the unit hydrograph
-    # the convolved dimension will be the last dimension
-    # UH convolution is
-    # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
-    # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
-    # hence we flip the UH
-    # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
-    # view
-    # x: [batch, var, time]
-    # UH:[batch, var, uhLen]
-    # batch needs to be accommodated by channels and we make use of groups
-    # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
-    # https://pytorch.org/docs/stable/nn.functional.html
-
-    mm= x.shape; nb=mm[0]
-    m = UH.shape[-1]
-    padd = m-1
-    if viewmode==1:
-        xx = x.view([1,nb,mm[-1]])
-        w = UH.view([nb,1,m])
-        groups = nb
-
-    y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
-    if padd != 0:
-        y = y[:, :, 0:-padd]
-    return y.view(mm)
-

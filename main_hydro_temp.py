@@ -1,8 +1,5 @@
-
 import sys
 sys.path.append("../")
-import torch
-import os
 from config.read_configurations import config_PRMS_SNTEMP as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
@@ -11,15 +8,9 @@ from MODELS.loss_functions.crit import *
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
 
-
-
-def main_marrmotPRMS_SNTEMP(args):
+def main_hydro_temp(args):
     # updating args. all settings are here
     # args = update_args(args,
-    #                     res_time_type=typ,
-    #                     res_time_lenF_gwflow=LenF_gw,
-    #                     res_time_lenF_ssflow=LenF_ss,
-    #                     lat_temp_adj=adj,
     #                     frac_smoothening_mode=frac_smooth,
     #                     randomseed=seed
     # )
@@ -29,8 +20,7 @@ def main_marrmotPRMS_SNTEMP(args):
     # creating the stats for normalization
     init_norm_stats(args)
 
-    # training
-    if 0 in args["Action"]:
+    if 0 in args["Action"]:       # training mode
         diff_model = diff_hydro_temp_model(args)
         lossFun = globals()[args["loss_function"]]()
         optim = torch.optim.Adadelta(diff_model.parameters())
@@ -40,7 +30,7 @@ def main_marrmotPRMS_SNTEMP(args):
             lossFun=lossFun,
             optim=optim
         )
-    if 1 in args["Action"]:
+    if 1 in args["Action"]:    # testing mode
         modelFile = os.path.join(args["out_dir"], "model_Ep" + str(args["EPOCHS"]) + ".pt")
         diff_model = torch.load(modelFile)
         train_test.test_differentiable_model(
@@ -48,8 +38,7 @@ def main_marrmotPRMS_SNTEMP(args):
             diff_model=diff_model
         )
 
-
 if __name__ == "__main__":
     args = config
-    main_marrmotPRMS_SNTEMP(args)
+    main_hydro_temp(args)
     print("END")

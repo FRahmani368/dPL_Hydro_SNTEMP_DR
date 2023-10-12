@@ -87,16 +87,16 @@ class MLPmul(nn.Module):
         super(MLPmul, self).__init__()
         self.args = args
         self.L1 = nn.Linear(
-            nx,  self.srgs["hidden_size"],
+            nx,  self.args["hidden_size"],
         )
         self.L2 = nn.Linear(
-            self.srgs["hidden_size"], self.srgs["hidden_size"]
+            self.args["hidden_size"], self.args["hidden_size"]
         )
         self.L3 = nn.Linear(
-            self.srgs["hidden_size"], self.srgs["hidden_size"]
+            self.args["hidden_size"], self.args["hidden_size"]
         )
 
-        self.L4 = nn.Linear(self.srgs["hidden_size"], ny)
+        self.L4 = nn.Linear(self.args["hidden_size"], ny)
         self.activation_sigmoid = torch.nn.Sigmoid()
         self.activation_tanh = torch.nn.Tanh()
 

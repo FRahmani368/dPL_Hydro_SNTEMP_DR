@@ -3669,6 +3669,9 @@ class SNTEMP_flowSim(nn.Module):
         self.lat_adj_params_bound = [
              [-3, 5]                            # lateral temp adjusment
         ]
+        self.PET_coef_bound = [
+            [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
+        ]
 
     def atm_pressure(self, elev):
         ## from Jake's document
@@ -4649,7 +4652,7 @@ class SNTEMP_flowSim(nn.Module):
         )
         return out
 
-    def forward(self, x, c, params, args, PET_coef, srflow, ssflow, gwflow):
+    def forward(self, x, c, params, args, PET_param, srflow, ssflow, gwflow):
         NEARZERO = args["NEARZERO"]
         warm_up = args["warm_up"]
         nmul = args["nmul"]
@@ -4688,7 +4691,7 @@ class SNTEMP_flowSim(nn.Module):
                                          0, bounds=self.lat_adj_params_bound[0], ndays=No_days, nmul=args["nmul"])
         if args["lat_temp_adj"] == False:
             lat_temp_adj = 0.0 * w1_shade
-
+        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=args["nmul"])
         # obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1, 1, nmul) * 0.028316  # converting cfs to cms
         Q_tot = srflow + ssflow + gwflow
         precip = (
@@ -4717,28 +4720,27 @@ class SNTEMP_flowSim(nn.Module):
 
         # hamon PET equation. We can add other methods too, such as Penman monteith
         if args["potet_module"] == "potet_hamon":
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
-            AET = get_potet(
-                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
-            ) * (1 / (1000 * 86400))   # converting mm/day to m/sec
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
+            PET = get_potet(
+                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=0.008 #PET_coef
+            )
         elif args["potet_module"] == "potet_hargreaves":
             day_of_year = x[warm_up:, :, varT.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c[:, varC.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
-                                            nmul=args["nmul"])
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+            #                                 nmul=args["nmul"])
 
             PET = get_potet(
                 args=args, tmin=Tminf, tmax=Tmaxf,
                 tmean=mean_air_temp, lat=lat,
                 day_of_year=day_of_year
-            ) * (1 / (1000 * 86400))   # converting mm/day to m/sec
-            AET = PET_coef * PET  # here PET_coef converts PET to Actual ET here
+            )
         elif args["potet_module"] == "dataset":
-            PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
-                                            nmul=args["nmul"])
-            # here PET_coef converts PET to Actual ET
-            PET = x[warm_up:, :, varT.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul) * (1 / (1000 * 86400))   # converting mm/day to m/sec
-            AET = PET_coef * PET
+            PET = x[warm_up:, :, varT.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+
+        #converting PET to AET and converting mm/day to m/sec
+        AET = PET_coef * PET * (1 / (1000 * 86400))   # converting mm/day to m/sec
+
 
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))

@@ -26,7 +26,7 @@ def potet_hamon(mean_air_temp, dayl, hamon_coef=0.0055):  # hamon_coef=0.1651
     mask_PET = PET.ge(0)
     PET = PET * mask_PET.int().float()
 
-    return PET * (1 / (86400 * 1000))    # converting m / sec to mm / day
+    return PET * (86400 * 1000)   # converting m / sec to mm / day
 
 def potet_hargreaves(tmin, tmax, tmean, lat, day_of_year):
     trange = tmax - tmin
