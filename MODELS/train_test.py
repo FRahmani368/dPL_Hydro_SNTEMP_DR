@@ -175,15 +175,17 @@ def save_outputs(args, list_out_diff_model, y_obs, c_hydro_model, calculate_metr
             area * (10 ** 6))  # convert ft3/s to mm/day
     temp_obs = y_obs[:, args["warm_up"]:, args["target"].index("00010_Mean")]
 
-    np.save(os.path.join(args["out_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "flow_obs.npy"), np.expand_dims(flow_obs, 2))
-    np.save(os.path.join(args["out_dir"], "temp_pred.npy"), temp_pred.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "temp_obs.npy"), np.expand_dims(temp_obs, 2))
-    np.save(os.path.join(args["out_dir"], "air_t.npy"), air_t.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "weight_gw.npy"), weight_gw.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "weight_ss.npy"), weight_ss.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "source_temp.npy"), source_temp.cpu().detach().numpy())
-    np.save(os.path.join(args["out_dir"], "SN_outs.npy"), SN_outs.cpu().detach().numpy())
+
+
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "flowSim_tot.npy"), flow_pred.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "flow_obs.npy"), np.expand_dims(flow_obs, 2))
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "temp_pred.npy"), temp_pred.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "temp_obs.npy"), np.expand_dims(temp_obs, 2))
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "air_t.npy"), air_t.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "weight_gw.npy"), weight_gw.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "weight_ss.npy"), weight_ss.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "source_temp.npy"), source_temp.cpu().detach().numpy())
+    np.save(os.path.join(args["out_dir"], args["testing_dir"], "SN_outs.npy"), SN_outs.cpu().detach().numpy())
 
     if calculate_metrics == True:
         predLst_flow = list()
@@ -203,7 +205,7 @@ def save_outputs(args, list_out_diff_model, y_obs, c_hydro_model, calculate_metr
             for (x, y) in zip(predLst_temp, obsLst_temp)
         ]
 
-        ### save this file too
+        ### save this file
         # median and STD calculation
         statDictLst_All = [statDictLst_flow, statDictLst_temp]
         name_list = ["flow", "temp"]
@@ -220,7 +222,7 @@ def save_outputs(args, list_out_diff_model, y_obs, c_hydro_model, calculate_metr
             mdstd = pd.DataFrame(
                 mdstd, index=st[0].keys(), columns=["median", "STD", "mean"]
             )
-            mdstd.to_csv((os.path.join(args["out_dir"], "mdstd_" + name + ".csv")))
+            mdstd.to_csv((os.path.join(args["out_dir"], args["testing_dir"], "mdstd_" + name + ".csv")))
 
             # Show boxplots of the results
             plt.rcParams["font.size"] = 14
@@ -247,7 +249,7 @@ def save_outputs(args, list_out_diff_model, y_obs, c_hydro_model, calculate_metr
             fig.suptitle(boxPlotName, fontsize=12)
             plt.rcParams["font.size"] = 12
             plt.savefig(
-                os.path.join(args["out_dir"], "Box_" + name + ".png")
+                os.path.join(args["out_dir"], args["testing_dir"], "Box_" + name + ".png")
             )  # , dpi=500
             fig.show()
             plt.close()

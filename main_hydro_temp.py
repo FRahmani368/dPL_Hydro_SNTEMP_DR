@@ -7,7 +7,7 @@ from core.load_data.normalizing import init_norm_stats
 from MODELS.loss_functions.crit import *
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
-
+import importlib
 def main_hydro_temp(args):
     # updating args. all settings are here
     # args = update_args(args,
@@ -22,7 +22,10 @@ def main_hydro_temp(args):
 
     if 0 in args["Action"]:       # training mode
         diff_model = diff_hydro_temp_model(args)
-        lossFun = globals()[args["loss_function"]]()
+        # module = importlib.import_module(crit)
+        # lossFun = getattr(module, args["loss_function"])
+        lossFun = globals()[args["loss_function"]](w1=args["loss_function_weights"]["w1"], w2=args["loss_function_weights"]["w2"])
+        # lossFun = lossFun_default()
         optim = torch.optim.Adadelta(diff_model.parameters())
         train_test.train_differentiable_model(
             args=args,

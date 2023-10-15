@@ -3831,7 +3831,7 @@ class SNTEMP_flowSim(nn.Module):
         ## solving the equation with Newton's method
         for i in range(iter):
             next_geuss = T_e - (F(T_e) / Fprime(T_e))
-            T_e = next_geuss.clone()
+            T_e = next_geuss.clone().detach()    # Todo: should it be detach()
 
         return T_e
 

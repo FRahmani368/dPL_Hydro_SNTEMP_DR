@@ -40,16 +40,20 @@ def create_output_dirs(args):
              '_B' + str(args['batch_size']) + \
              '_H' + str(args['hidden_size']) + \
              "_tr" + str(args["t_train"][0])[:4] + "_" + str(args["t_train"][1])[:4] + \
-            "_ts" + str(args["t_test"][0])[:4] + "_" + str(args["t_test"][1])[:4] + \
             "_n" + str(args["nmul"]) + \
             "_" + str(seed)
 
     if not os.path.exists(os.path.join(args["output_model"], out_folder)):
         os.makedirs(os.path.join(args["output_model"], out_folder))
+
+    testing_dir = "ts" + str(args["t_test"][0])[:4] + "_" + str(args["t_test"][1])[:4]
+    if not os.path.exists(os.path.join(args["output_model"], out_folder, testing_dir)):
+        os.makedirs(os.path.join(args["output_model"], out_folder, testing_dir))
     # else:
     #     shutil.rmtree(os.path.join(args['output']['model'], out_folder))
     #     os.makedirs(os.path.join(args['output']['model'], out_folder))
     args["out_dir"] = os.path.join(args["output_model"], out_folder)
+    args["testing_dir"] = testing_dir
 
     # saving the args file in output directory
     config_file = json.dumps(args)

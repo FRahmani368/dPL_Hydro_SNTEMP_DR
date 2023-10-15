@@ -2,9 +2,9 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [ 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 6
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//forcing_415_20230923.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -16,21 +16,24 @@ attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_202309
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
 
 ### neural network configuration
-NN_model_name: "MLP"   # it can be "MLP", "LSTM" too
-loss_function: "RmseLoss_temp_flow_BFI_PET2"
+NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too
+loss_function: "RmseLoss_temp_flow_BFI_PET2"   # w1: flow loss weight
+loss_function_weights:
+    w1: 9.0
+    w2: 1.0
 target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
-t_train: [20040101, 20080101]   # there should be an overlap because of the warm_up
+t_train: [20050101, 20080101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
-t_test: [20060101, 20230101]    # the first year is for warm_up
+t_test: [19990101, 20230101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 25
-EPOCHS: 2
+EPOCHS: 1
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 2
-no_basins: 25
+saveEpoch: 1
+no_basins: 2
 varT_NN: ['dayl(s)', 'prcp(mm/day)', 'tmax(C)', 'tmin(C)', 'vp(Pa)','srad(W/m2)']
 varC_NN: [
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
