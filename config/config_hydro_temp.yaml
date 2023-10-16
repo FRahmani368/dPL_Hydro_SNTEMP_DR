@@ -2,9 +2,9 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [ 1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 6
+nmul: 3
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//forcing_415_20230923.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -17,9 +17,9 @@ output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jo
 
 ### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too
-loss_function: "RmseLoss_temp_flow_BFI_PET2"   # w1: flow loss weight
+loss_function: "RmseLoss_flow_temp2"      # "RmseLoss_flow_temp2",      "RmseLoss_flow_temp_BFI_PET"
 loss_function_weights:
-    w1: 9.0
+    w1: 9.0      # w1: flow loss weight
     w2: 1.0
 target: [ "00060_Mean", "00010_Mean", "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]

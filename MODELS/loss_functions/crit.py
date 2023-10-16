@@ -268,20 +268,30 @@ class RmseLoss_temp_flow(torch.nn.Module):
 
         loss = self.w1 * loss_flow_total + self.w2 * loss_temp
         return loss
-
-class RmseLoss_temp_flow_BFI_PET(torch.nn.Module):
-    def __init__(self, w1=0.5, w2=None, w3=2.0, w4=0.01, alpha=0.25, beta=1e-6):
-        super(RmseLoss_temp_flow_BFI_PET, self).__init__()
+class RmseLoss_flow_temp2(torch.nn.Module):
+    def __init__(self, w1=0.5, w2=None, alpha=0.25, beta=1e-6):
+        super(RmseLoss_flow_temp2, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
         self.w2 = w2
-        self.w3 = w3
-        self.w4 = w4
 
-    def forward(self, obs_flow, obs_temp, sim_flow, sim_temp, obs_BFI, sim_BFI, obs_PET, sim_PET):
+    def forward(self, args, c_hydro_model_sample, y_obs, y_sim):
         if self.w2 == None:    # w1 + w2 =1
             self.w2 = 1 - self.w1
+
+        varTar_NN = args["target"]
+        obs_flow_v = y_obs[:, :, varTar_NN.index("00060_Mean")]
+        obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]
+        sim_flow = y_sim[0][:, :, 0]  # simulation
+        sim_temp = y_sim[1][0]
+        varC_hydro_model = args["varC_hydro_model"]
+        if "DRAIN_SQKM" in varC_hydro_model:
+            area_name = "DRAIN_SQKM"
+        elif "area_gage2" in varC_hydro_model:
+            area_name = "area_gage2"
+        area = c_hydro_model_sample[:, varC_hydro_model.index(area_name)].unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
+        obs_flow = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6))  # convert ft3/s to mm/day
         # flow
         if len(obs_flow[obs_flow==obs_flow]) > 0:
             mask_flow1 = obs_flow == obs_flow
@@ -308,33 +318,11 @@ class RmseLoss_temp_flow_BFI_PET(torch.nn.Module):
         else:
             loss_temp = 0.0
 
-        # BFI calculation
-        if len(obs_BFI[obs_BFI==obs_BFI]) > 0:
-            mask_BFI1 = obs_BFI == obs_BFI
-            p_BFI = sim_BFI[mask_BFI1]
-            t_BFI = obs_BFI[mask_BFI1]
-
-            p_BFI2 = torch.where((torch.abs((p_BFI - t_BFI)) / t_BFI > 0.2), p_BFI, t_BFI)
-            loss_BFI = torch.sqrt(((p_BFI2 - t_BFI) ** 2).mean())  # RMSE item
-        else:
-            loss_BFI = 0.0
-
-        # BFI calculation
-        if len(obs_PET[obs_PET == obs_PET]) > 0:
-            mask_PET1 = obs_PET == obs_PET
-            p_PET = sim_PET[mask_PET1]
-            t_PET = obs_PET[mask_PET1]
-            p_PET2 = torch.where((torch.abs((p_PET - t_PET)) / t_PET > 0.1), p_PET, t_PET)
-            loss_PET = torch.sqrt(((p_PET2 - t_PET) ** 2).mean())  # RMSE item
-        else:
-            loss_PET = 0.0
-
-        loss = self.w1 * loss_flow_total + self.w2 * loss_temp + self.w3 * loss_BFI + self.w4 * loss_PET
+        loss = self.w1 * loss_flow_total + self.w2 * loss_temp
         return loss
-
-class RmseLoss_temp_flow_BFI_PET2(torch.nn.Module):
+class RmseLoss_flow_temp_BFI_PET(torch.nn.Module):
     def __init__(self, w1=0.5, w2=None, w3=1.0, w4=0.01, alpha=0.25, beta=1e-6):
-        super(RmseLoss_temp_flow_BFI_PET2, self).__init__()
+        super(RmseLoss_temp_flow_BFI_PET, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
