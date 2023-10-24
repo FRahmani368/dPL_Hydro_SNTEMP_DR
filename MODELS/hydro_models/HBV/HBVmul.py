@@ -362,5 +362,6 @@ class HBVMul(torch.nn.Module):
                         srflow=torch.clamp(Q0_rout, min=0.0),
                         ssflow=torch.clamp(Q1_rout, min=0.0),
                         gwflow=torch.clamp(Q2_rout, min=0.0),
-                        AET_hydro=AET.mean(-1, keepdim=True))
+                        AET_hydro=AET.mean(-1, keepdim=True),
+                        PET_hydro=PET.mean(-1, keepdim=True))
 

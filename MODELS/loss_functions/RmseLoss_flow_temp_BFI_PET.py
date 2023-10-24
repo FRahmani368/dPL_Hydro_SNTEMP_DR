@@ -3,7 +3,7 @@ import json
 import os
 
 class RmseLoss_flow_temp_BFI_PET(torch.nn.Module):
-    def __init__(self, w1=0.5, w2=None, w3=1.0, w4=0.01, alpha=0.25, beta=1e-6):
+    def __init__(self, w1=0.5, w2=None, w3=0.05, w4=0.01, alpha=0.25, beta=1e-6):
         super(RmseLoss_flow_temp_BFI_PET, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
@@ -62,7 +62,8 @@ class RmseLoss_flow_temp_BFI_PET(torch.nn.Module):
         else:
             loss_BFI = 0.0
 
-        # BFI calculation
+        # PET calculation
+        # Todo: PET loss doesn't make sense. it should be AET. but compared with what?
         if len(obs_PET[obs_PET == obs_PET]) > 0:
             mask_PET1 = obs_PET == obs_PET
             p_PET = sim_PET[mask_PET1]

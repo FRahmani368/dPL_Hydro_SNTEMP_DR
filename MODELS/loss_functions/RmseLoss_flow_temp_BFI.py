@@ -2,24 +2,27 @@ import torch
 import json
 import os
 
-class RmseLoss_flow_temp(torch.nn.Module):
-    def __init__(self, w1=0.5, w2=None, alpha=0.25, beta=1e-6):
-        super(RmseLoss_flow_temp, self).__init__()
+class RmseLoss_flow_temp_BFI(torch.nn.Module):
+    def __init__(self, w1=0.5, w2=None, w3=0.05, alpha=0.25, beta=1e-6):
+        super(RmseLoss_flow_temp_BFI, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
         self.w2 = w2
+        self.w3 = w3
 
     def forward(self, args, y_sim, y_obs):
         if self.w2 == None:    # w1 + w2 =1
             self.w2 = 1 - self.w1
-
+        # flow
         varTar_NN = args["target"]
         obs_flow = y_obs[:, :, varTar_NN.index("00060_Mean")]
-        sim_flow = y_sim["flow_sim"].squeeze()
         obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]
+        obs_BFI = y_obs[0, :, varTar_NN.index("BFI_AVE")]
+        sim_flow = y_sim["flow_sim"].squeeze()    #  simulation
         sim_temp = y_sim["temp_sim"].squeeze()
-        # flow
+        sim_BFI = y_sim["BFI_sim"].squeeze()
+
         if len(obs_flow[obs_flow==obs_flow]) > 0:
             mask_flow1 = obs_flow == obs_flow
             p = sim_flow[mask_flow1]
@@ -44,5 +47,19 @@ class RmseLoss_flow_temp(torch.nn.Module):
             loss_temp = torch.sqrt(((p_temp - t_temp) ** 2).mean())  # RMSE item
         else:
             loss_temp = 0.0
-        loss = self.w1 * loss_flow_total + self.w2 * loss_temp
+
+        # BFI calculation
+        if len(obs_BFI[obs_BFI==obs_BFI]) > 0:
+            mask_BFI1 = obs_BFI == obs_BFI
+            p_BFI = sim_BFI[mask_BFI1]
+            t_BFI = obs_BFI[mask_BFI1]
+
+            p_BFI2 = torch.where((torch.abs((p_BFI - t_BFI)) / t_BFI > 0.25), p_BFI, t_BFI)
+            loss_BFI = torch.sqrt(((p_BFI2 - t_BFI) ** 2).mean())  # RMSE item
+        else:
+            loss_BFI = 0.0
+
+
+
+        loss = self.w1 * loss_flow_total + self.w2 * loss_temp + self.w3 * loss_BFI
         return loss

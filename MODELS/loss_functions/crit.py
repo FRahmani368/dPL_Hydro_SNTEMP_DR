@@ -244,8 +244,7 @@ class RmseLoss_temp_flow(torch.nn.Module):
         return loss
 
 
-        loss = self.w1 * loss_flow_total + self.w2 * loss_temp
-        return loss
+
 
 
 class RmseLoss_temp_flow_BFI(torch.nn.Module):

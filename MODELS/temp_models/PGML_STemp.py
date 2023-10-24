@@ -3655,10 +3655,10 @@ class SNTEMP_flowSim(nn.Module):
     def __init__(self):
         super(SNTEMP_flowSim, self).__init__()
         self.parameters_bound = [
-            [0, 1],                                                    # rip shade factor
-            [0, 1],                                                           # topo shade factor
-            [0.0001, 25],                                                           # width A coefficient
-            [0.0001, 0.25],                                                            # width power coefficient
+            [0, 1],                                                      # rip shade factor
+            [0, 1],                                                      # topo shade factor
+            [0.0001, 25],                                                # width A coefficient, c=9.0
+            [0.0001, 0.25],                                              # width power coefficient, c=0.2273
             #[0.01, 1.0], #[0.004, 0.008],                        # PET_ hamon coefficient
             #[0.01, 1], [0.01, 1],#        # flow portions
         ]
