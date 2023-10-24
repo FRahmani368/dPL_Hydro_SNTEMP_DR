@@ -1,13 +1,14 @@
 import sys
 sys.path.append("../")
+import torch
+import os
 from config.read_configurations import config_PRMS_SNTEMP as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
 from core.load_data.normalizing import init_norm_stats
-from MODELS.loss_functions.crit import *
+from MODELS.loss_functions.get_loss_function import get_lossFun
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
-import importlib
 def main_hydro_temp(args):
     # updating args. all settings are here
     # args = update_args(args,
@@ -19,13 +20,11 @@ def main_hydro_temp(args):
     args = create_output_dirs(args)
     # creating the stats for normalization
     init_norm_stats(args)
-
+    lossFun = get_lossFun(args)
     if 0 in args["Action"]:       # training mode
         diff_model = diff_hydro_temp_model(args)
-        # module = importlib.import_module(crit)
-        # lossFun = getattr(module, args["loss_function"])
-        lossFun = globals()[args["loss_function"]](w1=args["loss_function_weights"]["w1"], w2=args["loss_function_weights"]["w2"])
-        # lossFun = lossFun_default()
+        # lossFun = globals()[args["loss_function"]](w1=args["loss_function_weights"]["w1"],
+        #                                            w2=args["loss_function_weights"]["w2"])
         optim = torch.optim.Adadelta(diff_model.parameters())
         train_test.train_differentiable_model(
             args=args,

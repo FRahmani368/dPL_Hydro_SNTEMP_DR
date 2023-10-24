@@ -32,9 +32,18 @@ def create_output_dirs(args):
     # checking the directory
     if not os.path.exists(args["output_model"]):
         os.makedirs(args["output_model"])
+    if args["hydro_model_name"]!= "None":
+        hydro_name = "_" + args["hydro_model_name"]
+    else:
+        hydro_name = ""
+    if args["temp_model_name"]!= "None":
+        temp_name = "_" + args["temp_model_name"]
+    else:
+        temp_name = ""
+
     out_folder = args["NN_model_name"] + \
-            "_" + args["hydro_model_name"] + \
-            "_" + args["temp_model_name"] + \
+            hydro_name + \
+            temp_name + \
             '_E' + str(args['EPOCHS']) + \
              '_R' + str(args['rho']) + \
              '_B' + str(args['batch_size']) + \

@@ -4662,13 +4662,13 @@ class SNTEMP_flowSim(nn.Module):
         No_days = x.shape[0] - warm_up
         w1_shade = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
         w2_shade = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
-        width_coef_nom = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])
-        width_coef_denom = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days,
+        width_coef_factor = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])
+        width_coef_pow = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days,
                                               nmul=args["nmul"])
         # w2_shade = self.param_bounds(params[:, warm_up:, :], 1, args, bounds=args["SNTEMP_paramCalLst"][1])
         # w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        # width_coef_nom = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        # width_coef_denom = self.param_bounds(params[:, warm_up:, :], 3, args, bounds=args["SNTEMP_paramCalLst"][3])
+        # width_coef_factor = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
+        # width_coef_pow = self.param_bounds(params[:, warm_up:, :], 3, args, bounds=args["SNTEMP_paramCalLst"][3])
         # hamon_coef = self.param_bounds(params[:, warm_up:, :], 4, args, bounds=args["SNTEMP_paramCalLst"][4])
         if args["routing_temp_model"] == True:
             conv_params = params[:, len(self.parameters_bound):len(self.parameters_bound) + 4]
@@ -4745,13 +4745,13 @@ class SNTEMP_flowSim(nn.Module):
 
         # d = torch.pow(q * n * (q + 1) / (p * torch.pow(slope, 0.5)), (3 / (5 + 3 * q)))
 
-        # d = torch.pow(width_coef_nom * obsQ / (width_coef_denom * torch.pow(basin_area, width_A_coef)), width_exp)
+        # d = torch.pow(width_coef_factor * obsQ / (width_coef_pow * torch.pow(basin_area, width_A_coef)), width_exp)
         # top_width = 5 + p * torch.pow(d, q)
-        # top_width = width_coef_nom * obsQ + width_coef_denom
-        # top_width = width_coef_nom * (obsQ ** width_coef_denom) + 0.5
-        # top_width = width_coef_nom * torch.pow(obsQ[:, warm_up:,:] + 0.0001, width_coef_denom) + 0.2
-        top_width = width_coef_nom * torch.pow(Q_tot + 0.0001, width_coef_denom) + 0.2
-        # top_width = make_tensor(torch.ones(width_coef_nom.shape) * 10.0, device=args["device"])
+        # top_width = width_coef_factor * obsQ + width_coef_pow
+        # top_width = width_coef_factor * (obsQ ** width_coef_pow) + 0.5
+        # top_width = width_coef_factor * torch.pow(obsQ[:, warm_up:,:] + 0.0001, width_coef_pow) + 0.2
+        top_width = width_coef_factor * torch.pow(Q_tot + 0.0001, width_coef_pow) + 0.2
+        # top_width = make_tensor(torch.ones(width_coef_factor.shape) * 10.0, device=args["device"])
         # if p.dim() == 3:
         #     top_width = p * torch.pow(basin_area, q)
         # elif p.dim() == 2:
@@ -4869,31 +4869,26 @@ class SNTEMP_flowSim(nn.Module):
         # get rid of negative values:
         # T_w = torch.relu(T_w)
 
-        source_temps = torch.cat((srflow_temp.mean(-1, keepdim=True),
-                                  ssflow_temp.mean(-1, keepdim=True),
-                                  gwflow_temp.mean(-1, keepdim=True)), dim=2)
-        SNTEMP_outs = torch.cat((AET.mean(-1, keepdim=True),
-                                 shade_fraction_riparian.mean(-1, keepdim=True),
-                                 shade_fraction_topo.mean(-1, keepdim=True),
-                                 top_width.mean(-1, keepdim=True),
-                                 width_coef_nom.mean(-1, keepdim=True),
-                                 width_coef_denom.mean(-1, keepdim=True),
-                                 PET_coef.mean(-1, keepdim=True),
-                                 lat_temp_adj.mean(-1, keepdim=True),
-                                 # srflow_percentage.mean(-1, keepdim=True),
-                                 # ssflow_percentage.mean(-1, keepdim=True),
-                                 # gwflow_percentage.mean(-1, keepdim=True),
-                                 a_ssflow.mean(-1, keepdim=True),
-                                 b_ssflow.mean(-1, keepdim=True),
-                                 a_gwflow.mean(-1, keepdim=True),
-                                 b_gwflow.mean(-1, keepdim=True)), dim=2)
-        return (T_w.mean(-1, keepdim=True),
-                ave_air_temp_new.mean(2, keepdim=True).squeeze(2),
-                w_gwflow.permute([2, 0, 1]),
-                w_ssflow.permute([2, 0, 1]),
-                source_temps,
-                SNTEMP_outs
-                )
+        return dict(temp_sim=T_w.mean(-1, keepdim=True),
+                    srflow_temp=srflow_temp.mean(-1, keepdim=True),
+                    ssflow_temp=ssflow_temp.mean(-1, keepdim=True),
+                    gwflow_temp=gwflow_temp.mean(-1, keepdim=True),
+                    w_gwflow=w_gwflow.permute([2, 0, 1]),
+                    w_ssflow=w_ssflow.permute([2, 0, 1]),
+                    AET_temp=AET.mean(-1, keepdim=True),
+                    PET_temp=PET.mean(-1, keepdim=True) * (1 / (1000 * 86400)),   # converting to m/sec, same as AET
+                    shade_fraction_riparian=shade_fraction_riparian.mean(-1, keepdim=True),
+                    shade_fraction_topo=shade_fraction_topo.mean(-1, keepdim=True),
+                    top_width=top_width.mean(-1, keepdim=True),
+                    width_coef_factor=width_coef_factor.mean(-1, keepdim=True),
+                    width_coef_pow=width_coef_pow.mean(-1, keepdim=True),
+                    PET_coef_temp=PET_coef.mean(-1, keepdim=True),
+                    lat_temp_adj=lat_temp_adj.mean(-1, keepdim=True),
+                    a_ssflow=a_ssflow.mean(-1, keepdim=True),
+                    b_ssflow=b_ssflow.mean(-1, keepdim=True),
+                    a_gwflow=a_gwflow.mean(-1, keepdim=True),
+                    b_gwflow=b_gwflow.mean(-1, keepdim=True)
+                    )
 
 # from dataclasses import dataclass
 # @dataclass

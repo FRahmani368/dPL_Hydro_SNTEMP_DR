@@ -37,7 +37,7 @@ class prms_marrmot(torch.nn.Module):
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
         ]
 
-    def source_flow_calculation(self, args, flowSim_total, c_hydro_model):
+    def source_flow_calculation(self, args, flow_out, c_hydro_model):
         varC_hydro_model = args["varC_hydro_model"]
         if "DRAIN_SQKM" in varC_hydro_model:
             area_name = "DRAIN_SQKM"
@@ -46,15 +46,13 @@ class prms_marrmot(torch.nn.Module):
         else:
             print("area of basins are not available among attributes dataset")
         area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
-            flowSim_total.shape[
+            flow_out["flow_sim"].shape[
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
         srflow = (1000 / 86400) * area * (
-                flowSim_total[:, :, 0] - flowSim_total[:, :, 3] - flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1,
-                                                                                                               args[
-                                                                                                                "nmul"])  # Q_t - gw - ss
-        ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 4]).unsqueeze(-1).repeat(1, 1, args["nmul"])  # ras
-        gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3]).unsqueeze(-1).repeat(1, 1, args["nmul"])
+                flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
         srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
         ssflow = torch.clamp(ssflow, min=0.0)
         gwflow = torch.clamp(gwflow, min=0.0)
@@ -254,7 +252,7 @@ class prms_marrmot(torch.nn.Module):
         No_days = x_hydro_model.shape[0] - warm_up
         tt = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
         ddf = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
-        alpha = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])  # can br found in attr
+        alpha = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])  # can be found in attr
         beta = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=args["nmul"])    # can be found in attr
         stor = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=args["nmul"])
         retip = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=args["nmul"])
@@ -457,7 +455,7 @@ class prms_marrmot(torch.nn.Module):
             Qras_rout = ras_sim.mean(-1, keepdim=True)
 
 
-        if init:  # means we are in warm up
+        if init:  # means we are in warm up. here we just return the storages to be used as initial values
             return Qsrout, snow_storage, XIN_storage, RSTOR_storage, \
                 RECHR_storage, SMAV_storage, RES_storage, GW_storage
         else:
@@ -470,4 +468,11 @@ class prms_marrmot(torch.nn.Module):
                 Qras_rout,
                 torch.mean(snk_sim, -1).unsqueeze(-1)), dim=-1
                     )
-            return torch.clamp(Qall, min=0.0)
+            return dict(flow_sim=torch.clamp(Qsas_rout + Qsro_rout + Qbas_rout + Qras_rout, min=0.0),
+                        srflow=torch.clamp(Qsas_rout + Qsro_rout, min=0.0),
+                        ssflow=torch.clamp(Qras_rout, min=0.0),
+                        gwflow=torch.clamp(Qbas_rout, min=0.0),
+                        sink=torch.clamp(torch.mean(snk_sim, -1).unsqueeze(-1), min=0.0),
+                        PET_hydro=PET,
+                        AET_hydro=AET,
+                        PET_coef=PET_coef)

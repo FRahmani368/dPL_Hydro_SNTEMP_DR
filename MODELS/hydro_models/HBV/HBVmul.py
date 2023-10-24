@@ -70,7 +70,7 @@ class HBVMul(torch.nn.Module):
             y = y[:, :, 0:-padd]
         return y.view(mm)
 
-    def source_flow_calculation(self, args, flowSim_total, c_hydro_model):
+    def source_flow_calculation(self, args, flow_out, c_hydro_model):
         varC_hydro_model = args["varC_hydro_model"]
         if "DRAIN_SQKM" in varC_hydro_model:
             area_name = "DRAIN_SQKM"
@@ -79,12 +79,12 @@ class HBVMul(torch.nn.Module):
         else:
             print("area of basins are not available among attributes dataset")
         area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
-            flowSim_total.shape[
+            flow_out["flow_sim"].shape[
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
-        srflow = (1000 / 86400) * area * (flowSim_total[:, :, 1]).unsqueeze(-1).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
-        ssflow = (1000 / 86400) * area * (flowSim_total[:, :, 2]).unsqueeze(-1).repeat(1, 1, args["nmul"])  # ras
-        gwflow = (1000 / 86400) * area * (flowSim_total[:, :, 3]).unsqueeze(-1).repeat(1, 1, args["nmul"])
+        srflow = (1000 / 86400) * area * flow_out["srflow"].repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * flow_out["ssflow"].repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * flow_out["gwflow"].repeat(1, 1, args["nmul"])
         srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
         ssflow = torch.clamp(ssflow, min=0.0)
         gwflow = torch.clamp(gwflow, min=0.0)
@@ -235,6 +235,7 @@ class HBVMul(torch.nn.Module):
         # logPS = np.zeros(P.size())
         # logswet = np.zeros(P.size())
         # logRE = np.zeros(P.size())
+        AET = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
 
         for t in range(Nstep):
             # Separate precipitation into liquid and solid components
@@ -288,6 +289,7 @@ class HBVMul(torch.nn.Module):
             evapfactor  = torch.clamp(evapfactor, min=0.0, max=1.0)
             ETact = PET[t, :, :] * evapfactor
             ETact = torch.min(SM, ETact)
+            AET[t,:,:] = ETact
             SM = torch.clamp(SM - ETact, min=PRECS)  # SM can not be zero for gradient tracking
 
             # Groundwater boxes
@@ -356,11 +358,9 @@ class HBVMul(torch.nn.Module):
         if init is True:     # means we are in warm up
             return Qs, SNOWPACK, MELTWATER, SM, SUZ, SLZ
         else:
-            Qall = torch.cat((
-                # Qs,
-                Q0_rout + Q1_rout + Q2_rout,
-                Q0_rout,
-                Q1_rout,
-                Q2_rout), dim=-1
-            )
-            return torch.clamp(Qall, min=0.0)
+            return dict(flow_sim=torch.clamp(Q0_rout + Q1_rout + Q2_rout, min=0.0),
+                        srflow=torch.clamp(Q0_rout, min=0.0),
+                        ssflow=torch.clamp(Q1_rout, min=0.0),
+                        gwflow=torch.clamp(Q2_rout, min=0.0),
+                        AET_hydro=AET.mean(-1, keepdim=True))
+

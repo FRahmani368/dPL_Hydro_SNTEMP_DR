@@ -1,8 +1,16 @@
-from MODELS.loss_functions import crit
+from MODELS.loss_functions import (RmseLoss_flow_comb,
+                                   RmseLoss_flow_temp,
+                                   RmseLoss_flow_temp_BFI_PET)
+import importlib
 def get_lossFun(args):
-    if args["loss_function"] == "RmseLoss_temp_flow_BFI_PET":
-        return crit.RmseLoss_temp_flow_BFI_PET()
-    elif args["loss_function"] == "RmseLoss_temp_flow_BFI":
-        return crit.RmseLoss_temp_flow_BFI
-    elif args["loss_function"] == "RmseLoss_temp_flow":
-        return crit.RmseLoss_temp_flow
+    # module = importlib.import_module(args["loss_function"])
+    spec = importlib.util.spec_from_file_location(args["loss_function"], "./MODELS/loss_functions/" + args["loss_function"] + ".py")
+    module = spec.loader.load_module()
+    loss_function_default = getattr(module, args["loss_function"])
+    if args["loss_function"] !="RmseLoss_flow_comb":
+        lossFun = loss_function_default(w1=args["loss_function_weights"]["w1"],
+                                        w2=args["loss_function_weights"]["w2"])
+    else:
+        lossFun = loss_function_default()
+    return lossFun
+
