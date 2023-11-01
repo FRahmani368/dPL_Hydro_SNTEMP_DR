@@ -107,23 +107,6 @@ class HBVMul(torch.nn.Module):
         #
         # Runs the HBV-light hydrological model (Seibert, 2005). NaN values have to be
         # removed from the inputs.
-        #
-        # Input:
-        #     P = array with daily values of precipitation (mm/d)
-        #     ETpot = array with daily values of potential evapotranspiration (mm/d)
-        #     T = array with daily values of air temperature (deg C)
-        #     parameters = array with parameter values having the following structure and scales:
-        #         BETA[1,6]; CET; FC[50,1000]; K0[0.05,0.9]; K1[0.01,0.5]; K2[0.001,0.2]; LP[0.2,1];
-        #         MAXBAS; PERC[0,10]; UZL[0,100]; PCORR; TT[-2.5,2.5]; CFMAX[0.5,10]; SFCF; CFR[0,0.1]; CWH[0,0.2]
-        #
-        #
-        # Output, all in mm:
-        #     Qsim = daily values of simulated streamflow
-        #     SM = soil storage
-        #     SUZ = upper zone storage
-        #     SLZ = lower zone storage
-        #     SNOWPACK = snow depth
-        #     ETact = actual evaporation
 
         PRECS = 1e-5
 
@@ -139,11 +122,11 @@ class HBVMul(torch.nn.Module):
 
             # Without buff time, initialize state variables with zeros
             Ngrid = x_hydro_model.shape[1]
-            SNOWPACK = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).cuda()
-            MELTWATER = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).cuda()
-            SM = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).cuda()
-            SUZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).cuda()
-            SLZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).cuda()
+            SNOWPACK = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            MELTWATER = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            SM = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            SUZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            SLZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
@@ -152,8 +135,6 @@ class HBVMul(torch.nn.Module):
         Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
         Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
         mean_air_temp = Tmaxf #(Tmaxf + Tminf) / 2
-        # ETpot = x_hydro_model[warm_up:, :, 2]
-        # PET = ETpot.unsqueeze(2).repeat(1, 1, nmul)
 
         if args["potet_module"] == "potet_hamon":
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
@@ -181,45 +162,26 @@ class HBVMul(torch.nn.Module):
             # AET = PET_coef * PET
 
         ## scale the parameters
-        # self.parameters_bound = [[1,6], [50,1000], [0.05,0.9], [0.01,0.5], [0.001,0.2], [0.2,1],
-        #                 [0,10], [0,100], [-2.5,2.5], [0.5,10], [0,0.1], [0,0.2], [0,2.9], [0,6.5]]
-
         No_days = x_hydro_model.shape[0] - warm_up
-        parBETA = self.param_bounds_2D(params, 0, bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
-        parFC = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
-        parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])
-        parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=args["nmul"])
-        parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=args["nmul"])
-        parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=args["nmul"])
-        parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=args["nmul"])
-        parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=args["nmul"])
-        parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=args["nmul"])
-        parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=args["nmul"])
-        parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=args["nmul"])
-        parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
-        # parBETA = self.parameters_bound[0][0] + params[:, 0, :] * (self.parameters_bound[0][1] - self.parameters_bound[0][0])
-        # # parCET = parameters[:,1]
-        # parFC = self.parameters_bound[1][0] + params[:, 1, :] * (self.parameters_bound[1][1] - self.parameters_bound[1][0])
-        # parK0 = self.parameters_bound[2][0] + params[:, 2, :] * (self.parameters_bound[2][1] - self.parameters_bound[2][0])
-        # parK1 = self.parameters_bound[3][0] + params[:, 3, :] * (self.parameters_bound[3][1] - self.parameters_bound[3][0])
-        # parK2 = self.parameters_bound[4][0] + params[:, 4, :] * (self.parameters_bound[4][1] - self.parameters_bound[4][0])
-        # parLP = self.parameters_bound[5][0] + params[:, 5, :] * (self.parameters_bound[5][1] - self.parameters_bound[5][0])
-        # # parMAXBAS = parameters[:,7]
-        # parPERC = self.parameters_bound[6][0] + params[:, 6, :] * (self.parameters_bound[6][1] - self.parameters_bound[6][0])
-        # parUZL = self.parameters_bound[7][0] + params[:, 7, :] * (self.parameters_bound[7][1] - self.parameters_bound[7][0])
-        # # parPCORR = parameters[:,10]
-        # parTT = self.parameters_bound[8][0] + params[:, 8, :] * (self.parameters_bound[8][1] - self.parameters_bound[8][0])
-        # parCFMAX = self.parameters_bound[9][0] + params[:, 9, :] * (self.parameters_bound[9][1] - self.parameters_bound[9][0])
-        # # parSFCF = parameters[:,13]
-        # parCFR = self.parameters_bound[10][0] + params[:, 10, :] * (self.parameters_bound[10][1] - self.parameters_bound[10][0])
-        # parCWH = self.parameters_bound[11][0] + params[:, 11, :] * (self.parameters_bound[11][1] - self.parameters_bound[11][0])
+        parBETA = self.param_bounds_2D(params, 0, bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
+        parFC = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
+        parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
+        parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=nmul)
+        parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=nmul)
+        parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=nmul)
+        parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=nmul)
+        parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=nmul)
+        parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=nmul)
+        parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=nmul)
+        parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=nmul)
+        parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=nmul)
         if routing == True:
             conv_params = params[:, len(self.parameters_bound):]
             # conv_params = self.activation_sigmoid(conv_params)
-            tempa = self.param_bounds_2D(conv_params, 0,
-                                         bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days, nmul=1)
-            tempb = self.param_bounds_2D(conv_params, 1,
-                                         bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days, nmul=1)
+            tempa = self.param_bounds_2D(conv_params, 0, bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days,
+                                         nmul=1)
+            tempb = self.param_bounds_2D(conv_params, 1, bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days,
+                                         nmul=1)
 
         Nstep, Ngrid = P.size()
 
@@ -326,10 +288,6 @@ class HBVMul(torch.nn.Module):
                 # average the components, then do routing
                 Qsim = Qsimave
 
-            # tempa = self.parameters_bound[-2][0] + rtwts[:,0]*(self.parameters_bound[-2][1]-self.parameters_bound[-2][0])
-            # tempb = self.parameters_bound[-1][0] + rtwts[:,1]*(self.parameters_bound[-1][1]-self.parameters_bound[-1][0])
-            # routa = tempa   #.repeat(Nstep, 1).unsqueeze(-1)
-            # routb = tempb   #.repeat(Nstep, 1).unsqueeze(-1)
             UH = self.UH_gamma(tempa, tempb, lenF=15)  # lenF: folter
             # UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
             rf = torch.unsqueeze(Qsim, -1).permute([1, 2, 0])   # dim:gage*var*time

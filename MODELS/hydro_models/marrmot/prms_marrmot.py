@@ -222,55 +222,55 @@ class prms_marrmot(torch.nn.Module):
             # snow storage
             snow_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
             # interception storage
             XIN_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 0.75
+            ) + 0.001
             # RSTOR storage
             RSTOR_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
             #storage in upper soil moisture zone
             RECHR_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
             # storage in lower soil moisture zone
             SMAV_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
             # storage in runoff reservoir
             RES_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
             # GW storage
             GW_storage = torch.zeros(
                 [x_hydro_model.shape[1], nmul], dtype=torch.float32, device=args["device"]
-            ) + 2
+            ) + 0.001
 
         ## parameters for prms_marrmot. there are 18 parameters in it
         No_days = x_hydro_model.shape[0] - warm_up
-        tt = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
-        ddf = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
-        alpha = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])  # can be found in attr
-        beta = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=args["nmul"])    # can be found in attr
-        stor = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=args["nmul"])
-        retip = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=args["nmul"])
-        fscn = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=args["nmul"])
-        scx = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=args["nmul"])
+        tt = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
+        ddf = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
+        alpha = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)  # can be found in attr
+        beta = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=nmul)    # can be found in attr
+        stor = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=nmul)
+        retip = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=nmul)
+        fscn = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=nmul)
+        scx = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=nmul)
         scn = fscn * scx
-        flz = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=args["nmul"])
-        stot = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=args["nmul"])
+        flz = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=nmul)
+        stot = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=nmul)
         remx = (1 - flz) * stot
         smax = flz * stot
-        cgw = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=args["nmul"])
-        resmax = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
-        k1 = self.param_bounds_2D(params, 12, bounds=self.parameters_bound[12], ndays=No_days, nmul=args["nmul"])
-        k2 = self.param_bounds_2D(params, 13, bounds=self.parameters_bound[13], ndays=No_days, nmul=args["nmul"])
-        k3 = self.param_bounds_2D(params, 14, bounds=self.parameters_bound[14], ndays=No_days, nmul=args["nmul"])
-        k4 = self.param_bounds_2D(params, 15, bounds=self.parameters_bound[15], ndays=No_days, nmul=args["nmul"])
-        k5 = self.param_bounds_2D(params, 16, bounds=self.parameters_bound[16], ndays=No_days, nmul=args["nmul"])
-        k6 = self.param_bounds_2D(params, 17, bounds=self.parameters_bound[17], ndays=No_days, nmul=args["nmul"]) * 0.0 # because we don't have any sink in the watersheds! Do we?
+        cgw = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=nmul)
+        resmax = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=nmul)
+        k1 = self.param_bounds_2D(params, 12, bounds=self.parameters_bound[12], ndays=No_days, nmul=nmul)
+        k2 = self.param_bounds_2D(params, 13, bounds=self.parameters_bound[13], ndays=No_days, nmul=nmul)
+        k3 = self.param_bounds_2D(params, 14, bounds=self.parameters_bound[14], ndays=No_days, nmul=nmul)
+        k4 = self.param_bounds_2D(params, 15, bounds=self.parameters_bound[15], ndays=No_days, nmul=nmul)
+        k5 = self.param_bounds_2D(params, 16, bounds=self.parameters_bound[16], ndays=No_days, nmul=nmul)
+        k6 = self.param_bounds_2D(params, 17, bounds=self.parameters_bound[17], ndays=No_days, nmul=nmul) * 0.0 # because we don't have any sink in the watersheds! Do we?
 
         if routing == True:
             conv_params = params[:, len(self.parameters_bound):]
@@ -278,12 +278,8 @@ class prms_marrmot(torch.nn.Module):
                                          bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days, nmul=1)
             tempb = self.param_bounds_2D(conv_params, 1,
                                          bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days, nmul=1)
-            # tempa = self.param_bounds_2D(params, 18, args, bounds=self.conv_routing_hydro_model_bound[0])
-            # tempb = self.param_bounds_2D(params, 19, args, bounds=self.conv_routing_hydro_model_bound[1])
-            # tempa = self.multi_comp_parameter_bounds(params, 18, args)
-            # tempb = self.multi_comp_parameter_bounds(params, 19, args)
         # PWT_coef , for converting PET to AET
-        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=args["nmul"])
+        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=nmul)
         #################
         # inputs
         Precip = (
@@ -292,12 +288,13 @@ class prms_marrmot(torch.nn.Module):
         Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         mean_air_temp = (Tmaxf + Tminf) / 2
-        dayl = (
-            x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
-        )
+
         Ndays, Ngrid = Precip.shape[0], Precip.shape[1]
 
         if args["potet_module"] == "potet_hamon":
+            dayl = (
+                x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+            )
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
             PET = get_potet(
                 args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
@@ -305,7 +302,7 @@ class prms_marrmot(torch.nn.Module):
         elif args["potet_module"] == "potet_hargreaves":
 
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
-            lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
+            lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(Precip.shape[0], 1, nmul)
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
             #                                   nmul=args["nmul"])
 

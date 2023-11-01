@@ -4660,11 +4660,11 @@ class SNTEMP_flowSim(nn.Module):
         varC = args["varC_temp_model"]
         # initialization of the params
         No_days = x.shape[0] - warm_up
-        w1_shade = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=args["nmul"])
-        w2_shade = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=args["nmul"])
-        width_coef_factor = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])
+        w1_shade = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
+        w2_shade = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
+        width_coef_factor = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
         width_coef_pow = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days,
-                                              nmul=args["nmul"])
+                                              nmul=nmul)
         # w2_shade = self.param_bounds(params[:, warm_up:, :], 1, args, bounds=args["SNTEMP_paramCalLst"][1])
         # w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
         # width_coef_factor = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
@@ -4689,10 +4689,10 @@ class SNTEMP_flowSim(nn.Module):
             if args["lat_temp_adj"] == True:
                 lat_temp_params = params[:, -args["nmul"]:]
                 lat_temp_adj = self.param_bounds_2D(lat_temp_params,
-                                         0, bounds=self.lat_adj_params_bound[0], ndays=No_days, nmul=args["nmul"])
+                                         0, bounds=self.lat_adj_params_bound[0], ndays=No_days, nmul=nmul)
         if args["lat_temp_adj"] == False:
             lat_temp_adj = 0.0 * w1_shade
-        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=args["nmul"])
+        PET_coef = self.param_bounds_2D(PET_param, 0, bounds=self.PET_coef_bound[0], ndays=No_days, nmul=nmul)
         # obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1, 1, nmul) * 0.028316  # converting cfs to cms
         Q_tot = srflow + ssflow + gwflow
         precip = (

@@ -16,7 +16,10 @@ nmul: 2
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_forcing_pet.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_671_attr_site_no.feather"
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
-
+# SUNTZU server
+#forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_forcing_pet.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+#attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//camels_671_attr_site_no.feather"
+#output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"
@@ -31,7 +34,7 @@ t_test: [19941001, 20101001]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
-EPOCHS: 5
+EPOCHS: 1
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
@@ -88,7 +91,7 @@ varC_temp_model: ["area_gages2"] #["stream_length_square", 'PPTAVG_BASIN', 'SLOP
 
 
 ### process based streamflow model configurations
-hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"]#, "t_monthly(C)", 'dayl(s)', "dayofyear"]
 varC_hydro_model: ["area_gages2"] #['DRAIN_SQKM', "lat"]
 routing_hydro_model: True

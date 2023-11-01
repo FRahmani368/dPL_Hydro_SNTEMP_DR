@@ -76,7 +76,7 @@ class diff_hydro_temp_model(torch.nn.Module):
             exit()
 
     def forward(self, inputs_NN, x_hydro_model, c_hydro_model, x_temp_model, c_temp_model):
-        params_all = self.NN_model(inputs_NN[self.args["warm_up"]:, :, :])
+        params_all = self.NN_model(inputs_NN)
         params_hydro_model = params_all[-1, :, :self.ny_hydro]
         params_temp_model = params_all[-1, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
         params_PET_model = params_all[-1, :, (self.ny_hydro + self.ny_temp):]

@@ -73,7 +73,7 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
             optim.step()
             diff_model.zero_grad()
             lossEp = lossEp + loss.item()
-            if (iIter % 1 == 0) or (iIter == nIterEp):
+            if (iIter % 10 == 0) or (iIter == nIterEp):
                 print(iIter, " from ", nIterEp, " in the ", epoch,
                       "th epoch, and Loss is ", loss.item())
         lossEp = lossEp / nIterEp
