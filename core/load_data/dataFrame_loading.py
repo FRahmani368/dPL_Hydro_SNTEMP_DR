@@ -35,7 +35,7 @@ class DataFrame_dataset:
             elif var in dfMain_attr.columns:
                 varLst_attr.append(var)
             else:
-                print("the var is not in forcing file nor in attr file")
+                print(var, "the var is not in forcing file nor in attr file")
         xt = dfMain.loc[:, varLst_forcing].values
         g = dfMain.reset_index(drop=True).groupby("site_no")
         xtg = [xt[i.values, :] for k, i in g.groups.items()]

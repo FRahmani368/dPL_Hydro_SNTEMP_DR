@@ -3672,7 +3672,7 @@ class SNTEMP_flowSim(nn.Module):
         self.PET_coef_bound = [
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
         ]
-
+        self.activation_sigmoid = torch.nn.Sigmoid()
     def atm_pressure(self, elev):
         ## from Jake's document
         # mmHg2mb = make_tensor(0.75061683)  # Unit conversion
@@ -4672,6 +4672,7 @@ class SNTEMP_flowSim(nn.Module):
         # hamon_coef = self.param_bounds(params[:, warm_up:, :], 4, args, bounds=args["SNTEMP_paramCalLst"][4])
         if args["routing_temp_model"] == True:
             conv_params = params[:, len(self.parameters_bound):len(self.parameters_bound) + 4]
+            # conv_params = self.activation_sigmoid(conv_params)
             # a_srflow = self.param_bounds(params[:, warm_up:, :], No_params, args, bounds=args["conv_SNTEMP"][0])
             # b_srflow = self.param_bounds(params[:, warm_up:, :], No_params + 1, args, bounds=args["conv_SNTEMP"][1])
             a_ssflow = self.param_bounds_2D(conv_params,

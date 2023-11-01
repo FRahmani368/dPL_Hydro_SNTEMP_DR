@@ -96,8 +96,8 @@ def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_hydro_model_sample, o
     varC_hydro_model = args["varC_hydro_model"]
     if "DRAIN_SQKM" in varC_hydro_model:
         area_name = "DRAIN_SQKM"
-    elif "area_gage2" in varC_hydro_model:
-        area_name = "area_gage2"
+    elif "area_gages2" in varC_hydro_model:
+        area_name = "area_gages2"
     area = (c_hydro_model_sample[:, varC_hydro_model.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
     obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
     return obs_sample
@@ -231,7 +231,7 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
             plt.savefig(
                 os.path.join(args["out_dir"], args["testing_dir"], "Box_" + name + ".png")
             )  # , dpi=500
-            fig.show()
+            # fig.show()
             plt.close()
 
 

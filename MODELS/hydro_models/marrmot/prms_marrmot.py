@@ -41,8 +41,8 @@ class prms_marrmot(torch.nn.Module):
         varC_hydro_model = args["varC_hydro_model"]
         if "DRAIN_SQKM" in varC_hydro_model:
             area_name = "DRAIN_SQKM"
-        elif "area_gage2" in varC_hydro_model:
-            area_name = "area_gage2"
+        elif "area_gages2" in varC_hydro_model:
+            area_name = "area_gages2"
         else:
             print("area of basins are not available among attributes dataset")
         area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
@@ -212,7 +212,7 @@ class prms_marrmot(torch.nn.Module):
                 xinit = x_hydro_model[0:warm_up, :, :]
                 # paramsinit = params[:, :warm_up, :]
                 # PET_coefinit = PET_coef[:, :warm_up, :]
-                warm_up_model = prms_marrmot()
+                warm_up_model = prms_marrmot().to(args["device"])
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
                     RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params, args, PET_param,

@@ -17,12 +17,13 @@ class HBVMul(torch.nn.Module):
     def __init__(self):
         """Initiate a HBV instance"""
         super(HBVMul, self).__init__()
-        self.parameters_bound = [[1,6], [50,1000], [0.05,0.9], [0.01,0.5], [0.001,0.2], [0.2,1],
+        self.parameters_bound = [[0 , 1.0], [50,1000], [0.05,0.9], [0.01,0.5], [0.001,0.2], [0.2,1],
                         [0,10], [0,100], [-2.5,2.5], [0.5,10], [0,0.1], [0,0.2]]
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
             [0, 6.5]   # routing parameter b
         ]
+        self.activation_sigmoid = torch.nn.Sigmoid()
 
     def UH_gamma(self, a, b, lenF=10):
         # UH. a [time (same all time steps), batch, var]
@@ -74,8 +75,8 @@ class HBVMul(torch.nn.Module):
         varC_hydro_model = args["varC_hydro_model"]
         if "DRAIN_SQKM" in varC_hydro_model:
             area_name = "DRAIN_SQKM"
-        elif "area_gage2" in varC_hydro_model:
-            area_name = "area_gage2"
+        elif "area_gages2" in varC_hydro_model:
+            area_name = "area_gages2"
         else:
             print("area of basins are not available among attributes dataset")
         area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
@@ -130,7 +131,7 @@ class HBVMul(torch.nn.Module):
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
-                initmodel = HBVMul()
+                initmodel = HBVMul().to(args["device"])
                 Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, params, args, PET_param,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False)
@@ -150,9 +151,9 @@ class HBVMul(torch.nn.Module):
         Pm= P.unsqueeze(2).repeat(1, 1, nmul)
         Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
         Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
-        mean_air_temp = (Tmaxf + Tminf) / 2
-        ETpot = x_hydro_model[warm_up:, :, 2]
-        PET = ETpot.unsqueeze(2).repeat(1, 1, nmul)
+        mean_air_temp = Tmaxf #(Tmaxf + Tminf) / 2
+        # ETpot = x_hydro_model[warm_up:, :, 2]
+        # PET = ETpot.unsqueeze(2).repeat(1, 1, nmul)
 
         if args["potet_module"] == "potet_hamon":
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
@@ -189,13 +190,13 @@ class HBVMul(torch.nn.Module):
         parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=args["nmul"])
         parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=args["nmul"])
         parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=args["nmul"])
-        parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[6], ndays=No_days, nmul=args["nmul"])
-        parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[7], ndays=No_days, nmul=args["nmul"])
-        parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[8], ndays=No_days, nmul=args["nmul"])
-        parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[9], ndays=No_days, nmul=args["nmul"])
-        parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[10], ndays=No_days, nmul=args["nmul"])
-        parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
-        parCWH = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
+        parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=args["nmul"])
+        parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=args["nmul"])
+        parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=args["nmul"])
+        parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=args["nmul"])
+        parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=args["nmul"])
+        parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=args["nmul"])
+        parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=args["nmul"])
         # parBETA = self.parameters_bound[0][0] + params[:, 0, :] * (self.parameters_bound[0][1] - self.parameters_bound[0][0])
         # # parCET = parameters[:,1]
         # parFC = self.parameters_bound[1][0] + params[:, 1, :] * (self.parameters_bound[1][1] - self.parameters_bound[1][0])
@@ -214,6 +215,7 @@ class HBVMul(torch.nn.Module):
         # parCWH = self.parameters_bound[11][0] + params[:, 11, :] * (self.parameters_bound[11][1] - self.parameters_bound[11][0])
         if routing == True:
             conv_params = params[:, len(self.parameters_bound):]
+            # conv_params = self.activation_sigmoid(conv_params)
             tempa = self.param_bounds_2D(conv_params, 0,
                                          bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days, nmul=1)
             tempb = self.param_bounds_2D(conv_params, 1,
