@@ -70,7 +70,7 @@ def No_iter_nt_ngrid(set_name, args, x):
     nIterEp = int(
         np.ceil(
             np.log(0.01)
-            / np.log(1 - args["batch_size"] * rho / ngrid / nt)
+            / np.log(1 - args["batch_size"] * rho / ngrid / (nt - args["warm_up"]))
         )
     )
     return ngrid, nIterEp, nt, args["batch_size"]
