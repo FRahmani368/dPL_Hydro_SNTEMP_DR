@@ -153,3 +153,4 @@ class CudnnLstmModel(torch.nn.Module):
         ### Farshid added this line:
         out = self.activation_sigmoid(out)
         return out
+
