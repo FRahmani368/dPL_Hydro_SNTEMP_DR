@@ -342,10 +342,10 @@ class HBVMul(torch.nn.Module):
         if init is True:     # means we are in warm up
             return Qs, SNOWPACK, MELTWATER, SM, SUZ, SLZ
         else:
-            return dict(flow_sim=torch.clamp(Q0_rout + Q1_rout + Q2_rout, min=0.0),
-                        srflow=torch.clamp(Q0_rout, min=0.0),
-                        ssflow=torch.clamp(Q1_rout, min=0.0),
-                        gwflow=torch.clamp(Q2_rout, min=0.0),
+            return dict(flow_sim=Qsrout,
+                        srflow=Q0_rout,
+                        ssflow=Q1_rout,
+                        gwflow=Q2_rout,
                         AET_hydro=AET.mean(-1, keepdim=True),
                         PET_hydro=PET.mean(-1, keepdim=True))
 

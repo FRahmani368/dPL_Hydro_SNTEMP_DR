@@ -30,9 +30,7 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
     # normalize
     x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
     c_NN_scaled = transNorm(args, dataset_dictionary["c_NN"], varLst=args["varC_NN"], toNorm=True)
-    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN_scaled.shape[0]).reshape(x_NN_scaled.shape[0],
-                                                                                          x_NN_scaled.shape[1],
-                                                                                          c_NN_scaled.shape[1])
+    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 0), x_NN_scaled.shape[0], axis=0)
     del dataset_dictionary["x_NN"],   # no need the real values anymore
     dataset_dictionary["inputs_NN_scaled"] = np.concatenate((x_NN_scaled, c_NN_scaled), axis=2)
     del x_NN_scaled, c_NN_scaled   # we just need "inputs_NN_model" which is a combination of these two
@@ -82,9 +80,7 @@ def test_differentiable_model(args, diff_model):
     # normalizing
     x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
     c_NN_scaled = transNorm(args, dataset_dictionary["c_NN"], varLst=args["varC_NN"], toNorm=True)
-    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN_scaled.shape[0]).reshape(x_NN_scaled.shape[0],
-                                                                                          x_NN_scaled.shape[1],
-                                                                                          c_NN_scaled.shape[1])
+    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 0), x_NN_scaled.shape[0], axis=0)
     dataset_dictionary["inputs_NN_scaled"] = np.concatenate((x_NN_scaled, c_NN_scaled), axis=2)
     del x_NN_scaled, dataset_dictionary["x_NN"]
     # converting the numpy arrays to torch tensors:
