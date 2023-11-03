@@ -17,13 +17,22 @@ class HBVMul(torch.nn.Module):
     def __init__(self):
         """Initiate a HBV instance"""
         super(HBVMul, self).__init__()
-        self.parameters_bound = [[0 , 1.0], [50,1000], [0.05,0.9], [0.01,0.5], [0.001,0.2], [0.2,1],
-                        [0,10], [0,100], [-2.5,2.5], [0.5,10], [0,0.1], [0,0.2]]
+        self.parameters_bound = dict(parBETA=[0, 1.0],
+                                     parFC=[50, 1000],
+                                     parK0=[0.05, 0.9],
+                                     parK1=[0.01, 0.5],
+                                     parK2=[0.001, 0.2],
+                                     parLP=[0.2, 1],
+                                     parPERC=[0, 10],
+                                     parUZL=[0, 100],
+                                     parTT=[-2.5, 2.5],
+                                     parCFMAX=[0.5, 10],
+                                     parCFR=[0, 0.1],
+                                     parCWH=[0, 0.2])
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
             [0, 6.5]   # routing parameter b
         ]
-        self.activation_sigmoid = torch.nn.Sigmoid()
 
     def UH_gamma(self, a, b, lenF=10):
         # UH. a [time (same all time steps), batch, var]
@@ -71,15 +80,15 @@ class HBVMul(torch.nn.Module):
             y = y[:, :, 0:-padd]
         return y.view(mm)
 
-    def source_flow_calculation(self, args, flow_out, c_hydro_model):
-        varC_hydro_model = args["varC_hydro_model"]
-        if "DRAIN_SQKM" in varC_hydro_model:
+    def source_flow_calculation(self, args, flow_out, c_NN):
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
             area_name = "DRAIN_SQKM"
-        elif "area_gages2" in varC_hydro_model:
+        elif "area_gages2" in varC_NN:
             area_name = "area_gages2"
         else:
             print("area of basins are not available among attributes dataset")
-        area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+        area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
             flow_out["flow_sim"].shape[
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
@@ -101,7 +110,10 @@ class HBVMul(torch.nn.Module):
             ndays, params.shape[0], nmul
         )
         return out
-    def forward(self, x_hydro_model, c_hydro_model, params, args, PET_param, muwts=None, warm_up=0, init=False, routing=False, comprout=False):
+    def change_param_range(self, param, bounds):
+        out = param * (bounds[1] - bounds[0]) + bounds[0]
+        return out
+    def forward(self, x_hydro_model, c_hydro_model, hbv_params_raw, args, PET_param, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -115,9 +127,9 @@ class HBVMul(torch.nn.Module):
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
                 initmodel = HBVMul().to(args["device"])
-                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, params, args, PET_param,
+                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args, PET_param,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
-                                                                      comprout=False)
+                                                                      comprout=False, conv_params_hydro=None)
         else:
 
             # Without buff time, initialize state variables with zeros
@@ -163,25 +175,25 @@ class HBVMul(torch.nn.Module):
 
         ## scale the parameters
         No_days = x_hydro_model.shape[0] - warm_up
-        parBETA = self.param_bounds_2D(params, 0, bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
-        parFC = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
-        parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
-        parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=nmul)
-        parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=nmul)
-        parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=nmul)
-        parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=nmul)
-        parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=nmul)
-        parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=nmul)
-        parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=nmul)
-        parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=nmul)
-        parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=nmul)
-        if routing == True:
-            conv_params = params[:, len(self.parameters_bound):]
-            # conv_params = self.activation_sigmoid(conv_params)
-            tempa = self.param_bounds_2D(conv_params, 0, bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days,
-                                         nmul=1)
-            tempb = self.param_bounds_2D(conv_params, 1, bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days,
-                                         nmul=1)
+
+        params_dict = dict()
+        for num, param in enumerate(self.parameters_bound.keys()):
+            params_dict[param] = self.change_param_range(param=hbv_params_raw[:, num, :],
+                                                         bounds=self.parameters_bound[param])
+        # hbv_params_dict
+        # parBETA = self.param_bounds_2D(params, 0, bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
+        # parFC = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
+        # parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
+        # parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=nmul)
+        # parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=nmul)
+        # parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=nmul)
+        # parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=nmul)
+        # parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=nmul)
+        # parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=nmul)
+        # parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=nmul)
+        # parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=nmul)
+        # parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=nmul)
+
 
         Nstep, Ngrid = P.size()
 
@@ -204,33 +216,33 @@ class HBVMul(torch.nn.Module):
         for t in range(Nstep):
             # Separate precipitation into liquid and solid components
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
-            RAIN = torch.mul(PRECIP, (Tmaxf[t, :, :] >= parTT[t, :, :]).type(torch.float32))
-            SNOW = torch.mul(PRECIP, (Tmaxf[t, :, :] < parTT[t, :, :]).type(torch.float32))
+            RAIN = torch.mul(PRECIP, (Tmaxf[t, :, :] >= params_dict["parTT"]).type(torch.float32))
+            SNOW = torch.mul(PRECIP, (Tmaxf[t, :, :] < params_dict["parTT"]).type(torch.float32))
             # SNOW = SNOW * parSFCF
 
             # Snow
             SNOWPACK = SNOWPACK + SNOW
-            melt = parCFMAX[t, :, :] * (Tmaxf[t, :, :] - parTT[t, :, :])
+            melt = params_dict["parCFMAX"] * (Tmaxf[t, :, :] - params_dict["parTT"])
             # melt[melt < 0.0] = 0.0
             melt = torch.clamp(melt, min=0.0)
             # melt[melt > SNOWPACK] = SNOWPACK[melt > SNOWPACK]
             melt = torch.min(melt, SNOWPACK)
             MELTWATER = MELTWATER + melt
             SNOWPACK = SNOWPACK - melt
-            refreezing = parCFR[t, :, :] * parCFMAX[t, :, :] * (parTT[t, :, :] - Tmaxf[t, :, :])
+            refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (params_dict["parTT"] - Tmaxf[t, :, :])
             # refreezing[refreezing < 0.0] = 0.0
             # refreezing[refreezing > MELTWATER] = MELTWATER[refreezing > MELTWATER]
             refreezing = torch.clamp(refreezing, min=0.0)
             refreezing = torch.min(refreezing, MELTWATER)
             SNOWPACK = SNOWPACK + refreezing
             MELTWATER = MELTWATER - refreezing
-            tosoil = MELTWATER - (parCWH[t, :, :] * SNOWPACK)
+            tosoil = MELTWATER - (params_dict["parCWH"] * SNOWPACK)
             # tosoil[tosoil < 0.0] = 0.0
             tosoil = torch.clamp(tosoil, min=0.0)
             MELTWATER = MELTWATER - tosoil
 
             # Soil and evaporation
-            soil_wetness = (SM / parFC[t, :, :]) ** parBETA[t, :, :]
+            soil_wetness = (SM / params_dict["parFC"]) ** params_dict["parBETA"]
             # soil_wetness[soil_wetness < 0.0] = 0.0
             # soil_wetness[soil_wetness > 1.0] = 1.0
             soil_wetness = torch.clamp(soil_wetness, min=0.0, max=1.0)
@@ -243,11 +255,11 @@ class HBVMul(torch.nn.Module):
             # logRE[t, :] = recharge.detach().cpu().numpy()
 
             SM = SM + RAIN + tosoil - recharge
-            excess = SM - parFC[t, :, :]
+            excess = SM - params_dict["parFC"]
             # excess[excess < 0.0] = 0.0
             excess = torch.clamp(excess, min=0.0)
             SM = SM - excess
-            evapfactor = SM / (parLP[t, :, :] * parFC[t, :, :])
+            evapfactor = SM / (params_dict["parLP"] * params_dict["parFC"])
             # evapfactor[evapfactor < 0.0] = 0.0
             # evapfactor[evapfactor > 1.0] = 1.0
             evapfactor  = torch.clamp(evapfactor, min=0.0, max=1.0)
@@ -258,14 +270,14 @@ class HBVMul(torch.nn.Module):
 
             # Groundwater boxes
             SUZ = SUZ + recharge + excess
-            PERC = torch.min(SUZ, parPERC[t, :, :])
+            PERC = torch.min(SUZ, params_dict["parPERC"])
             SUZ = SUZ - PERC
-            Q0 = parK0[t, :, :] * torch.clamp(SUZ - parUZL[t, :, :], min=0.0)
+            Q0 = params_dict["parK0"] * torch.clamp(SUZ - params_dict["parUZL"], min=0.0)
             SUZ = SUZ - Q0
-            Q1 = parK1[t, :, :] * SUZ
+            Q1 = params_dict["parK1"] * SUZ
             SUZ = SUZ - Q1
             SLZ = SLZ + PERC
-            Q2 = parK2[t, :, :] * SLZ
+            Q2 = params_dict["parK2"] * SLZ
             SLZ = SLZ - Q2
             Qsimmu[t, :, :] = Q0 + Q1 + Q2
             Q0_sim[t, :, :] = Q0
@@ -288,7 +300,19 @@ class HBVMul(torch.nn.Module):
                 # average the components, then do routing
                 Qsim = Qsimave
 
-            UH = self.UH_gamma(tempa, tempb, lenF=15)  # lenF: folter
+            tempa = self.change_param_range(param=conv_params_hydro[:, 0],
+                                            bounds=self.conv_routing_hydro_model_bound[0])
+            tempb = self.change_param_range(param=conv_params_hydro[:, 1],
+                                            bounds=self.conv_routing_hydro_model_bound[1])
+            routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
+            routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
+            # conv_params = self.activation_sigmoid(conv_params)
+            # tempa = self.param_bounds_2D(conv_params, 0, bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days,
+            #                              nmul=1)
+            # tempb = self.param_bounds_2D(conv_params, 1, bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days,
+            #                              nmul=1)
+
+            UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
             # UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
             rf = torch.unsqueeze(Qsim, -1).permute([1, 2, 0])   # dim:gage*var*time
             UH = UH.permute([1, 2, 0])  # dim: gage*var*time

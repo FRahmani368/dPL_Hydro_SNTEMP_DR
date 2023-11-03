@@ -61,7 +61,7 @@ class DataFrame_dataset:
         #     data = transNorm(data, varLst, toNorm=True)
         # if rmNan is True:
         #     data[np.where(np.isnan(data))] = 0
-        return data
+        return np.swapaxes(data, 1, 0)
 
     def getDataConst(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
@@ -96,34 +96,18 @@ class DataFrame_dataset:
         # if rmNan is True:
         #     data[np.where(np.isnan(data))] = 0
         return data
-def loadData(args, trange,
-             data=["x_NN", "c_NN", "y", "x_hydro_model", "c_hydro_model", "x_temp_model", "c_temp_model"]):
+def loadData(args, trange):
 
-    out_list = []
+    out_dict = dict()
     df = DataFrame_dataset(tRange=trange)
-    for d in data:
-        if d == "x_NN":
-            x_NN = df.getDataTs(args, varLst=args["varT_NN"])
-            out_list.append(x_NN)
-        elif d == "y":
-            y = df.getDataTs(args, varLst=args["target"])
-            out_list.append(y)
-        elif d == "c_NN":
-            c_NN = df.getDataConst(args, varLst=args["varC_NN"])
-            out_list.append(c_NN)
-        elif d == "x_hydro_model":
-            x_hydro_model = df.getDataTs(args, varLst=args["varT_hydro_model"])
-            out_list.append(x_hydro_model)
-        elif d == "c_hydro_model":
-            c_hydro_model = df.getDataConst(args, varLst=args["varC_hydro_model"])
-            out_list.append(c_hydro_model)
-        elif d == "x_temp_model":
-            x_temp_model = df.getDataTs(args, varLst=args["varT_temp_model"])
-            out_list.append(x_temp_model)
-        elif d == "c_temp_model":
-            c_temp_model = df.getDataConst(args, varLst=args["varC_temp_model"])
-            out_list.append(c_temp_model)
-        else:
-            print("type of dataset was not recognized")
-            exit()
-    return out_list
+    # getting inputs for NN model:
+    out_dict["x_NN"] = df.getDataTs(args, varLst=args["varT_NN"])
+    out_dict["c_NN"] = df.getDataConst(args, varLst=args["varC_NN"])
+    out_dict["obs"] = df.getDataTs(args, varLst=args["target"])
+    if args["hydro_model_name"] != "None":
+        out_dict["x_hydro_model"] = df.getDataTs(args, varLst=args["varT_hydro_model"])
+        out_dict["c_hydro_model"] = df.getDataConst(args, varLst=args["varC_hydro_model"])
+    if args["temp_model_name"] != "None":
+        out_dict["x_temp_model"] = df.getDataTs(args, varLst=args["varT_temp_model"])
+        out_dict["c_temp_model"] = df.getDataConst(args, varLst=args["varC_temp_model"])
+    return out_dict

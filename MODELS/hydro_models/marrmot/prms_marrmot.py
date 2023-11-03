@@ -37,15 +37,15 @@ class prms_marrmot(torch.nn.Module):
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
         ]
 
-    def source_flow_calculation(self, args, flow_out, c_hydro_model):
-        varC_hydro_model = args["varC_hydro_model"]
-        if "DRAIN_SQKM" in varC_hydro_model:
+    def source_flow_calculation(self, args, flow_out, c_NN):
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
             area_name = "DRAIN_SQKM"
-        elif "area_gages2" in varC_hydro_model:
+        elif "area_gages2" in varC_NN:
             area_name = "area_gages2"
         else:
             print("area of basins are not available among attributes dataset")
-        area = c_hydro_model[:, varC_hydro_model.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+        area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
             flow_out["flow_sim"].shape[
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec

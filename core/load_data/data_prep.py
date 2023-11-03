@@ -61,7 +61,7 @@ def train_val_test_split(set_name, args, time1, x_total, y_total):
     return x, y
 
 def No_iter_nt_ngrid(set_name, args, x):
-    ngrid, nt, nx = x.shape
+    nt, ngrid, nx = x.shape
     t = tRange2Array(args[set_name])
     if t.shape[0] < args["rho"]:
         rho = t.shape[0]
@@ -102,8 +102,8 @@ def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=Fa
         batchSize = iGrid.shape[0]
         xTensor = torch.zeros([rho, batchSize, nx], requires_grad=has_grad)
         for k in range(batchSize):
-            temp = x[iGrid[k] : iGrid[k] + 1, np.arange(iT[k], iT[k] + rho), :]
-            xTensor[:, k : k + 1, :] = torch.from_numpy(np.swapaxes(temp, 1, 0))
+            temp = x[np.arange(iT[k], iT[k] + rho), iGrid[k] : iGrid[k] + 1, :]
+            xTensor[:, k : k + 1, :] = torch.from_numpy(temp)
     else:
         if len(x.shape) == 2:
             # Used for local calibration kernel
@@ -111,12 +111,12 @@ def selectSubset(args, x, iGrid, iT, rho, *, c=None, tupleOut=False, has_grad=Fa
             xTensor = torch.from_numpy(x[iGrid, :]).float()
         else:
             # Used for rho equal to the whole length of time series
-            xTensor = torch.from_numpy(np.swapaxes(x[iGrid, :, :], 1, 0)).float()
+            xTensor = torch.from_numpy(x[:, iGrid, :]).float()
             rho = xTensor.shape[0]
     if c is not None:
         nc = c.shape[-1]
         temp = np.repeat(np.reshape(c[iGrid, :], [batchSize, 1, nc]), rho, axis=1)
-        cTensor = torch.from_numpy(np.swapaxes(temp, 1, 0)).float()
+        cTensor = torch.from_numpy(temp).float()
 
         if tupleOut:
             if torch.cuda.is_available():
@@ -192,6 +192,65 @@ def create_tensor_list(x, y):
             tensor_list.append(_var)
     return tensor_list
 
+def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
+    dimSubset = [batchSize, args["rho"] + args["warm_up"]]
+    iGrid, iT = randomIndex(ngrid_train, nt, dimSubset)
+    dataset_dictionary_sample = dict()
+    dataset_dictionary_sample["inputs_NN_scaled_sample"] = selectSubset(args, dataset_dictionary["inputs_NN_scaled"],
+                                      iGrid, iT, args["rho"] + args["warm_up"], has_grad=False)
+    dataset_dictionary_sample["c_NN_sample"] = torch.tensor(
+        dataset_dictionary["c_NN"][iGrid], device=args["device"], dtype=torch.float32
+    )
+    # collecting observation samples
+    obs_sample_v = selectSubset(
+        args, dataset_dictionary["obs"], iGrid, iT, args["rho"] + args["warm_up"], has_grad=False
+    )[args["warm_up"]:, :, :]
+    dataset_dictionary_sample["obs_sample"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
+                                                                                             dataset_dictionary_sample[
+                                                                                                 "c_NN_sample"],
+                                                                                             obs_sample_v)
+    # Hydro model sampling
+    if args["hydro_model_name"] != "None":
+        dataset_dictionary_sample["x_hydro_model_sample"] = selectSubset(
+            args, dataset_dictionary["x_hydro_model"], iGrid, iT, args["rho"] + args["warm_up"], has_grad=False
+        )
+        dataset_dictionary_sample["c_hydro_model_sample"] = torch.tensor(
+            dataset_dictionary["c_hydro_model"][iGrid], device=args["device"], dtype=torch.float32
+        )
+    # temperture model sampling
+    if args["temp_model_name"] != "None":
+        dataset_dictionary_sample["x_temp_model_sample"] = selectSubset(
+            args, dataset_dictionary["x_temp_model"], iGrid, iT, args["rho"] + args["warm_up"], has_grad=False
+        )  # [warm_up:,:, :]there is no need for warm up in temp section yet
+        dataset_dictionary_sample["c_temp_model_sample"] = torch.tensor(
+            dataset_dictionary["c_temp_model"][iGrid], device=args["device"], dtype=torch.float32
+        )
+
+
+    return dataset_dictionary_sample
+
+def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_NN_sample, obs_sample):
+    varTar_NN = args["target"]
+    obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
+    varC_NN = args["varC_NN"]
+    if "DRAIN_SQKM" in varC_NN:
+        area_name = "DRAIN_SQKM"
+    elif "area_gages2" in varC_NN:
+        area_name = "area_gages2"
+    area = (c_NN_sample[:, varC_NN.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
+    obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
+    return obs_sample
+
+def take_sample_test(args, dataset_dictionary, iS, iE):
+    dataset_dictionary_sample = dict()
+    for key in dataset_dictionary.keys():
+        if len(dataset_dictionary[key].shape) == 3:
+            dataset_dictionary_sample[key + "_sample"] = dataset_dictionary[key][:, iS: iE, :].to(
+                args["device"])
+        elif len(dataset_dictionary[key].shape) == 2:
+            dataset_dictionary_sample[key + "_sample"] = dataset_dictionary[key][iS: iE, :].to(
+                args["device"])
+    return dataset_dictionary_sample
 
 
 

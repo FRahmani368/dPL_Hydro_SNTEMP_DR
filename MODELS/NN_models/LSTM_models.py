@@ -151,6 +151,6 @@ class CudnnLstmModel(torch.nn.Module):
         outLSTM, (hn, cn) = self.lstm(x0, doDropMC=doDropMC, dropoutFalse=dropoutFalse)
         out = self.linearOut(outLSTM)
         ### Farshid added this line:
-        out = self.activation_sigmoid(out)
+        # out = self.activation_sigmoid(out)
         return out
 

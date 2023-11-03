@@ -29,8 +29,8 @@ def calStatbasinnorm(
     elif "p_mean" in attr_list:
         p_mean_name = "p_mean"
     meanprep = c[:, attr_list.index(p_mean_name)]  #   'PPTAVG_BASIN'
-    temparea = np.repeat(np.expand_dims(basinarea, axis=(1,2)), y.shape[1]).reshape(y.shape)
-    tempprep = np.repeat(np.expand_dims(meanprep, axis=(1, 2)), y.shape[1]).reshape(y.shape)
+    temparea = np.repeat(np.expand_dims(basinarea, axis=(1,2)), y.shape[0]).reshape(y.shape)
+    tempprep = np.repeat(np.expand_dims(meanprep, axis=(1, 2)), y.shape[0]).reshape(y.shape)
     flowua = (y * 0.0283168 * 3600 * 24) / (
         (temparea * (10**6)) * (tempprep * 10 ** (-2)) / 365
     )  # unit (m^3/day)/(m^3/day)
@@ -153,13 +153,13 @@ def transNorm(args, x, varLst, *, toNorm):
                     out[:, k] = (np.power(10, out[:, k]) - 0.1) ** 2
 
     return out
-def init_norm_stats(args):
+def init_norm_stats(args, x_NN, c_NN, y):
     stats_directory = args["out_dir"]
     statFile = os.path.join(stats_directory, "Statistics_basinnorm.json")
 
     if not os.path.isfile(statFile):
         # read all data in training for just the inputs used in NN
-        x_NN, c_NN, y = loadData(args, trange=args["t_train"], data=["x_NN", "c_NN", "y"])
+        # x_NN, c_NN, y = loadData(args, trange=args["t_train"], data=["x_NN", "c_NN", "y"])
         # calculate the stats
         calStatAll(args, x_NN, c_NN, y)
     # with open(statFile, "r") as fp:

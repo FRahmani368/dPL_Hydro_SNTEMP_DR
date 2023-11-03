@@ -6,11 +6,13 @@ import math
 import time
 from post import stat, plot
 import matplotlib.pyplot as plt
+from core.load_data.normalizing import init_norm_stats
 from core.load_data.dataFrame_loading import loadData
 from core.load_data.data_prep import (
     No_iter_nt_ngrid,
-    randomIndex,
-    selectSubset,
+    take_sample_train,
+    take_sample_test,
+    converting_flow_from_ft3_per_sec_to_mm_per_day
 )
 from core.load_data.normalizing import transNorm
 def train_differentiable_model(args, diff_model, lossFun, optim):
@@ -21,17 +23,21 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
         CUDA_LAUNCH_BLOCKING = 1
 
     # preparing training dataset
-    x_NN, c_NN, y_obs, x_hydro_model, c_hydro_model, x_temp_model, c_temp_model = loadData(args, trange=args["t_train"])
-    # normalizing
-    x_NN_scaled = transNorm(args, x_NN, varLst=args["varT_NN"], toNorm=True)
-    c_NN_scaled = transNorm(args, c_NN, varLst=args["varC_NN"], toNorm=True)
-    c_NN_scaled2 = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN.shape[1]).reshape(x_NN.shape[0], x_NN.shape[1], c_NN.shape[1])
-    inputs_NN_model = np.concatenate((x_NN_scaled, c_NN_scaled2), axis=2)
+    dataset_dictionary = loadData(args, trange=args["t_train"])
+    ### normalizing
+    # creating the stats for normalization of NN inputs
+    init_norm_stats(args, dataset_dictionary["x_NN"], dataset_dictionary["c_NN"], dataset_dictionary["obs"])
+    # normalize
+    x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
+    c_NN_scaled = transNorm(args, dataset_dictionary["c_NN"], varLst=args["varC_NN"], toNorm=True)
+    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN_scaled.shape[0]).reshape(x_NN_scaled.shape[0],
+                                                                                          x_NN_scaled.shape[1],
+                                                                                          c_NN_scaled.shape[1])
+    del dataset_dictionary["x_NN"],   # no need the real values anymore
+    dataset_dictionary["inputs_NN_scaled"] = np.concatenate((x_NN_scaled, c_NN_scaled), axis=2)
+    del x_NN_scaled, c_NN_scaled   # we just need "inputs_NN_model" which is a combination of these two
 
-    ngrid_train, nIterEp, nt, batchSize = No_iter_nt_ngrid("t_train", args, inputs_NN_model)
-    rho = args["rho"]
-    warm_up = args["warm_up"]
-    nmul = args["nmul"]
+    ngrid_train, nIterEp, nt, batchSize = No_iter_nt_ngrid("t_train", args, dataset_dictionary["inputs_NN_scaled"])
     diff_model.zero_grad()
     diff_model.train()
     # training
@@ -39,41 +45,16 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
         lossEp = 0
         t0 = time.time()
         for iIter in range(1, nIterEp + 1):
-            iGrid, iT = randomIndex(ngrid_train, nt, [batchSize, rho + warm_up])
-
-            # NN sampling
-            x_NN_sample_scaled = selectSubset(
-                args, inputs_NN_model, iGrid, iT, rho + warm_up, has_grad=False,
-            )
-            # Hydro model sampling
-            x_hydro_model_sample = selectSubset(
-                args, x_hydro_model, iGrid, iT, rho + warm_up, has_grad=False
-            )
-            c_hydro_model_sample = torch.tensor(
-                c_hydro_model[iGrid], device=args["device"], dtype=torch.float32
-            )
-            # temperture model sampling
-            x_temp_model_sample = selectSubset(
-                args, x_temp_model, iGrid, iT, rho + warm_up, has_grad=False
-            )  # [warm_up:,:, :]there is no need for warm up in temp section yet
-            c_temp_model_sample = torch.tensor(
-                c_temp_model[iGrid], device=args["device"], dtype=torch.float32
-            )
+            dataset_dictionary_sample = take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize)
             # Batch running of the differentiable model
-            out_diff_model = diff_model(x_NN_sample_scaled,
-                                        x_hydro_model_sample, c_hydro_model_sample,
-                                        x_temp_model_sample, c_temp_model_sample)
-            # collecting observation samples
-            obs_sample = selectSubset(
-                args, y_obs, iGrid, iT, rho + warm_up, has_grad=False
-            )[warm_up:, :, :]
-            obs_sample = converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_hydro_model_sample, obs_sample)
-            loss = lossFun(args, out_diff_model, obs_sample)
+            out_diff_model = diff_model(dataset_dictionary_sample)
+            # loss function
+            loss = lossFun(args, out_diff_model, dataset_dictionary_sample["obs_sample"])
             loss.backward()  # retain_graph=True
             optim.step()
             diff_model.zero_grad()
             lossEp = lossEp + loss.item()
-            if (iIter % 10 == 0) or (iIter == nIterEp):
+            if (iIter % 1 == 0) or (iIter == nIterEp):
                 print(iIter, " from ", nIterEp, " in the ", epoch,
                       "th epoch, and Loss is ", loss.item())
         lossEp = lossEp / nIterEp
@@ -90,56 +71,39 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
             print("last epoch")
     print("Training ended")
 
-def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_hydro_model_sample, obs_sample):
-    varTar_NN = args["target"]
-    obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
-    varC_hydro_model = args["varC_hydro_model"]
-    if "DRAIN_SQKM" in varC_hydro_model:
-        area_name = "DRAIN_SQKM"
-    elif "area_gages2" in varC_hydro_model:
-        area_name = "area_gages2"
-    area = (c_hydro_model_sample[:, varC_hydro_model.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
-    obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
-    return obs_sample
+
 def test_differentiable_model(args, diff_model):
     warm_up = args["warm_up"]
     nmul = args["nmul"]
     diff_model.eval()
     # read data for test time range
-    x_NN, c_NN, y_obs, x_hydro_model, c_hydro_model, x_temp_model, c_temp_model = loadData(args, trange=args["t_test"])
-    np.save(os.path.join(args["out_dir"], "x.npy"), x_NN)  # saves with the overlap in the beginning
+    dataset_dictionary = loadData(args, trange=args["t_test"])
+    np.save(os.path.join(args["out_dir"], "x.npy"), dataset_dictionary["x_NN"])  # saves with the overlap in the beginning
     # normalizing
-    x_NN_scaled = transNorm(args, x_NN, varLst=args["varT_NN"], toNorm=True)
-    c_NN_scaled = transNorm(args, c_NN, varLst=args["varC_NN"], toNorm=True)
-    c_NN_scaled2 = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN.shape[1]).reshape(x_NN.shape[0], x_NN.shape[1],
-                                                                                    c_NN.shape[1])
-    inputs_NN_model = np.concatenate((x_NN_scaled, c_NN_scaled2), axis=2)
+    x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
+    c_NN_scaled = transNorm(args, dataset_dictionary["c_NN"], varLst=args["varC_NN"], toNorm=True)
+    c_NN_scaled = np.repeat(np.expand_dims(c_NN_scaled, 1), x_NN_scaled.shape[0]).reshape(x_NN_scaled.shape[0],
+                                                                                          x_NN_scaled.shape[1],
+                                                                                          c_NN_scaled.shape[1])
+    dataset_dictionary["inputs_NN_scaled"] = np.concatenate((x_NN_scaled, c_NN_scaled), axis=2)
+    del x_NN_scaled, dataset_dictionary["x_NN"]
     # converting the numpy arrays to torch tensors:
-    inputs_NN_model_T = torch.from_numpy(np.swapaxes(inputs_NN_model, 1, 0)).float().to(args["device"])
-    x_hydro_model_T = torch.from_numpy(np.swapaxes(x_hydro_model, 1, 0)).float().to(args["device"])
-    c_hydro_model_T = torch.from_numpy(c_hydro_model).float().to(args["device"])
-    x_temp_model_T = torch.from_numpy(np.swapaxes(x_temp_model, 1, 0)).float().to(args["device"])
-    c_temp_model_T = torch.from_numpy(c_temp_model).float().to(args["device"])
-    args_mod = args.copy()
-    args_mod["batch_size"] = args["no_basins"]
-    ngrid, nt, nx = inputs_NN_model.shape
+    for key in dataset_dictionary.keys():
+        dataset_dictionary[key] = torch.from_numpy(dataset_dictionary[key]).float()
+
+    # args_mod = args.copy()
+    args["batch_size"] = args["no_basins"]
+    nt, ngrid, nx = dataset_dictionary["inputs_NN_scaled"].shape
     rho = args["rho"]
-    nrows = math.ceil((nt - warm_up) / rho)  # need to reduce the warm_up from beginning
+
     batch_size = args["batch_size"]
     iS = np.arange(0, ngrid, batch_size)
     iE = np.append(iS[1:], ngrid)
     list_out_diff_model = []
     for i in range(0, len(iS)):
-        x_NN_sample_scaled = inputs_NN_model_T[:, iS[i]: iE[i], :]
-        x_hydro_model_sample = x_hydro_model_T[:, iS[i]: iE[i], :].type(torch.float32)
-        c_hydro_model_sample = c_hydro_model_T[iS[i]: iE[i], :]
-        x_temp_model_sample = x_temp_model_T[:, iS[i]: iE[i], :]
-        c_temp_model_sample = c_temp_model_T[iS[i]: iE[i], :]
-        out_diff_model = diff_model(x_NN_sample_scaled,
-                                    x_hydro_model_sample,
-                                    c_hydro_model_sample,
-                                    x_temp_model_sample,
-                                    c_temp_model_sample)
+        dataset_dictionary_sample = take_sample_test(args, dataset_dictionary, iS[i], iE[i])
+
+        out_diff_model = diff_model(dataset_dictionary_sample)
         # Convert all tensors in the dictionary to CPU
         out_diff_model_cpu = {key: tensor.cpu().detach() for key, tensor in out_diff_model.items()}
         # out_diff_model_cpu = tuple(outs.cpu().detach() for outs in out_diff_model)
@@ -147,9 +111,10 @@ def test_differentiable_model(args, diff_model):
 
     # getting rid of warm-up period in observation dataset and making the dimension similar to
     # converting numpy to tensor
-    y_obs = torch.tensor(np.swapaxes(y_obs[:, warm_up:, :], 0, 1), dtype=torch.float32)
-    c_hydro_model = torch.tensor(c_hydro_model, dtype=torch.float32)
-    y_obs = converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_hydro_model, y_obs)
+    # y_obs = torch.tensor(np.swapaxes(y_obs[:, warm_up:, :], 0, 1), dtype=torch.float32)
+    # c_hydro_model = torch.tensor(c_hydro_model, dtype=torch.float32)
+    y_obs = converting_flow_from_ft3_per_sec_to_mm_per_day(args, dataset_dictionary["c_NN"],
+                                                           dataset_dictionary["obs"][warm_up:, :, :])
 
     save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True)
     torch.cuda.empty_cache()

@@ -5,7 +5,7 @@ import os
 from config.read_configurations import config_PRMS_SNTEMP as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
-from core.load_data.normalizing import init_norm_stats
+
 from MODELS.loss_functions.get_loss_function import get_lossFun
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
@@ -18,8 +18,8 @@ def main_hydro_temp(args):
     randomseed_config(seed=args["randomseed"][0])
     # Creating output directories and adding it to args
     args = create_output_dirs(args)
-    # creating the stats for normalization
-    init_norm_stats(args)
+
+
     lossFun = get_lossFun(args)
     if 0 in args["Action"]:       # training mode
         diff_model = diff_hydro_temp_model(args)

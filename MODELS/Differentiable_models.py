@@ -75,8 +75,8 @@ class diff_hydro_temp_model(torch.nn.Module):
             print("NN model type has not been defined")
             exit()
 
-    def forward(self, inputs_NN, x_hydro_model, c_hydro_model, x_temp_model, c_temp_model):
-        params_all = self.NN_model(inputs_NN)
+    def forward(self, dataset_dictionary_sample):
+        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"])
         params_hydro_model = params_all[-1, :, :self.ny_hydro]
         params_temp_model = params_all[-1, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
         params_PET_model = params_all[-1, :, (self.ny_hydro + self.ny_temp):]
@@ -84,19 +84,31 @@ class diff_hydro_temp_model(torch.nn.Module):
         # Todo: I should separate PET model output from hydro_model and temp_model.
         #  For now, evap is calculated in both models individually (with same method)
         if self.args['hydro_model_name'] != "None":
+            # hydro params
+            hydro_params_raw = torch.sigmoid(
+                params_hydro_model[:, :len(self.hydro_model.parameters_bound) * self.args["nmul"]]).view(
+                params_hydro_model.shape[0], len(self.hydro_model.parameters_bound),
+                self.args["nmul"])
+            # routing params
+            if self.args["routing_hydro_model"] == True:
+                conv_params_hydro = torch.sigmoid(
+                    params_hydro_model[:, len(self.hydro_model.parameters_bound) * self.args["nmul"]:])
+
             flow_out = self.hydro_model(
-                x_hydro_model,
-                c_hydro_model,
-                params_hydro_model,
+                dataset_dictionary_sample["x_hydro_model_sample"],
+                dataset_dictionary_sample["c_hydro_model_sample"],
+                hydro_params_raw,
                 self.args,
                 PET_param=params_PET_model,  # PET is in both temp and flow model
                 warm_up=self.args["warm_up"],
-                routing=self.args["routing_hydro_model"]
+                routing=self.args["routing_hydro_model"],
+                conv_params_hydro=conv_params_hydro
             )
 
             # Todo: send this to  a function
             # source flow calculation and converting mm/day to m3/ day
-            srflow, ssflow, gwflow = self.hydro_model.source_flow_calculation(self.args, flow_out, c_hydro_model)
+            srflow, ssflow, gwflow = self.hydro_model.source_flow_calculation(self.args, flow_out,
+                                                                              dataset_dictionary_sample["c_NN_sample"])
             # baseflow index percentage
             flow_out["BFI_sim"] = 100 * (torch.sum(gwflow, dim=0) / (
                     torch.sum(srflow + ssflow + gwflow, dim=0) + 0.00001))[:, 0]
