@@ -27,7 +27,7 @@ loss_function_weights:
     w1: 2.0      # w1: flow loss weight
     w2: 1.0
 target: ["00060_Mean"]#, "00010_Mean"] #, "BFI_AVE", "PET"]     #
-tRange: [19800101, 20140101]
+tRange: [19800101, 20230101]
 t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
 t_test: [19941001, 20101001]    # the first year is for warm_up
@@ -91,8 +91,8 @@ varC_temp_model: ["area_gages2"] #["stream_length_square", 'PPTAVG_BASIN', 'SLOP
 
 
 ### process based streamflow model configurations
-hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
-varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', "pet_nldas"] #'tmin(C)', "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
+hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "pet_nldas"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ["area_gages2"]  #['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
 

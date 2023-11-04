@@ -79,7 +79,7 @@ class diff_hydro_temp_model(torch.nn.Module):
         params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"])
         params_hydro_model = params_all[-1, :, :self.ny_hydro]
         params_temp_model = params_all[-1, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
-        params_PET_model = params_all[-1, :, (self.ny_hydro + self.ny_temp):]
+        params_PET_model = torch.sigmoid(params_all[-1, :, (self.ny_hydro + self.ny_temp):])
 
         # Todo: I should separate PET model output from hydro_model and temp_model.
         #  For now, evap is calculated in both models individually (with same method)
@@ -93,6 +93,8 @@ class diff_hydro_temp_model(torch.nn.Module):
             if self.args["routing_hydro_model"] == True:
                 conv_params_hydro = torch.sigmoid(
                     params_hydro_model[:, len(self.hydro_model.parameters_bound) * self.args["nmul"]:])
+            else:
+                conv_params_hydro = None
 
             flow_out = self.hydro_model(
                 dataset_dictionary_sample["x_hydro_model_sample"],

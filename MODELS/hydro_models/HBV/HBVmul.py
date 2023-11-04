@@ -95,9 +95,9 @@ class HBVMul(torch.nn.Module):
         srflow = (1000 / 86400) * area * flow_out["srflow"].repeat(1, 1, args["nmul"])  # Q_t - gw - ss
         ssflow = (1000 / 86400) * area * flow_out["ssflow"].repeat(1, 1, args["nmul"])  # ras
         gwflow = (1000 / 86400) * area * flow_out["gwflow"].repeat(1, 1, args["nmul"])
-        srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
-        ssflow = torch.clamp(ssflow, min=0.0)
-        gwflow = torch.clamp(gwflow, min=0.0)
+        # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
+        # ssflow = torch.clamp(ssflow, min=0.0)
+        # gwflow = torch.clamp(gwflow, min=0.0)
         return srflow, ssflow, gwflow
     def param_bounds_2D(self, params, num, bounds, ndays, nmul):
 
@@ -154,7 +154,6 @@ class HBVMul(torch.nn.Module):
                 args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
             )     # mm/day
         elif args["potet_module"] == "potet_hargreaves":
-
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(day_of_year.shape[0], 1, nmul)
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
@@ -174,26 +173,11 @@ class HBVMul(torch.nn.Module):
             # AET = PET_coef * PET
 
         ## scale the parameters
-        No_days = x_hydro_model.shape[0] - warm_up
 
         params_dict = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
             params_dict[param] = self.change_param_range(param=hbv_params_raw[:, num, :],
                                                          bounds=self.parameters_bound[param])
-        # hbv_params_dict
-        # parBETA = self.param_bounds_2D(params, 0, bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
-        # parFC = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
-        # parK0 = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
-        # parK1 = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days, nmul=nmul)
-        # parK2 = self.param_bounds_2D(params, 4, bounds=self.parameters_bound[4], ndays=No_days, nmul=nmul)
-        # parLP = self.param_bounds_2D(params, 5, bounds=self.parameters_bound[5], ndays=No_days, nmul=nmul)
-        # parPERC = self.param_bounds_2D(params, 6, bounds=self.parameters_bound[6], ndays=No_days, nmul=nmul)
-        # parUZL = self.param_bounds_2D(params, 7, bounds=self.parameters_bound[7], ndays=No_days, nmul=nmul)
-        # parTT = self.param_bounds_2D(params, 8, bounds=self.parameters_bound[8], ndays=No_days, nmul=nmul)
-        # parCFMAX = self.param_bounds_2D(params, 9, bounds=self.parameters_bound[9], ndays=No_days, nmul=nmul)
-        # parCFR = self.param_bounds_2D(params, 10, bounds=self.parameters_bound[10], ndays=No_days, nmul=nmul)
-        # parCWH = self.param_bounds_2D(params, 11, bounds=self.parameters_bound[11], ndays=No_days, nmul=nmul)
-
 
         Nstep, Ngrid = P.size()
 

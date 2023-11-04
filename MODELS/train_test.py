@@ -119,7 +119,7 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
     for key in list_out_diff_model[0].keys():
         if len(list_out_diff_model[0][key].shape) == 3:
             dim = 1
-        if len(list_out_diff_model[0][key].shape) == 1:
+        else:
             dim = 0
         concatenated_tensor = torch.cat([d[key] for d in list_out_diff_model], dim=dim)
         file_name = key + ".npy"
