@@ -173,7 +173,6 @@ class HBVMul(torch.nn.Module):
             # AET = PET_coef * PET
 
         ## scale the parameters
-
         params_dict = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
             params_dict[param] = self.change_param_range(param=hbv_params_raw[:, num, :],

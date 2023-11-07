@@ -115,9 +115,21 @@ class diff_hydro_temp_model(torch.nn.Module):
             flow_out["BFI_sim"] = 100 * (torch.sum(gwflow, dim=0) / (
                     torch.sum(srflow + ssflow + gwflow, dim=0) + 0.00001))[:, 0]
             if self.args['temp_model_name'] != "None":
-                temp_out = self.temp_model.forward(x_temp_model,
-                                                   c_temp_model,
-                                                   params_temp_model,
+                # hydro params
+                temp_params_raw = torch.sigmoid(
+                    params_temp_model[:, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
+                    params_temp_model.shape[0], len(self.temp_model.parameters_bound),
+                    self.args["nmul"])
+                # convolution parameters for ss and gw temp calculation
+                if self.args["routing_temp_model"] == True:
+                    conv_params_temp = torch.sigmoid(params_temp_model[:, -4:])
+                else:
+                    print("it has not been defined yet what appoach should be taken in place of conv")
+                    exit()
+                temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
+                                                   dataset_dictionary_sample["c_temp_model_sample"],
+                                                   temp_params_raw,
+                                                   conv_params_temp=conv_params_temp,
                                                    args=self.args,
                                                    PET_param=params_PET_model,
                                                    srflow=srflow,

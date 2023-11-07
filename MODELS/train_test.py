@@ -143,8 +143,9 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
             temp_obs = y_obs[:, :, args["target"].index("00010_Mean")]
             predLst.append(temp_sim.numpy())
             obsLst.append(np.expand_dims(temp_obs, 2))
+        # we need to swap axes here to have [basin, days]
         statDictLst = [
-            stat.statError(x.squeeze(), y.squeeze())
+            stat.statError(np.swapaxes(x.squeeze(), 1, 0), np.swapaxes(y.squeeze(), 1, 0))
             for (x, y) in zip(predLst, obsLst)
         ]
         ### save this file
