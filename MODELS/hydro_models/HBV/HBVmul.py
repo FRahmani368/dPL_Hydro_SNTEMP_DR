@@ -17,7 +17,7 @@ class HBVMul(torch.nn.Module):
     def __init__(self):
         """Initiate a HBV instance"""
         super(HBVMul, self).__init__()
-        self.parameters_bound = dict(parBETA=[0, 1.0],
+        self.parameters_bound = dict(parBETA=[1.0, 6.0],
                                      parFC=[50, 1000],
                                      parK0=[0.05, 0.9],
                                      parK1=[0.01, 0.5],
@@ -201,50 +201,33 @@ class HBVMul(torch.nn.Module):
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
             RAIN = torch.mul(PRECIP, (Tmaxf[t, :, :] >= params_dict["parTT"]).type(torch.float32))
             SNOW = torch.mul(PRECIP, (Tmaxf[t, :, :] < params_dict["parTT"]).type(torch.float32))
-            # SNOW = SNOW * parSFCF
 
             # Snow
             SNOWPACK = SNOWPACK + SNOW
             melt = params_dict["parCFMAX"] * (Tmaxf[t, :, :] - params_dict["parTT"])
-            # melt[melt < 0.0] = 0.0
             melt = torch.clamp(melt, min=0.0)
-            # melt[melt > SNOWPACK] = SNOWPACK[melt > SNOWPACK]
             melt = torch.min(melt, SNOWPACK)
             MELTWATER = MELTWATER + melt
             SNOWPACK = SNOWPACK - melt
             refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (params_dict["parTT"] - Tmaxf[t, :, :])
-            # refreezing[refreezing < 0.0] = 0.0
-            # refreezing[refreezing > MELTWATER] = MELTWATER[refreezing > MELTWATER]
             refreezing = torch.clamp(refreezing, min=0.0)
             refreezing = torch.min(refreezing, MELTWATER)
             SNOWPACK = SNOWPACK + refreezing
             MELTWATER = MELTWATER - refreezing
             tosoil = MELTWATER - (params_dict["parCWH"] * SNOWPACK)
-            # tosoil[tosoil < 0.0] = 0.0
             tosoil = torch.clamp(tosoil, min=0.0)
             MELTWATER = MELTWATER - tosoil
 
             # Soil and evaporation
             soil_wetness = (SM / params_dict["parFC"]) ** params_dict["parBETA"]
-            # soil_wetness[soil_wetness < 0.0] = 0.0
-            # soil_wetness[soil_wetness > 1.0] = 1.0
             soil_wetness = torch.clamp(soil_wetness, min=0.0, max=1.0)
             recharge = (RAIN + tosoil) * soil_wetness
 
-            # ## log for displaying
-            # logSM[t,:] = SM.detach().cpu().numpy()
-            # logPS[t,:] = (RAIN + tosoil).detach().cpu().numpy()
-            # logswet[t,:] = (SM / parFC).detach().cpu().numpy()
-            # logRE[t, :] = recharge.detach().cpu().numpy()
-
             SM = SM + RAIN + tosoil - recharge
             excess = SM - params_dict["parFC"]
-            # excess[excess < 0.0] = 0.0
             excess = torch.clamp(excess, min=0.0)
             SM = SM - excess
             evapfactor = SM / (params_dict["parLP"] * params_dict["parFC"])
-            # evapfactor[evapfactor < 0.0] = 0.0
-            # evapfactor[evapfactor > 1.0] = 1.0
             evapfactor  = torch.clamp(evapfactor, min=0.0, max=1.0)
             ETact = PET[t, :, :] * evapfactor
             ETact = torch.min(SM, ETact)
@@ -289,14 +272,7 @@ class HBVMul(torch.nn.Module):
                                             bounds=self.conv_routing_hydro_model_bound[1])
             routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
             routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
-            # conv_params = self.activation_sigmoid(conv_params)
-            # tempa = self.param_bounds_2D(conv_params, 0, bounds=self.conv_routing_hydro_model_bound[0], ndays=No_days,
-            #                              nmul=1)
-            # tempb = self.param_bounds_2D(conv_params, 1, bounds=self.conv_routing_hydro_model_bound[1], ndays=No_days,
-            #                              nmul=1)
-
             UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
-            # UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
             rf = torch.unsqueeze(Qsim, -1).permute([1, 2, 0])   # dim:gage*var*time
             UH = UH.permute([1, 2, 0])  # dim: gage*var*time
             Qsrout = self.UH_conv(rf, UH).permute([2, 0, 1])
