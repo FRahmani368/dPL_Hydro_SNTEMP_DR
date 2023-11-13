@@ -420,6 +420,6 @@ class prms_marrmot(torch.nn.Module):
                         ssflow=Qras_rout,
                         gwflow=Qbas_rout,
                         sink=torch.mean(snk_sim, -1).unsqueeze(-1),
-                        PET_hydro=PET,
-                        AET_hydro=AET,
+                        PET_hydro=PET.mean(-1, keepdim=True),
+                        AET_hydro=AET.mean(-1, keepdim=True),
                         PET_coef=PET_coef)

@@ -40,8 +40,12 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.ny_temp = self.ny_temp + self.args["nmul"]
         else:
             self.ny_temp = 0
-        if self.args["potet_module"] in ["potet_hargreaves", "potet_hamon", "dataset"]:
+        if self.args["hydro_model_name"] == "HBV":   # no need to have a PET to AET coef
+            self.ny_PET = 0
+        elif self.args["hydro_model_name"] == "marrmot_PRMS":   # need a PET to AET coef
             self.ny_PET = self.args["nmul"]
+        # if self.args["potet_module"] in ["potet_hargreaves", "potet_hamon", "dataset"]:
+        #     self.ny_PET = self.args["nmul"]
         self.ny = self.ny_hydro + self.ny_temp + self.ny_PET
 
     def get_model(self) -> None:
@@ -75,36 +79,62 @@ class diff_hydro_temp_model(torch.nn.Module):
             print("NN model type has not been defined")
             exit()
 
-    def forward(self, dataset_dictionary_sample):
-        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"])
+    def breakdown_params(self, params_all):
+        params_dict = dict()
         params_hydro_model = params_all[-1, :, :self.ny_hydro]
         params_temp_model = params_all[-1, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
-        params_PET_model = torch.sigmoid(params_all[-1, :, (self.ny_hydro + self.ny_temp):])
+        if self.ny_PET > 0:
+            params_dict["params_PET_model"] = torch.sigmoid(params_all[-1, :, (self.ny_hydro + self.ny_temp):])
+        else:
+            params_dict["params_PET_model"] = None
+
 
         # Todo: I should separate PET model output from hydro_model and temp_model.
         #  For now, evap is calculated in both models individually (with same method)
+
         if self.args['hydro_model_name'] != "None":
             # hydro params
-            hydro_params_raw = torch.sigmoid(
+            params_dict["hydro_params_raw"] = torch.sigmoid(
                 params_hydro_model[:, :len(self.hydro_model.parameters_bound) * self.args["nmul"]]).view(
                 params_hydro_model.shape[0], len(self.hydro_model.parameters_bound),
                 self.args["nmul"])
             # routing params
             if self.args["routing_hydro_model"] == True:
-                conv_params_hydro = torch.sigmoid(
+                params_dict["conv_params_hydro"] = torch.sigmoid(
                     params_hydro_model[:, len(self.hydro_model.parameters_bound) * self.args["nmul"]:])
             else:
-                conv_params_hydro = None
+                params_dict["conv_params_hydro"] = None
 
+        if self.args['temp_model_name'] != "None":
+            # hydro params
+            params_dict["temp_params_raw"] = torch.sigmoid(
+                params_temp_model[:, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
+                params_temp_model.shape[0], len(self.temp_model.parameters_bound),
+                self.args["nmul"])
+            # convolution parameters for ss and gw temp calculation
+            if self.args["routing_temp_model"] == True:
+                params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[:, -4:])
+            else:
+                print("it has not been defined yet what appoach should be taken in place of conv")
+                exit()
+        return params_dict
+
+
+    def forward(self, dataset_dictionary_sample):
+        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"])
+        # breaking down the parameters to different pieces for different models (PET, hydro, temp)
+        params_dict = self.breakdown_params(params_all)
+        if self.args['hydro_model_name'] != "None":
+            # hydro model
             flow_out = self.hydro_model(
                 dataset_dictionary_sample["x_hydro_model_sample"],
                 dataset_dictionary_sample["c_hydro_model_sample"],
-                hydro_params_raw,
+                params_dict['hydro_params_raw'],
                 self.args,
-                PET_param=params_PET_model,  # PET is in both temp and flow model
+                PET_param=params_dict["params_PET_model"],  # PET is in both temp and flow model
                 warm_up=self.args["warm_up"],
                 routing=self.args["routing_hydro_model"],
-                conv_params_hydro=conv_params_hydro
+                conv_params_hydro=params_dict["conv_params_hydro"]
             )
 
             # Todo: send this to  a function
@@ -114,24 +144,15 @@ class diff_hydro_temp_model(torch.nn.Module):
             # baseflow index percentage
             flow_out["BFI_sim"] = 100 * (torch.sum(gwflow, dim=0) / (
                     torch.sum(srflow + ssflow + gwflow, dim=0) + 0.00001))[:, 0]
+
             if self.args['temp_model_name'] != "None":
-                # hydro params
-                temp_params_raw = torch.sigmoid(
-                    params_temp_model[:, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
-                    params_temp_model.shape[0], len(self.temp_model.parameters_bound),
-                    self.args["nmul"])
-                # convolution parameters for ss and gw temp calculation
-                if self.args["routing_temp_model"] == True:
-                    conv_params_temp = torch.sigmoid(params_temp_model[:, -4:])
-                else:
-                    print("it has not been defined yet what appoach should be taken in place of conv")
-                    exit()
+                # temperature model
                 temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
                                                    dataset_dictionary_sample["c_temp_model_sample"],
-                                                   temp_params_raw,
-                                                   conv_params_temp=conv_params_temp,
+                                                   params_dict["temp_params_raw"],
+                                                   conv_params_temp=params_dict["conv_params_temp"],
                                                    args=self.args,
-                                                   PET_param=params_PET_model,
+                                                   PET=flow_out["AET_hydro"] * (1 / (1000 * 86400)),   # converting mm/day to m/sec,
                                                    srflow=srflow,
                                                    ssflow=ssflow,
                                                    gwflow=gwflow)

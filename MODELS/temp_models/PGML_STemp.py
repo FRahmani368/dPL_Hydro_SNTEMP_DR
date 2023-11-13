@@ -3662,7 +3662,7 @@ class SNTEMP_flowSim(nn.Module):
             albedo=[0.06, 0.1]     #albedo
         )
         self.conv_temp_model_bound = dict(
-            a_ssflow=[ 0.01, 12.0],  # a (k) for ss flow temp
+            a_ssflow=[0.01, 12.0],  # a (k) for ss flow temp
             b_ssflow=[0.01, 12.0],    #b (theta)  for ss flow temp
             a_gwflow=[0.01, 12.0],    # a (k) for gw flow temp
             b_gwflow=[0.01, 12.0],    # b (theta)  for gw flow temp
@@ -4659,7 +4659,7 @@ class SNTEMP_flowSim(nn.Module):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
 
-    def forward(self, x, c, params_raw, conv_params_temp, args, PET_param, srflow, ssflow, gwflow):
+    def forward(self, x, c, params_raw, conv_params_temp, args, PET, srflow, ssflow, gwflow):
         NEARZERO = args["NEARZERO"]
         warm_up = args["warm_up"]
         nmul = args["nmul"]
@@ -4667,22 +4667,12 @@ class SNTEMP_flowSim(nn.Module):
         varC = args["varC_temp_model"]
         # initialization of the params
         Nstep = x.shape[0] - warm_up
+
         ## scale the parameters
         params_dict = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
             params_dict[param] = self.change_param_range(param=params_raw[:, num, :],
                                                          bounds=self.parameters_bound[param])
-
-        # w1_shade = self.param_bounds_2D(params, 0,  bounds=self.parameters_bound[0], ndays=No_days, nmul=nmul)
-        # w2_shade = self.param_bounds_2D(params, 1, bounds=self.parameters_bound[1], ndays=No_days, nmul=nmul)
-        # width_coef_factor = self.param_bounds_2D(params, 2, bounds=self.parameters_bound[2], ndays=No_days, nmul=nmul)
-        # width_coef_pow = self.param_bounds_2D(params, 3, bounds=self.parameters_bound[3], ndays=No_days,
-        #                                       nmul=nmul)
-        # w2_shade = self.param_bounds(params[:, warm_up:, :], 1, args, bounds=args["SNTEMP_paramCalLst"][1])
-        # w3_shade = self.param_bounds(params, 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        # width_coef_factor = self.param_bounds(params[:, warm_up:, :], 2, args, bounds=args["SNTEMP_paramCalLst"][2])
-        # width_coef_pow = self.param_bounds(params[:, warm_up:, :], 3, args, bounds=args["SNTEMP_paramCalLst"][3])
-        # hamon_coef = self.param_bounds(params[:, warm_up:, :], 4, args, bounds=args["SNTEMP_paramCalLst"][4])
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
                 params_dict[param] = self.change_param_range(param=conv_params_temp[:, num],
@@ -4693,8 +4683,7 @@ class SNTEMP_flowSim(nn.Module):
                                                    bounds=self.lat_adj_params_bound[0])
         else:
             params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
-        params_dict["PET_coef"] = self.change_param_range(PET_param, bounds=self.PET_coef_bound[0])
-        # obsQ = x[:, :, vars.index("00060_Mean")].unsqueeze(-1).repeat(1, 1, nmul) * 0.028316  # converting cfs to cms
+
         Q_tot = srflow + ssflow + gwflow
         Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
@@ -4718,27 +4707,27 @@ class SNTEMP_flowSim(nn.Module):
         # albedo = args["STemp_default_albedo"]
 
         # hamon PET equation. We can add other methods too, such as Penman monteith
-        if args["potet_module"] == "potet_hamon":
-            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
-            PET = get_potet(
-                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=0.008 #PET_coef
-            )
-        elif args["potet_module"] == "potet_hargreaves":
-            day_of_year = x[warm_up:, :, varT.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
-            lat = c[:, varC.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
-            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
-            #                                 nmul=args["nmul"])
-
-            PET = get_potet(
-                args=args, tmin=Tminf, tmax=Tmaxf,
-                tmean=mean_air_temp, lat=lat,
-                day_of_year=day_of_year
-            )
-        elif args["potet_module"] == "dataset":
-            PET = x[warm_up:, :, varT.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
-
-        #converting PET to AET and converting mm/day to m/sec
-        AET = params_dict["PET_coef"] * PET * (1 / (1000 * 86400))   # converting mm/day to m/sec
+        # if args["potet_module"] == "potet_hamon":
+        #     # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
+        #     PET = get_potet(
+        #         args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=0.008 #PET_coef
+        #     )
+        # elif args["potet_module"] == "potet_hargreaves":
+        #     day_of_year = x[warm_up:, :, varT.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
+        #     lat = c[:, varC.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(dayl.shape[0], 1, nmul)
+        #     # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+        #     #                                 nmul=args["nmul"])
+        #
+        #     PET = get_potet(
+        #         args=args, tmin=Tminf, tmax=Tmaxf,
+        #         tmean=mean_air_temp, lat=lat,
+        #         day_of_year=day_of_year
+        #     )
+        # elif args["potet_module"] == "dataset":
+        #     PET = x[warm_up:, :, varT.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+        #
+        # #converting PET to AET and converting mm/day to m/sec
+        # AET = params_dict["PET_coef"] * PET * (1 / (1000 * 86400))   # converting mm/day to m/sec
 
 
 
@@ -4822,7 +4811,6 @@ class SNTEMP_flowSim(nn.Module):
             lat_temp_adj=params_dict["lat_temp_adj"],
         )
 
-
         A, B, C, D = self.ABCD_equations(
             T_a=T_0,
             swrad=swrad,
@@ -4831,7 +4819,7 @@ class SNTEMP_flowSim(nn.Module):
             slope=slope,
             top_width=top_width,
             up_inflow=0.0,  # should be obsQ
-            E=AET,  # up_inflow
+            E=PET,  # up_inflow
             T_g=gwflow_temp,
             shade_fraction_riparian=params_dict["shade_fraction_riparian"],
             albedo=params_dict["albedo"],
@@ -4844,7 +4832,7 @@ class SNTEMP_flowSim(nn.Module):
             A=A, B=B, C=C, D=D, T_e=T_e, NEARZERO=NEARZERO, T_0=T_0
         )
 
-        Q_0 = make_tensor(np.full((AET.shape), 0.000001))
+        Q_0 = make_tensor(np.full((PET.shape), 0.000001))
         # Q_0 = make_tensor(np.full((obsQ.shape[0], obsQ.shape[1]), 0))
 
         # T_w = self.solving_SNTEMP_ODE_second_order(K1, K2, T_l, T_e, ave_width=top_width,
@@ -4874,14 +4862,14 @@ class SNTEMP_flowSim(nn.Module):
                     gwflow_temp=gwflow_temp.mean(-1, keepdim=True),
                     w_gwflow=w_gwflow.permute([2, 0, 1]),
                     w_ssflow=w_ssflow.permute([2, 0, 1]),
-                    AET_temp=AET.mean(-1, keepdim=True),
-                    PET_temp=PET.mean(-1, keepdim=True) * (1 / (1000 * 86400)),   # converting to m/sec, same as AET
+                    # AET_temp=AET.mean(-1, keepdim=True),
+                    # PET_temp=PET.mean(-1, keepdim=True) * (1 / (1000 * 86400)),   # converting to m/sec, same as AET
                     shade_fraction_riparian=params_dict["shade_fraction_riparian"].mean(-1, keepdim=True),
                     shade_fraction_topo=params_dict["shade_fraction_topo"].mean(-1, keepdim=True),
                     top_width=top_width.mean(-1, keepdim=True),
                     width_coef_factor=params_dict["width_coef_factor"].mean(-1, keepdim=True),
                     width_coef_pow=params_dict["width_coef_pow"].mean(-1, keepdim=True),
-                    PET_coef_temp=params_dict["PET_coef"].mean(-1, keepdim=True),
+                    # PET_coef_temp=params_dict["PET_coef"].mean(-1, keepdim=True),
                     lat_temp_adj=params_dict["lat_temp_adj"].mean(-1, keepdim=True),
                     a_ssflow=params_dict["a_ssflow"].mean(-1, keepdim=True),
                     b_ssflow=params_dict["b_ssflow"].mean(-1, keepdim=True),
