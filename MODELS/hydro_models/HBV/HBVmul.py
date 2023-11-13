@@ -145,8 +145,8 @@ class HBVMul(torch.nn.Module):
         P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
         Pm= P.unsqueeze(2).repeat(1, 1, nmul)
         Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
-        # Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
-        mean_air_temp = Tmaxf #(Tmaxf + Tminf) / 2
+        Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
+        mean_air_temp = (Tmaxf + Tminf) / 2
 
         if args["potet_module"] == "potet_hamon":
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])

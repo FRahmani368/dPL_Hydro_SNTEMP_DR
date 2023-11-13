@@ -121,7 +121,7 @@ class diff_hydro_temp_model(torch.nn.Module):
 
 
     def forward(self, dataset_dictionary_sample):
-        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"])
+        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"][self.args["warm_up"]:, :, :])
         # breaking down the parameters to different pieces for different models (PET, hydro, temp)
         params_dict = self.breakdown_params(params_all)
         if self.args['hydro_model_name'] != "None":

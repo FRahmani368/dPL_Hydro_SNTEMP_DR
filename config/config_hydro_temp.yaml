@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 3
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20230923//forcing_415_20230923.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -39,7 +39,7 @@ hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
 no_basins: 20
-varT_NN: ['prcp(mm/day)', 'tmax(C)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)'
+varT_NN: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)'
 varC_NN: [
   'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
   'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
@@ -91,7 +91,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_P
 
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
