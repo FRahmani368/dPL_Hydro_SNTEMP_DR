@@ -7,7 +7,7 @@ def get_lossFun(args):
     spec = importlib.util.spec_from_file_location(args["loss_function"], "./MODELS/loss_functions/" + args["loss_function"] + ".py")
     module = spec.loader.load_module()
     loss_function_default = getattr(module, args["loss_function"])
-    if args["loss_function"] !="RmseLoss_flow_comb":
+    if (args["loss_function"] =="RmseLoss_flow_temp") or (args["loss_function"] =="RmseLoss_flow_temp_BFI") or (args["loss_function"] =="RmseLoss_flow_temp_BFI_PET"):
         lossFun = loss_function_default(w1=args["loss_function_weights"]["w1"],
                                         w2=args["loss_function_weights"]["w2"])
     else:

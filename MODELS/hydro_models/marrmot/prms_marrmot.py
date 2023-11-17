@@ -26,7 +26,7 @@ class prms_marrmot(torch.nn.Module):
                                      k3=[0, 1],    # k3, Interflow coefficient 1 [d-1]
                                      k4=[0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
                                      k5=[0, 1],    # k5, Baseflow coefficient [d-1]
-                                     k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
+                                     #k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
                                      )
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
@@ -368,15 +368,15 @@ class prms_marrmot(torch.nn.Module):
             GW_storage = GW_storage + flux_gad + flux_sep
             flux_bas = params_dict["k5"] * GW_storage
             GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
-            flux_snk = params_dict["k6"] * GW_storage
-            GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
+            # flux_snk = params_dict["k6"] * GW_storage
+            # GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
             Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[t, :, :] = flux_sas
             sro_sim[t, :, :] = flux_sro
             bas_sim[t, :, :] = flux_bas
             ras_sim[t, :, :] = flux_ras
-            snk_sim[t, :, :] = flux_snk
+            # snk_sim[t, :, :] = flux_snk
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -419,7 +419,7 @@ class prms_marrmot(torch.nn.Module):
                         srflow=Qsas_rout + Qsro_rout,
                         ssflow=Qras_rout,
                         gwflow=Qbas_rout,
-                        sink=torch.mean(snk_sim, -1).unsqueeze(-1),
+                        # sink=torch.mean(snk_sim, -1).unsqueeze(-1),
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
                         PET_coef=PET_coef)

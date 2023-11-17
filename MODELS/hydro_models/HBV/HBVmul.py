@@ -199,17 +199,17 @@ class HBVMul(torch.nn.Module):
         for t in range(Nstep):
             # Separate precipitation into liquid and solid components
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
-            RAIN = torch.mul(PRECIP, (Tmaxf[t, :, :] >= params_dict["parTT"]).type(torch.float32))
-            SNOW = torch.mul(PRECIP, (Tmaxf[t, :, :] < params_dict["parTT"]).type(torch.float32))
+            RAIN = torch.mul(PRECIP, (mean_air_temp[t, :, :] >= params_dict["parTT"]).type(torch.float32))
+            SNOW = torch.mul(PRECIP, (mean_air_temp[t, :, :] < params_dict["parTT"]).type(torch.float32))
 
             # Snow
             SNOWPACK = SNOWPACK + SNOW
-            melt = params_dict["parCFMAX"] * (Tmaxf[t, :, :] - params_dict["parTT"])
+            melt = params_dict["parCFMAX"] * (mean_air_temp[t, :, :] - params_dict["parTT"])
             melt = torch.clamp(melt, min=0.0)
             melt = torch.min(melt, SNOWPACK)
             MELTWATER = MELTWATER + melt
             SNOWPACK = SNOWPACK - melt
-            refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (params_dict["parTT"] - Tmaxf[t, :, :])
+            refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (params_dict["parTT"] - mean_air_temp[t, :, :])
             refreezing = torch.clamp(refreezing, min=0.0)
             refreezing = torch.min(refreezing, MELTWATER)
             SNOWPACK = SNOWPACK + refreezing
