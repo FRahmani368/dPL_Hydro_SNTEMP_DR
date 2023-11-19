@@ -152,7 +152,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                                                    params_dict["temp_params_raw"],
                                                    conv_params_temp=params_dict["conv_params_temp"],
                                                    args=self.args,
-                                                   PET=flow_out["AET_hydro"] * (1 / (1000 * 86400)),   # converting mm/day to m/sec,
+                                                   PET=flow_out["PET_hydro"] * (1 / (1000 * 86400)),   # converting mm/day to m/sec,
                                                    srflow=srflow,
                                                    ssflow=ssflow,
                                                    gwflow=gwflow)

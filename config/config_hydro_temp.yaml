@@ -4,15 +4,15 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 4
+nmul: 5
 ### Directories of forcings, attributes, and output
 # ICDS
-#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20230923.feather" #          no_dam_forcing_99%_days34sites.feather
+#forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 #output_model: "//storage//work//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_365_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr365.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_forcing_pet.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr_site_no.feather"
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
@@ -22,11 +22,11 @@ output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jo
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"
+loss_function: "RmseLoss_BFI_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"
 loss_function_weights:
-    w1: 11.0      # w1: flow loss weight
+    w1: 0.05      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00060_Mean", "00010_Mean"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean", "00010_Mean", "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
@@ -34,10 +34,10 @@ t_test: [19990101, 20080101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 200
-EPOCHS: 10
+EPOCHS: 4
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 1
+saveEpoch: 4
 no_basins: 25
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
 varC_NN: [
@@ -91,7 +91,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_P
 
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
