@@ -1,0 +1,337 @@
+import torch
+from MODELS.PET_models.potet import get_potet
+import torch.nn.functional as F
+
+class SACSMA(torch.nn.Module):
+    """HBV Model with multiple components and dynamic parameters PyTorch version"""
+    # Add an ET shape parameter for the original ET equation; others are the same as HBVMulTD()
+    # we suggest you read the class HBVMul() with original static parameters first
+
+    def __init__(self):
+        """Initiate a HBV instance"""
+        super(SACSMA, self).__init__()
+        self.parameters_bound = dict(pctim=[0.0, 1.0],
+                                     smax=[1, 2000],
+                                     f1=[0.005, 0.995],
+                                     f2=[0.005, 0.995],
+                                     kuz=[0.0, 1],
+                                     rexp=[0.0, 7],
+                                     f3=[0.005, 0.995],
+                                     f4=[0.005, 0.995],
+                                     pfree=[0, 1],
+                                     klzp=[0, 1],
+                                     klzs=[0, 1])
+        self.conv_routing_hydro_model_bound = [
+            [0, 2.9],  # routing parameter a
+            [0, 6.5]  # routing parameter b
+        ]
+    def split_1(self, p1, In):
+        """
+        Split flow (returns flux [mm/d])
+
+        :param p1: fraction of flux to be diverted [-]
+        :param In: incoming flux [mm/d]
+        :return: divided flux
+        """
+        out = p1 * In
+        return out
+
+    def soilmoisture_1(self, S1, S1max, S2, S2max):
+        """
+        Water rebalance to equal relative storage (2 stores)
+
+        :param S1: current storage in S1 [mm]
+        :param S1max: maximum storage in S1 [mm]
+        :param S2: current storage in S2 [mm]
+        :param S2max: maximum storage in S2 [mm]
+        :return: rebalanced water storage
+        """
+        mask = S1/S1max < S2/S2max
+        mask = mask.type(torch.cuda.FloatTensor)
+        out = ((S2 * S1max - S1 * S2max) / (S1max + S2max)) * mask
+        return out
+
+    def evap_7(self, S, Smax, Ep, dt):
+        """
+        Evaporation scaled by relative storage
+
+        :param S: current storage [mm]
+        :param Smax: maximum contributing storage [mm]
+        :param Ep: potential evapotranspiration rate [mm/d]
+        :param dt: time step size [d]
+        :return: evaporation [mm]
+        """
+        out = torch.min(S / Smax * Ep, S / dt)
+        return out
+
+    def saturation_1(self, In, S, Smax):
+        """
+        Saturation excess from a store that has reached maximum capacity
+
+        :param In: incoming flux [mm/d]
+        :param S: current storage [mm]
+        :param Smax: maximum storage [mm]
+        :param args: smoothing variables (optional)
+        :return: saturation excess
+        """
+        mask = S >= Smax
+        mask = mask.type(torch.cuda.FloatTensor)
+        out = In * mask
+
+        return out
+
+    def interflow_5(self, p1, S):
+        """
+        Linear interflow
+
+        :param p1: time coefficient [d-1]
+        :param S: current storage [mm]
+        :return: interflow output
+        """
+        out = p1 * S
+        return out
+
+    def evap_1(self, S, Ep, dt):
+        """
+        Evaporation at the potential rate
+
+        :param S: current storage [mm]
+        :param Ep: potential evaporation rate [mm/d]
+        :param dt: time step size
+        :return: evaporation output
+        """
+        out = torch.min(S / dt, Ep)
+        return out
+
+    def percolation_4(self, p1, p2, p3, p4, p5, S, Smax, dt):
+        """
+        Demand-based percolation scaled by available moisture
+
+        :param p1: base percolation rate [mm/d]
+        :param p2: percolation rate increase due to moisture deficiencies [mm/d]
+        :param p3: non-linearity parameter [-]
+        :param p4: summed deficiency across all model stores [mm]
+        :param p5: summed capacity of model stores [mm]
+        :param S: current storage in the supplying store [mm]
+        :param Smax: maximum storage in the supplying store [mm]
+        :param dt: time step size [d]
+        :return: percolation output
+        """
+        # Prevent negative S values and ensure non-negative percolation demands
+        S_rel = torch.max(torch.tensor(1e-8).cuda(), S / Smax)
+
+        percolation_demand = p1 * (torch.tensor(1.0).cuda() + p2 * (p4 / p5) ** (torch.tensor(1.0).cuda() + p3))
+        out = torch.max(torch.tensor(1e-8).cuda(), torch.min(S / dt, S_rel * percolation_demand))
+        return out
+
+    def soilmoisture_2(self, S1, S1max, S2, S2max, S3, S3max):
+        """
+        Water rebalance to equal relative storage (3 stores)
+
+        :param S1: current storage in S1 [mm]
+        :param S1max: maximum storage in S1 [mm]
+        :param S2: current storage in S2 [mm]
+        :param S2max: maximum storage in S2 [mm]
+        :param S3: current storage in S3 [mm]
+        :param S3max: maximum storage in S3 [mm]
+        :return: rebalanced water storage
+        """
+        part1 = S2 * (S1 * (S2max + S3max) + S1max * (S2 + S3)) / ((S2max + S3max) * (S1max + S2max + S3max))
+        mask = S1 / S1max < (S2 + S3) / (S2max + S3max)
+        mask = mask.type(torch.cuda.FloatTensor)
+        out = part1 * mask
+        return out
+
+    def baseflow_1(self,K,S):
+        return K * S
+
+
+
+    def deficitBasedDistribution_pytorch(self, S1, S1max, S2, S2max):
+        # Calculate relative deficits
+        rd1 = (S1max-S1 ) / S1max
+        rd2 = (S2max-S2 ) / S2max
+
+        # Calculate fractional split
+        total_rd = rd1 + rd2
+        mask = total_rd != torch.tensor(0.0).cuda()
+        mask = mask.type(torch.cuda.FloatTensor)
+        total_max = S1max + S2max
+        f1 = rd1 / total_rd * mask + S1max / total_max*(torch.tensor(1.0)-mask)
+
+        return f1
+
+    def UH_gamma(self, a, b, lenF=10):
+        # UH. a [time (same all time steps), batch, var]
+        m = a.shape
+        lenF = min(a.shape[0], lenF)
+        w = torch.zeros([lenF, m[1], m[2]])
+        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
+        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+        t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        t = t.cuda(aa.device)
+        denom = (aa.lgamma().exp()) * (theta ** aa)
+        mid = t ** (aa - 1)
+        right = torch.exp(-t / theta)
+        w = 1 / denom * mid * right
+        w = w / w.sum(0)  # scale to 1 for each UH
+
+        return w
+
+    def UH_conv(self, x, UH, viewmode=1):
+        # UH is a vector indicating the unit hydrograph
+        # the convolved dimension will be the last dimension
+        # UH convolution is
+        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+        # hence we flip the UH
+        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+        # view
+        # x: [batch, var, time]
+        # UH:[batch, var, uhLen]
+        # batch needs to be accommodated by channels and we make use of groups
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+        # https://pytorch.org/docs/stable/nn.functional.html
+
+        mm = x.shape;
+        nb = mm[0]
+        m = UH.shape[-1]
+        padd = m - 1
+        if viewmode == 1:
+            xx = x.view([1, nb, mm[-1]])
+            w = UH.view([nb, 1, m])
+            groups = nb
+
+        y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+        if padd != 0:
+            y = y[:, :, 0:-padd]
+        return y.view(mm)
+
+
+    def change_param_range(self, param, bounds):
+        out = param * (bounds[1] - bounds[0]) + bounds[0]
+        return out
+
+    def forward(self, x_hydro_model, c_hydro_model, SACSMA_params_raw, args, PET_param, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+        nmul = args["nmul"]
+        # HBV(P, ETpot, T, parameters)
+        #
+        # Runs the HBV-light hydrological model (Seibert, 2005). NaN values have to be
+        # removed from the inputs.
+
+        PRECS = 1e-5
+
+        # Initialization
+        if warm_up > 0:
+            with torch.no_grad():
+                xinit = x_hydro_model[0:warm_up, :, :]
+                initmodel = SACSMA().to(args["device"])
+                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args, PET_param,
+                                                                      muwts=None, warm_up=0, init=True, routing=False,
+                                                                      comprout=False, conv_params_hydro=None)
+        else:
+
+            # Without buff time, initialize state variables with zeros
+            Ngrid = x_hydro_model.shape[1]
+            UZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            UZFW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            LZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            LZWFP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            LZFWS_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
+        vars = args["varT_hydro_model"]
+        vars_c = args["varC_hydro_model"]
+        P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
+        Pm = P.unsqueeze(2).repeat(1, 1, nmul)
+        Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
+        Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
+        mean_air_temp = (Tmaxf + Tminf) / 2
+
+        if args["potet_module"] == "potet_hamon":
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
+            PET = get_potet(
+                args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
+            )  # mm/day
+        elif args["potet_module"] == "potet_hargreaves":
+            day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
+            lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(day_of_year.shape[0], 1, nmul)
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+            #                                   nmul=args["nmul"])
+
+            PET = get_potet(
+                args=args, tmin=Tminf, tmax=Tmaxf,
+                tmean=mean_air_temp, lat=lat,
+                day_of_year=day_of_year
+            )
+            # AET = PET_coef * PET     # here PET_coef converts PET to Actual ET here
+        elif args["potet_module"] == "dataset":
+            # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
+            #                                 nmul=args["nmul"])
+            # here PET_coef converts PET to Actual ET
+            PET = x_hydro_model[warm_up:, :, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
+            # AET = PET_coef * PET
+
+        ## scale the parameters
+        params_dict = dict()
+        for num, param in enumerate(self.parameters_bound.keys()):
+            params_dict[param] = self.change_param_range(param=SACSMA_params_raw[:, num, :],
+                                                         bounds=self.parameters_bound[param])
+        uztwm = params_dict["f1"] * params_dict["smax"]
+        uzfwm = torch.clamp(params_dict["f2"] * (params_dict["smax"] - uztwm), min=0.005/4)
+        lztwm = torch.clamp(params_dict["f3"] * (params_dict["smax"] - uztwm - uzfwm), min=0.005 / 4)
+        lzfwpm = torch.clamp(params_dict["f4"] * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
+        lzfwsm = torch.clamp((1 - params_dict["f4"]) * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
+        pbase = lzfwpm * params_dict["klzs"] + lzfwsm * params_dict["klzs"]
+        zperc = torch.clamp((lztwm + lzfwsm * (1 - params_dict["klzs"])) / (lzfwsm * params_dict["klzs"] +
+                                                                            lzfwpm * params_dict["klzp"]) +
+                            (lzfwpm * (1 - params_dict["klzp"])) / (lzfwsm * params_dict["klzs"] +
+                                                                    lzfwpm * params_dict["klzp"]), max=100000.0)
+        Nstep, Ngrid = P.size()
+
+        for t in range(Nstep):
+            # Separate precipitation into liquid and solid components
+            PRECIP = Pm[t, :, :]
+            Ep = PET[t, :, :]
+            flux_qdir = self.split_1(params_dict["pctim"], PRECIP)
+            flux_peff = self.split_1(1 - params_dict["pctim"], PRECIP)
+            UZTW_storage = UZTW_storage + flux_peff
+            flux_Twexu = UZTW_storage - uztwm
+            flux_Twexu = torch.clamp(flux_Twexu, min=0.0)
+            flux_Euztw = Ep * UZTW_storage / (uztwm + 0.001)  # to avoid nan values, we add 0.001
+            flux_Euztw = torch.min(flux_Euztw, UZTW_storage)
+            UZTW_storage = UZTW_storage - flux_Euztw
+
+            UZFW_storage = UZFW_storage + flux_Twexu
+            flux_Ru = torch.where((UZTW_storage / uztwm) < (UZFW_storage / uzfwm),
+                                  (uztwm * UZFW_storage - uzfwm * UZTW_storage) / (uztwm + uzfwm),
+                                  torch.zeros(flux_Twexu.shape, dtype=torch.float32, device=args["device"]))
+            flux_Ru = torch.min(flux_Ru, UZFW_storage)
+            UZFW_storage = UZFW_storage - flux_Ru
+            UZTW_storage = UZTW_storage + flux_Ru
+            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0)
+            UZFW_storage = UZFW_storage - flux_Qsur
+            flux_Qint = params_dict["kuz"] * UZFW_storage
+            UZFW_storage = UZFW_storage - flux_Qint
+            LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZWFP_storage) + (lzfwsm - LZFWS_storage)
+            LZ_capacity = lztwm + lzfwsm + lzfwpm
+            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / LZ_capacity) ** params_dict["rexp"])))
+            flux_Pc = Pc_demand * UZFW_storage / uzfwm
+            flux_Pc = torch.min(flux_Pc, UZFW_storage)
+            UZFW_storage = UZFW_storage - flux_Pc
+            flux_Euzfw = torch.clamp(Ep - flux_Euztw, min=0.0)
+            flux_Euzfw = torch.min(flux_Euzfw, UZFW_storage)
+            UZFW_storage = UZFW_storage - flux_Euzfw
+
+
+
+
+
+
+
+
+
+
+
+
+
+

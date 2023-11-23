@@ -22,7 +22,7 @@ output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jo
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_BFI_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"
+loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
 loss_function_weights:
     w1: 0.05      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
@@ -63,7 +63,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP"
+temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -91,7 +91,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_P
 
 
 ### process based streamflow model configurations
-hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
