@@ -26,7 +26,7 @@ class prms_marrmot(torch.nn.Module):
                                      k3=[0, 1],    # k3, Interflow coefficient 1 [d-1]
                                      k4=[0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
                                      k5=[0, 1],    # k5, Baseflow coefficient [d-1]
-                                     #k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
+                                     k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
                                      )
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
@@ -206,7 +206,7 @@ class prms_marrmot(torch.nn.Module):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
 
-    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, PET_param, warm_up=0, init=False, routing=True, conv_params_hydro=None):
+    def forward(self, x_hydro_model, c_hydro_model, params_raw, args,  warm_up=0, init=False, routing=True, conv_params_hydro=None):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
         vars = args["varT_hydro_model"]
@@ -219,7 +219,7 @@ class prms_marrmot(torch.nn.Module):
                 warm_up_model = prms_marrmot().to(args["device"])
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
-                    RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params_raw, args, PET_param,
+                    RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params_raw, args,
                                                             warm_up=0, init=True, routing=False,
                                                             conv_params_hydro=None)
         else:
@@ -255,8 +255,8 @@ class prms_marrmot(torch.nn.Module):
         remx = (1 - params_dict["flz"]) * params_dict["stot"]
         smax = params_dict["flz"] * params_dict["stot"]
         # PWT_coef , for converting PET to AET
-        PET_coef = self.change_param_range(param=PET_param,
-                                                         bounds=self.PET_coef_bound[0])
+        # PET_coef = self.change_param_range(param=PET_param,
+        #                                                  bounds=self.PET_coef_bound[0])
         #################
         # inputs
         Precip = (x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul))
@@ -301,7 +301,7 @@ class prms_marrmot(torch.nn.Module):
             flux_m = torch.clamp(params_dict["ddf"] * (T - params_dict["tt"]), min=0.0)
             flux_m = torch.min(flux_m, snow_storage/delta_t)
             # flux_m = torch.clamp(flux_m, min=0.0)
-            snow_storage = torch.clamp(snow_storage - flux_m, min=NEARZERO)
+            snow_storage = snow_storage - flux_m  #torch.clamp(snow_storage - flux_m, min=NEARZERO)
             # snow_storage = torch.clamp(snow_storage, min=NEARZERO)  # to prevent NaN  gradient, it is set to NEARZERO
 
             flux_pim = flux_pr * (1 - params_dict["beta"])
@@ -369,15 +369,15 @@ class prms_marrmot(torch.nn.Module):
             GW_storage = GW_storage + flux_gad + flux_sep
             flux_bas = params_dict["k5"] * GW_storage
             GW_storage = GW_storage - flux_bas   #torch.clamp(GW_storage - flux_bas, min=NEARZERO)
-            # flux_snk = params_dict["k6"] * GW_storage
-            # GW_storage = GW_storage - flux_snk             #torch.clamp(GW_storage - flux_snk, min=NEARZERO)
+            flux_snk = params_dict["k6"] * GW_storage
+            GW_storage = GW_storage - flux_snk             #torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
             Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[t, :, :] = flux_sas
             sro_sim[t, :, :] = flux_sro
             bas_sim[t, :, :] = flux_bas
             ras_sim[t, :, :] = flux_ras
-            # snk_sim[t, :, :] = flux_snk
+            snk_sim[t, :, :] = flux_snk
             AET[t, :, :] = flux_ein + flux_eim + flux_ea + transp
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -420,7 +420,8 @@ class prms_marrmot(torch.nn.Module):
                         srflow=Qsas_rout + Qsro_rout,
                         ssflow=Qras_rout,
                         gwflow=Qbas_rout,
-                        # sink=torch.mean(snk_sim, -1).unsqueeze(-1),
+                        sink=torch.mean(snk_sim, -1).unsqueeze(-1),
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
-                        PET_coef=PET_coef)
+                        # PET_coef=PET_coef
+                        )
