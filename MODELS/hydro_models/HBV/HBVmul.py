@@ -113,7 +113,7 @@ class HBVMul(torch.nn.Module):
     def change_param_range(self, param, bounds):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
-    def forward(self, x_hydro_model, c_hydro_model, hbv_params_raw, args, PET_param, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+    def forward(self, x_hydro_model, c_hydro_model, hbv_params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -127,7 +127,7 @@ class HBVMul(torch.nn.Module):
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
                 initmodel = HBVMul().to(args["device"])
-                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args, PET_param,
+                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
         else:

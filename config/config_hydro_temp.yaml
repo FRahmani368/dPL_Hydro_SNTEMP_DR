@@ -91,7 +91,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'PPTAVG_BASIN', 'SLOPE_P
 
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
+hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
