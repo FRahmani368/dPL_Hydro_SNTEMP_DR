@@ -115,7 +115,7 @@ class diff_hydro_temp_model(torch.nn.Module):
             if self.args["routing_temp_model"] == True:
                 params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[:, -4:])
             else:
-                print("it has not been defined yet what appoach should be taken in place of conv")
+                print("it has not been defined yet what approach should be taken in place of conv")
                 exit()
         return params_dict
 

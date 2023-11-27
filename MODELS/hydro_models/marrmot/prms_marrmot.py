@@ -301,7 +301,7 @@ class prms_marrmot(torch.nn.Module):
             flux_m = torch.clamp(params_dict["ddf"] * (T - params_dict["tt"]), min=0.0)
             flux_m = torch.min(flux_m, snow_storage/delta_t)
             # flux_m = torch.clamp(flux_m, min=0.0)
-            snow_storage = snow_storage - flux_m  #torch.clamp(snow_storage - flux_m, min=NEARZERO)
+            snow_storage = torch.clamp(snow_storage - flux_m, min=NEARZERO)
             # snow_storage = torch.clamp(snow_storage, min=NEARZERO)  # to prevent NaN  gradient, it is set to NEARZERO
 
             flux_pim = flux_pr * (1 - params_dict["beta"])
@@ -315,17 +315,17 @@ class prms_marrmot(torch.nn.Module):
             XIN_storage = torch.clamp(XIN_storage - flux_ptf, min=NEARZERO)
             evap_max_in = Ep * params_dict["beta"]   # only can happen in pervious area
             flux_ein = torch.min(evap_max_in, XIN_storage/delta_t)
-            XIN_storage = XIN_storage - flux_ein     #torch.clamp(XIN_storage - flux_ein, min=NEARZERO)
+            XIN_storage = torch.clamp(XIN_storage - flux_ein, min=NEARZERO)
 
             flux_mim = flux_m * (1 - params_dict["beta"])
             flux_msm = flux_m * params_dict["beta"]
             RSTOR_storage = RSTOR_storage + flux_mim + flux_pim
             flux_sas = RSTOR_storage - params_dict["retip"]
             flux_sas = torch.clamp(flux_sas, min=0.0)
-            RSTOR_storage = RSTOR_storage - flux_sas     #torch.clamp(RSTOR_storage - flux_sas, min=NEARZERO)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_sas, min=NEARZERO)
             evap_max_im = (1 - params_dict["beta"]) * Ep
             flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
-            RSTOR_storage = RSTOR_storage - flux_eim     #torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
+            RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
 
             sro_lin_ratio = scn + (params_dict["scx"] - scn) * (RECHR_storage / remx)
             sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
@@ -338,7 +338,7 @@ class prms_marrmot(torch.nn.Module):
             evap_max_a = (RECHR_storage / remx) * (Ep - flux_ein - flux_eim)
             evap_max_a = torch.clamp(evap_max_a, min=0.0)
             flux_ea = torch.min(evap_max_a, RECHR_storage / delta_t)
-            RECHR_storage = RECHR_storage - flux_ea    #torch.clamp(RECHR_storage - flux_ea, min=NEARZERO)
+            RECHR_storage = torch.clamp(RECHR_storage - flux_ea, min=NEARZERO)
 
             SMAV_storage = SMAV_storage + flux_pc
             flux_excs = SMAV_storage - smax
@@ -356,7 +356,7 @@ class prms_marrmot(torch.nn.Module):
             RES_storage = RES_storage + flux_qres
             flux_ras = params_dict["k3"] * RES_storage + params_dict["k4"] * (RES_storage ** 2)
             flux_ras = torch.min(flux_ras, RES_storage)
-            RES_storage = RES_storage - flux_ras       #torch.clamp(RES_storage - flux_ras, min=NEARZERO)
+            RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
             # RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
             # RES_excess = torch.clamp(RES_excess, min=0.0)
             # flux_ras = flux_ras + RES_excess
@@ -364,13 +364,13 @@ class prms_marrmot(torch.nn.Module):
 
             flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
             flux_gad = torch.min(flux_gad, RES_storage)
-            RES_storage = RES_storage - flux_gad    #torch.clamp(RES_storage - flux_gad, min=NEARZERO)
+            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
 
             GW_storage = GW_storage + flux_gad + flux_sep
             flux_bas = params_dict["k5"] * GW_storage
-            GW_storage = GW_storage - flux_bas   #torch.clamp(GW_storage - flux_bas, min=NEARZERO)
+            GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
             flux_snk = params_dict["k6"] * GW_storage
-            GW_storage = GW_storage - flux_snk             #torch.clamp(GW_storage - flux_snk, min=NEARZERO)
+            GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
             Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[t, :, :] = flux_sas
