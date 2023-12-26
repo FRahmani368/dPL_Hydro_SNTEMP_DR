@@ -2,14 +2,14 @@ import torch
 from MODELS.PET_models.potet import get_potet
 import torch.nn.functional as F
 
-class SACSMA(torch.nn.Module):
+class SACSMAMul(torch.nn.Module):
     """HBV Model with multiple components and dynamic parameters PyTorch version"""
     # Add an ET shape parameter for the original ET equation; others are the same as HBVMulTD()
     # we suggest you read the class HBVMul() with original static parameters first
 
     def __init__(self):
         """Initiate a HBV instance"""
-        super(SACSMA, self).__init__()
+        super(SACSMAMul, self).__init__()
         self.parameters_bound = dict(pctim=[0.0, 1.0],
                                      smax=[1, 2000],
                                      f1=[0.005, 0.995],
@@ -225,18 +225,18 @@ class SACSMA(torch.nn.Module):
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
-                initmodel = SACSMA().to(args["device"])
-                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args, PET_param,
+                warm_up_model = SACSMAMul().to(args["device"])
+                Qsrout, UZTW_storage, UZFW_storage, LZTW_storage, \
+                LZFWP_storage, LZFWS_storage = warm_up_model(xinit, c_hydro_model, SACSMA_params_raw, args, PET_param,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
         else:
-
             # Without buff time, initialize state variables with zeros
             Ngrid = x_hydro_model.shape[1]
             UZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             UZFW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             LZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
-            LZWFP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            LZFWP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             LZFWS_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
         vars = args["varT_hydro_model"]
@@ -314,13 +314,108 @@ class SACSMA(torch.nn.Module):
             UZFW_storage = UZFW_storage - flux_Qint
             LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZWFP_storage) + (lzfwsm - LZFWS_storage)
             LZ_capacity = lztwm + lzfwsm + lzfwpm
-            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / LZ_capacity) ** params_dict["rexp"])))
+            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / LZ_capacity) ** (1 + params_dict["rexp"]))))
             flux_Pc = Pc_demand * UZFW_storage / uzfwm
             flux_Pc = torch.min(flux_Pc, UZFW_storage)
             UZFW_storage = UZFW_storage - flux_Pc
             flux_Euzfw = torch.clamp(Ep - flux_Euztw, min=0.0)
             flux_Euzfw = torch.min(flux_Euzfw, UZFW_storage)
             UZFW_storage = UZFW_storage - flux_Euzfw
+            flux_Pctw = (1 - params_dict["pfree"]) * flux_Pc
+            LZTW_storage = LZTW_storage + flux_Pctw
+            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
+
+            flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * params_dict["pfree"] * flux_Pc
+            flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
+            LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
+            flux_Qbfp = params_dict["klzp"] * LZFWP_storage
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
+
+            Rl_nominator = -LZTW_storage * (lzfwpm + lzfwsm) + lztwm * (LZFWP_storage + LZFWS_storage)
+            Rl_denominator = (lzfwpm + lzfwsm) * (lztwm + lzfwpm + lzfwsm)
+            flux_Rlp = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
+                                   lzfwpm * (Rl_nominator / Rl_denominator),
+                                   torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
+            LZTW_storage = LZTW_storage + flux_Rlp
+            flux_Elztw = torch.where((LZTW_storage > 0.0) & (Ep > flux_Euztw + flux_Euzfw),
+                                     (Ep - flux_Euztw - flux_Euzfw) * (LZTW_storage / (uztwm + lztwm)),
+                                     torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
+            flux_Elztw = torch.min(flux_Elztw, LZTW_storage)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=0.0001)
+
+
+            flux_Rls = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
+                                   lzfwsm * (Rl_nominator / Rl_denominator),
+                                   torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
+            flux_Rls = torch.min(flux_Rls, LZFWS_storage)
+            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Rls, min=0.0001)
+            LZTW_storage = LZTW_storage + flux_Rls
+
+            flux_Pcfws = ((lzfwsm - LZFWS_storage) / (
+                        lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * \
+                         params_dict["pfree"] * flux_Pc
+            flux_twexls = ((lzfwsm - LZFWS_storage) / (lzfwsm * ((lzfwpm - LZFWP_storage) / lzfwpm) + (
+                        (lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
+            LZFWS_storage = LZFWS_storage + flux_Pcfws + flux_twexls
+            flux_Qbfs = params_dict["klzs"] * LZFWS_storage
+            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Qbfs, min=0.0001)
+
+            Q_sim[t, :, :] = flux_qdir + flux_Qsur + flux_Qint + flux_Qbfp + flux_Qbfs
+            srflow_sim[t, :, :] = flux_qdir + flux_Qsur
+            ssflow_sim[t, :, :] = flux_Qint
+            gwflow_sim[t, :, :] = flux_Qbfp + flux_Qbfs
+            AET[t, :, :] = flux_Euztw + flux_Euzfw + flux_Elztw
+
+        if routing == True:
+            tempa = self.change_param_range(param=conv_params_hydro[:, 0],
+                                            bounds=self.conv_routing_hydro_model_bound[0])
+            tempb = self.change_param_range(param=conv_params_hydro[:, 1],
+                                            bounds=self.conv_routing_hydro_model_bound[1])
+            routa = tempa.repeat(Ndays, 1).unsqueeze(-1)
+            routb = tempb.repeat(Ndays, 1).unsqueeze(-1)
+            # Q_sim_new = Q_sim.mean(-1, keepdim=True).permute(1,0,2)
+            UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
+            rf = Q_sim.mean(-1, keepdim=True).permute([1, 2, 0])  # dim:gage*var*time
+            UH = UH.permute([1, 2, 0])  # dim: gage*var*time
+            Qsrout = self.UH_conv(rf, UH).permute([2, 0, 1])
+
+            rf_srflow = srflow_sim.mean(-1, keepdim=True).permute([1, 2, 0])
+            srflow_rout = self.UH_conv(rf_srflow, UH).permute([2, 0, 1])
+
+            rf_ssflow = ssflow_sim.mean(-1, keepdim=True).permute([1, 2, 0])
+            ssflow_rout = self.UH_conv(rf_ssflow, UH).permute([2, 0, 1])
+
+            rf_gwflow = gwflow_sim.mean(-1, keepdim=True).permute([1, 2, 0])
+            gwflow_rout = self.UH_conv(rf_gwflow, UH).permute([2, 0, 1])
+        else:
+            Qsrout = Q_sim.mean(-1, keepdim=True)
+            srflow_rout = srflow_sim.mean(-1, keepdim=True)
+            ssflow_rout = ssflow_sim.mean(-1, keepdim=True)
+            gwflow_rout = gwflow_sim.mean(-1, keepdim=True)
+
+        if init:  # means we are in warm up. here we just return the storages to be used as initial values
+            return Qsrout, UZTW_storage, UZFW_storage, LZTW_storage, \
+                LZFWP_storage, LZFWS_storage
+
+        else:
+            return dict(flow_sim=Qsrout,
+                        srflow=srflow_rout,
+                        ssflow=ssflow_rout,
+                        gwflow=gwflow_rout,
+                        PET_hydro=PET.mean(-1, keepdim=True),
+                        AET_hydro=AET.mean(-1, keepdim=True),
+                        )
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -2,6 +2,7 @@ import torch.nn
 
 from MODELS.hydro_models.marrmot.prms_marrmot import prms_marrmot
 from MODELS.hydro_models.HBV.HBVmul import HBVMul
+from MODELS.hydro_models.SACSMA.SACSMAmul import SACSMAMul
 
 from MODELS.temp_models.PGML_STemp import SNTEMP_flowSim
 
@@ -55,6 +56,8 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.hydro_model = prms_marrmot()
             elif self.args["hydro_model_name"] == "HBV":
                 self.hydro_model = HBVMul()
+            elif self.args["hydro_model_name"] == "SACSMA":
+                self.hydro_model = SACSMAMul()
             elif self.args["hydro_model_name"] != "None":
                 print("hydrology (streamflow) model type has not been defined")
                 exit()
