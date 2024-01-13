@@ -212,7 +212,28 @@ class SACSMAMul(torch.nn.Module):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
 
-    def forward(self, x_hydro_model, c_hydro_model, SACSMA_params_raw, args, PET_param, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+    def source_flow_calculation(self, args, flow_out, c_NN):
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
+            area_name = "DRAIN_SQKM"
+        elif "area_gages2" in varC_NN:
+            area_name = "area_gages2"
+        else:
+            print("area of basins are not available among attributes dataset")
+        area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+            flow_out["flow_sim"].shape[
+                0], 1, 1)
+        # flow calculation. converting mm/day to m3/sec
+        srflow = (1000 / 86400) * area * (
+                flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+        # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
+        # ssflow = torch.clamp(ssflow, min=0.0)
+        # gwflow = torch.clamp(gwflow, min=0.0)
+        return srflow, ssflow, gwflow
+
+    def forward(self, x_hydro_model, c_hydro_model, SACSMA_params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -227,17 +248,17 @@ class SACSMAMul(torch.nn.Module):
                 xinit = x_hydro_model[0:warm_up, :, :]
                 warm_up_model = SACSMAMul().to(args["device"])
                 Qsrout, UZTW_storage, UZFW_storage, LZTW_storage, \
-                LZFWP_storage, LZFWS_storage = warm_up_model(xinit, c_hydro_model, SACSMA_params_raw, args, PET_param,
+                LZFWP_storage, LZFWS_storage = warm_up_model(xinit, c_hydro_model, SACSMA_params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
         else:
             # Without buff time, initialize state variables with zeros
             Ngrid = x_hydro_model.shape[1]
-            UZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
-            UZFW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
-            LZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
-            LZFWP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
-            LZFWS_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
+            UZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
+            UZFW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
+            LZTW_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
+            LZFWP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
+            LZFWS_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
@@ -270,7 +291,11 @@ class SACSMAMul(torch.nn.Module):
             # here PET_coef converts PET to Actual ET
             PET = x_hydro_model[warm_up:, :, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
             # AET = PET_coef * PET
-
+        Q_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        srflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        ssflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        gwflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        AET = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         ## scale the parameters
         params_dict = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
@@ -295,66 +320,72 @@ class SACSMAMul(torch.nn.Module):
             flux_qdir = self.split_1(params_dict["pctim"], PRECIP)
             flux_peff = self.split_1(1 - params_dict["pctim"], PRECIP)
             UZTW_storage = UZTW_storage + flux_peff
-            flux_Twexu = UZTW_storage - uztwm
-            flux_Twexu = torch.clamp(flux_Twexu, min=0.0)
-            flux_Euztw = Ep * UZTW_storage / (uztwm + 0.001)  # to avoid nan values, we add 0.001
-            flux_Euztw = torch.min(flux_Euztw, UZTW_storage)
-            UZTW_storage = UZTW_storage - flux_Euztw
-
-            UZFW_storage = UZFW_storage + flux_Twexu
             flux_Ru = torch.where((UZTW_storage / uztwm) < (UZFW_storage / uzfwm),
                                   (uztwm * UZFW_storage - uzfwm * UZTW_storage) / (uztwm + uzfwm),
-                                  torch.zeros(flux_Twexu.shape, dtype=torch.float32, device=args["device"]))
+                                  torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Ru = torch.min(flux_Ru, UZFW_storage)
-            UZFW_storage = UZFW_storage - flux_Ru
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Ru, min=0.0001)
             UZTW_storage = UZTW_storage + flux_Ru
-            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0)
-            UZFW_storage = UZFW_storage - flux_Qsur
+            flux_Twexu = torch.clamp(UZTW_storage - uztwm, min=0.0)
+            UZTW_storage = torch.clamp(UZTW_storage - flux_Twexu, min=0.0001)
+            # flux_Twexu = torch.clamp(flux_Twexu, min=0.0)
+            flux_Euztw = Ep * UZTW_storage / (uztwm + 0.0001)  # to avoid nan values, we add 0.001
+            flux_Euztw = torch.min(flux_Euztw, UZTW_storage)
+            UZTW_storage = torch.clamp(UZTW_storage - flux_Euztw, min=0.0001)
+
+            UZFW_storage = UZFW_storage + flux_Twexu
+            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0001)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Qsur, min=0.0001)
             flux_Qint = params_dict["kuz"] * UZFW_storage
-            UZFW_storage = UZFW_storage - flux_Qint
-            LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZWFP_storage) + (lzfwsm - LZFWS_storage)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Qint, min=0.0001)
+            LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZFWP_storage) + (lzfwsm - LZFWS_storage)
             LZ_capacity = lztwm + lzfwsm + lzfwpm
             Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / LZ_capacity) ** (1 + params_dict["rexp"]))))
             flux_Pc = Pc_demand * UZFW_storage / uzfwm
             flux_Pc = torch.min(flux_Pc, UZFW_storage)
-            UZFW_storage = UZFW_storage - flux_Pc
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Pc, min=0.0001)
             flux_Euzfw = torch.clamp(Ep - flux_Euztw, min=0.0)
             flux_Euzfw = torch.min(flux_Euzfw, UZFW_storage)
-            UZFW_storage = UZFW_storage - flux_Euzfw
-            flux_Pctw = (1 - params_dict["pfree"]) * flux_Pc
-            LZTW_storage = LZTW_storage + flux_Pctw
-            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
-            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Euzfw, min=0.0001)
 
-            flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * params_dict["pfree"] * flux_Pc
-            flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
-            LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
-            flux_Qbfp = params_dict["klzp"] * LZFWP_storage
-            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
 
             Rl_nominator = -LZTW_storage * (lzfwpm + lzfwsm) + lztwm * (LZFWP_storage + LZFWS_storage)
             Rl_denominator = (lzfwpm + lzfwsm) * (lztwm + lzfwpm + lzfwsm)
             flux_Rlp = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
                                    lzfwpm * (Rl_nominator / Rl_denominator),
-                                   torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
+                                   torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
+            flux_Rlp = torch.min(flux_Rlp, LZFWP_storage)
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Rlp, min=0.0001)
             LZTW_storage = LZTW_storage + flux_Rlp
-            flux_Elztw = torch.where((LZTW_storage > 0.0) & (Ep > flux_Euztw + flux_Euzfw),
-                                     (Ep - flux_Euztw - flux_Euzfw) * (LZTW_storage / (uztwm + lztwm)),
-                                     torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
-            flux_Elztw = torch.min(flux_Elztw, LZTW_storage)
-            LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=0.0001)
-
 
             flux_Rls = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
                                    lzfwsm * (Rl_nominator / Rl_denominator),
-                                   torch.zeros(flux_Pcfwp.shape, dtype=torch.float32, device=args["device"]))
+                                   torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Rls = torch.min(flux_Rls, LZFWS_storage)
             LZFWS_storage = torch.clamp(LZFWS_storage - flux_Rls, min=0.0001)
             LZTW_storage = LZTW_storage + flux_Rls
 
+
+            flux_Pctw = (1 - params_dict["pfree"]) * flux_Pc
+            flux_Pcfw = params_dict["pfree"] * flux_Pc
+            LZTW_storage = LZTW_storage + flux_Pctw
+
+            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
+            flux_Elztw = torch.where((LZTW_storage > 0.0) & (Ep > flux_Euztw + flux_Euzfw),
+                                     (Ep - flux_Euztw - flux_Euzfw) * (LZTW_storage / (uztwm + lztwm)),
+                                     torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
+            flux_Elztw = torch.min(flux_Elztw, LZTW_storage)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=0.0001)
+
+            flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
+            flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
+            LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
+            flux_Qbfp = params_dict["klzp"] * LZFWP_storage
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
+
             flux_Pcfws = ((lzfwsm - LZFWS_storage) / (
-                        lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * \
-                         params_dict["pfree"] * flux_Pc
+                        lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
             flux_twexls = ((lzfwsm - LZFWS_storage) / (lzfwsm * ((lzfwpm - LZFWP_storage) / lzfwpm) + (
                         (lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
             LZFWS_storage = LZFWS_storage + flux_Pcfws + flux_twexls
@@ -372,8 +403,8 @@ class SACSMAMul(torch.nn.Module):
                                             bounds=self.conv_routing_hydro_model_bound[0])
             tempb = self.change_param_range(param=conv_params_hydro[:, 1],
                                             bounds=self.conv_routing_hydro_model_bound[1])
-            routa = tempa.repeat(Ndays, 1).unsqueeze(-1)
-            routb = tempb.repeat(Ndays, 1).unsqueeze(-1)
+            routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
+            routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
             # Q_sim_new = Q_sim.mean(-1, keepdim=True).permute(1,0,2)
             UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
             rf = Q_sim.mean(-1, keepdim=True).permute([1, 2, 0])  # dim:gage*var*time
