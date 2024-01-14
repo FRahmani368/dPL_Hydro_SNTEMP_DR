@@ -334,13 +334,13 @@ class SACSMAMul(torch.nn.Module):
             UZTW_storage = torch.clamp(UZTW_storage - flux_Euztw, min=0.0001)
 
             UZFW_storage = UZFW_storage + flux_Twexu
-            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0001)
+            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0)
             UZFW_storage = torch.clamp(UZFW_storage - flux_Qsur, min=0.0001)
             flux_Qint = params_dict["kuz"] * UZFW_storage
             UZFW_storage = torch.clamp(UZFW_storage - flux_Qint, min=0.0001)
             LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZFWP_storage) + (lzfwsm - LZFWS_storage)
             LZ_capacity = lztwm + lzfwsm + lzfwpm
-            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / LZ_capacity) ** (1 + params_dict["rexp"]))))
+            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / (LZ_capacity+0.0001)) ** (1 + params_dict["rexp"]))))
             flux_Pc = Pc_demand * UZFW_storage / uzfwm
             flux_Pc = torch.min(flux_Pc, UZFW_storage)
             UZFW_storage = torch.clamp(UZFW_storage - flux_Pc, min=0.0001)
@@ -381,17 +381,24 @@ class SACSMAMul(torch.nn.Module):
             flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
             flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * ((lzfwpm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
             LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
+            extra_LZFWP = torch.clamp(LZFWP_storage - lzfwpm, min=0.0)
+            LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP, min=0.0001)  # I added this to make the storage not to exceed the max
             flux_Qbfp = params_dict["klzp"] * LZFWP_storage
             LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
-
-            flux_Pcfws = ((lzfwsm - LZFWS_storage) / (
-                        lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
+            flux_Qbfp = flux_Qbfp + extra_LZFWP
+            # This line needs to be rechecked with the documents (flux_Pcfws + flux_Pcfwp != flux_Pcfw
+            # flux_Pcfws = ((lzfwsm - LZFWS_storage) / (
+            #             lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
+            flux_Pcfws = torch.clamp(flux_Pcfw - flux_Pcfwp, min=0.0)
             flux_twexls = ((lzfwsm - LZFWS_storage) / (lzfwsm * ((lzfwpm - LZFWP_storage) / lzfwpm) + (
                         (lzfwsm - LZFWS_storage) / lzfwsm))) * flux_twexl
             LZFWS_storage = LZFWS_storage + flux_Pcfws + flux_twexls
+            extra_LZFWS = torch.clamp(LZFWS_storage - lzfwsm, min=0.0)
+            LZFWS_storage = torch.clamp(LZFWS_storage - extra_LZFWS,
+                                        min=0.0001)  # I added this to make the storage not to exceed the max
             flux_Qbfs = params_dict["klzs"] * LZFWS_storage
             LZFWS_storage = torch.clamp(LZFWS_storage - flux_Qbfs, min=0.0001)
-
+            flux_Qbfs = flux_Qbfs + extra_LZFWS
             Q_sim[t, :, :] = flux_qdir + flux_Qsur + flux_Qint + flux_Qbfp + flux_Qbfs
             srflow_sim[t, :, :] = flux_qdir + flux_Qsur
             ssflow_sim[t, :, :] = flux_Qint

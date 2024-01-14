@@ -8,7 +8,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_hydro_temp.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_hydro_temp.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/post/stat.py" beforeDir="false" afterPath="$PROJECT_DIR$/post/stat.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -135,6 +134,66 @@
           <url>file://$PROJECT_DIR$/MODELS/hydro_models/marrmot/prms_marrmot.py</url>
           <line>330</line>
           <option name="timeStamp" value="597" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(Q_sim[Q_sim!=Q_sim]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>401</line>
+          <option name="timeStamp" value="630" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(flux_Ru[flux_Ru!=flux_Ru]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>325</line>
+          <option name="timeStamp" value="635" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(UZTW_storage[UZTW_storage!=UZTW_storage]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>321</line>
+          <option name="timeStamp" value="636" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(UZFW_storage[UZFW_storage!=UZFW_storage]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>327</line>
+          <option name="timeStamp" value="637" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(UZTW_storage[UZTW_storage!=UZTW_storage]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>331</line>
+          <option name="timeStamp" value="638" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(flux_Ru[flux_Ru!=flux_Ru]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>326</line>
+          <option name="timeStamp" value="639" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(UZFW_storage[UZFW_storage!=UZFW_storage]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>346</line>
+          <option name="timeStamp" value="640" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(flux_Euzfw[flux_Euzfw!=flux_Euzfw]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>347</line>
+          <option name="timeStamp" value="641" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(flux_Euzfw[flux_Euzfw!=flux_Euzfw]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>348</line>
+          <option name="timeStamp" value="642" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <condition expression="len(UZFW_storage[UZFW_storage!=UZFW_storage]) &gt; 0" language="Python" />
+          <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py</url>
+          <line>351</line>
+          <option name="timeStamp" value="643" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
