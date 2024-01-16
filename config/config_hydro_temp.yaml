@@ -26,7 +26,7 @@ loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_
 loss_function_weights:
     w1: 11.0      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00060_Mean"]#, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean"] #, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
@@ -34,7 +34,7 @@ t_test: [19990101, 20080101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 208
-EPOCHS: 5
+EPOCHS: 15
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 5
