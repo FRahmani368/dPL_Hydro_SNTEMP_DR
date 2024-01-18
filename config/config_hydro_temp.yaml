@@ -4,15 +4,15 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 16
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 #output_model: "//storage//work//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\camels_671_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_camels_all_sep14_2023.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_forcing_pet.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\camels\\camels_40_attr_site_no.feather"
 output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jobs_sep27" #\\PRMS_SNTEMP_415_208"
@@ -33,8 +33,8 @@ t_val: [20101001, 20111001]
 t_test: [19990101, 20080101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 208
-EPOCHS: 15
+batch_size: 100
+EPOCHS: 10
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 5

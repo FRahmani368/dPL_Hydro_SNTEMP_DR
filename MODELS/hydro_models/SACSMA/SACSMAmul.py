@@ -339,6 +339,7 @@ class SACSMAMul(torch.nn.Module):
             flux_Qint = params_dict["kuz"] * UZFW_storage
             UZFW_storage = torch.clamp(UZFW_storage - flux_Qint, min=0.0001)
             LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZFWP_storage) + (lzfwsm - LZFWS_storage)
+            LZ_deficiency = torch.clamp(LZ_deficiency, min=0.0)    # just to make sure there is no negative values
             LZ_capacity = lztwm + lzfwsm + lzfwpm
             Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / (LZ_capacity+0.0001)) ** (1 + params_dict["rexp"]))))
             flux_Pc = Pc_demand * UZFW_storage / uzfwm
@@ -386,11 +387,11 @@ class SACSMAMul(torch.nn.Module):
             flux_Qbfp = params_dict["klzp"] * LZFWP_storage
             LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
             extra_LZFWP = torch.clamp(LZFWP_storage - lzfwpm, min=0.0)
-            LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP + 0.0001,
+            LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP,
                                         min=0.0001)  # I added this to make the storage not to exceed the max
             # just to make sure LZFWP_storage is always smaller than lzfwpm
             LZFWP_storage = torch.where(LZFWP_storage >= lzfwpm,
-                                        LZFWP_storage - 0.0001,
+                                        lzfwpm - 0.0001,
                                         LZFWP_storage)
             flux_Qbfp = flux_Qbfp + extra_LZFWP
             # This line needs to be rechecked with the documents (flux_Pcfws + flux_Pcfwp != flux_Pcfw
@@ -408,7 +409,7 @@ class SACSMAMul(torch.nn.Module):
                                         min=0.0001)  # I added this to make the storage not to exceed the max
             # just to make sure LZFWS_storage is always smaller than lzfwsm
             LZFWS_storage = torch.where(LZFWS_storage >= lzfwsm,
-                                        LZFWS_storage - 0.0001,
+                                        lzfwsm - 0.0001,
                                         LZFWS_storage)
             flux_Qbfs = flux_Qbfs + extra_LZFWS
             Q_sim[t, :, :] = flux_qdir + flux_Qsur + flux_Qint + flux_Qbfp + flux_Qbfs
