@@ -306,7 +306,7 @@ class SACSMAMul(torch.nn.Module):
         lztwm = torch.clamp(params_dict["f3"] * (params_dict["smax"] - uztwm - uzfwm), min=0.005 / 4)
         lzfwpm = torch.clamp(params_dict["f4"] * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
         lzfwsm = torch.clamp((1 - params_dict["f4"]) * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
-        pbase = lzfwpm * params_dict["klzs"] + lzfwsm * params_dict["klzs"]
+        pbase = lzfwpm * params_dict["klzp"] + lzfwsm * params_dict["klzs"]
         zperc = torch.clamp((lztwm + lzfwsm * (1 - params_dict["klzs"])) / (lzfwsm * params_dict["klzs"] +
                                                                             lzfwpm * params_dict["klzp"]) +
                             (lzfwpm * (1 - params_dict["klzp"])) / (lzfwsm * params_dict["klzs"] +
