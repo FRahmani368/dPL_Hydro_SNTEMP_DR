@@ -22,11 +22,11 @@ output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jo
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
+loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
 loss_function_weights:
     w1: 11.0      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00060_Mean"] #, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
 t_val: [20101001, 20111001]
@@ -63,7 +63,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP"
+temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60

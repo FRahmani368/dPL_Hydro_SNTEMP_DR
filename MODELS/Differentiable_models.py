@@ -143,7 +143,8 @@ class diff_hydro_temp_model(torch.nn.Module):
             # Todo: send this to  a function
             # source flow calculation and converting mm/day to m3/ day
             srflow, ssflow, gwflow = self.hydro_model.source_flow_calculation(self.args, flow_out,
-                                                                              dataset_dictionary_sample["c_NN_sample"])
+                                                                            dataset_dictionary_sample["c_NN_sample"],
+                                                                            after_routing=False)
             # baseflow index percentage
             flow_out["BFI_sim"] = 100 * (torch.sum(gwflow, dim=0) / (
                     torch.sum(srflow + ssflow + gwflow, dim=0) + 0.00001))[:, 0]

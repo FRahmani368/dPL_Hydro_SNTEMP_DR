@@ -36,7 +36,7 @@ class prms_marrmot(torch.nn.Module):
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
         ]
 
-    def source_flow_calculation(self, args, flow_out, c_NN):
+    def source_flow_calculation(self, args, flow_out, c_NN, after_routing=True):
         varC_NN = args["varC_NN"]
         if "DRAIN_SQKM" in varC_NN:
             area_name = "DRAIN_SQKM"
@@ -48,10 +48,14 @@ class prms_marrmot(torch.nn.Module):
             flow_out["flow_sim"].shape[
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
-        srflow = (1000 / 86400) * area * (
-                flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
-        ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
-        gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+        if after_routing == True:
+            srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
+            gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+        else:
+            srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
+            gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
         # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
         # ssflow = torch.clamp(ssflow, min=0.0)
         # gwflow = torch.clamp(gwflow, min=0.0)
@@ -423,5 +427,8 @@ class prms_marrmot(torch.nn.Module):
                         sink=torch.mean(snk_sim, -1).unsqueeze(-1),
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
-                        # PET_coef=PET_coef
+                        flow_sim_no_rout=Q_sim.mean(-1, keepdim=True),
+                        srflow_no_rout=(sas_sim + sro_sim).mean(-1, keepdim=True),
+                        ssflow_no_rout=ras_sim.mean(-1, keepdim=True),
+                        gwflow_no_rout=bas_sim.mean(-1, keepdim=True),
                         )
