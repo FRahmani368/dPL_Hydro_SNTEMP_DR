@@ -9,8 +9,8 @@ from core.load_data.data_prep import (
     selectSubset,
 )
 from core.utils.small_codes import create_output_dirs
-from MODELS.temp_models.PGML_STemp import MLP, CudnnLstmModel
-from MODELS.hydro_models.marrmot.prms_marrmot_only import prms_marrmot
+from MODELS.temp_models.SNTEMP.PGML_STemp import MLP, CudnnLstmModel
+from MODELS.hydro_models.marrmot_PRMS.prms_marrmot_only import prms_marrmot
 from MODELS.loss_functions import crit
 from core import hydroDL
 from core.utils.small_codes import make_tensor

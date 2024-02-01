@@ -4659,12 +4659,22 @@ class SNTEMP_flowSim(nn.Module):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
 
-    def forward(self, x, c, params_raw, conv_params_temp, args, PET, srflow, ssflow, gwflow):
+    def forward(self, x, c, params_raw, conv_params_temp, args, PET, source_flows):
         NEARZERO = args["NEARZERO"]
         warm_up = args["warm_up"]
         nmul = args["nmul"]
         varT = args["varT_temp_model"]
         varC = args["varC_temp_model"]
+        # source flow components
+        ## to make sure there are only three flow sources:
+        if len(source_flows.keys()) != 3:
+            print("inconsistency between hydrology model and temp model")
+            exit()
+        srflow = source_flows["srflow"]
+        ssflow = source_flows["ssflow"]
+        gwflow = source_flows["gwflow"]
+
+
         # initialization of the params
         Nstep = x.shape[0] - warm_up
 
@@ -4685,6 +4695,7 @@ class SNTEMP_flowSim(nn.Module):
             params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
 
         Q_tot = srflow + ssflow + gwflow
+
         Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         mean_air_temp = (Tmaxf + Tminf) / 2

@@ -1,15 +1,18 @@
 import torch.nn
 
-from MODELS.hydro_models.marrmot.prms_marrmot import prms_marrmot
+from MODELS.hydro_models.marrmot_PRMS.prms_marrmot import prms_marrmot
+from MODELS.hydro_models.marrmot_PRMS_gw0.prms_marrmot_gw0 import prms_marrmot_gw0
 from MODELS.hydro_models.HBV.HBVmul import HBVMul
 from MODELS.hydro_models.SACSMA.SACSMAmul import SACSMAMul
 from MODELS.hydro_models.SACSMA_with_snowpack.SACSMA_snow_mul import SACSMA_snow_Mul
 
-from MODELS.temp_models.PGML_STemp import SNTEMP_flowSim
+from MODELS.temp_models.SNTEMP.PGML_STemp import SNTEMP_flowSim
+from MODELS.temp_models.SNTEMP_with_gw0.PGML_STemp_gw0 import SNTEMP_flowSim_gw0
 
 from MODELS.NN_models.LSTM_models import CudnnLstmModel
 from MODELS.NN_models.MLP_models import MLPmul
 
+from core.utils.small_codes import source_flow_calculation
 
 # import MODELS
 class diff_hydro_temp_model(torch.nn.Module):
@@ -55,6 +58,8 @@ class diff_hydro_temp_model(torch.nn.Module):
         if self.args["hydro_model_name"] != "None":
             if self.args["hydro_model_name"] == "marrmot_PRMS":
                 self.hydro_model = prms_marrmot()
+            elif self.args["hydro_model_name"] == "marrmot_PRMS_gw0":
+                self.hydro_model = prms_marrmot_gw0()
             elif self.args["hydro_model_name"] == "HBV":
                 self.hydro_model = HBVMul()
             elif self.args["hydro_model_name"] == "SACSMA":
@@ -68,6 +73,8 @@ class diff_hydro_temp_model(torch.nn.Module):
         if self.args["temp_model_name"] != "None":
             if self.args["temp_model_name"] == "SNTEMP":
                 self.temp_model = SNTEMP_flowSim()  # this model needs a hydrology model as backbone
+            elif self.args["temp_model_name"] == "SNTEMP_gw0":
+                self.temp_model = SNTEMP_flowSim_gw0()  # this model needs a hydrology model as backbone, and 4 outflow
             elif self.args["temp_model_name"] != "None":
                 print("temp model type has not been defined")
                 exit()
@@ -119,7 +126,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.args["nmul"])
             # convolution parameters for ss and gw temp calculation
             if self.args["routing_temp_model"] == True:
-                params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[:, -4:])
+                params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[:, -len(self.temp_model.conv_temp_model_bound):])
             else:
                 print("it has not been defined yet what approach should be taken in place of conv")
                 exit()
@@ -142,17 +149,16 @@ class diff_hydro_temp_model(torch.nn.Module):
                 routing=self.args["routing_hydro_model"],
                 conv_params_hydro=params_dict["conv_params_hydro"]
             )
-
-            # Todo: send this to  a function
-            # source flow calculation and converting mm/day to m3/ day
-            srflow, ssflow, gwflow = self.hydro_model.source_flow_calculation(self.args, flow_out,
-                                                                            dataset_dictionary_sample["c_NN_sample"],
-                                                                            after_routing=False)
             # baseflow index percentage
-            flow_out["BFI_sim"] = 100 * (torch.sum(gwflow, dim=0) / (
-                    torch.sum(srflow + ssflow + gwflow, dim=0) + 0.00001))[:, 0]
+            flow_out["BFI_sim"] = 100 * (torch.sum(flow_out["gwflow"], dim=0) / (
+                    torch.sum(flow_out["flow_sim"], dim=0) + 0.00001))[:, 0]
 
             if self.args['temp_model_name'] != "None":
+                # source flow calculation and converting mm/day to m3/ day
+                source_flows_dict = source_flow_calculation(self.args, flow_out,
+                                                              dataset_dictionary_sample[
+                                                                  "c_NN_sample"],
+                                                              after_routing=False)
                 # temperature model
                 temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
                                                    dataset_dictionary_sample["c_temp_model_sample"],
@@ -160,9 +166,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                                                    conv_params_temp=params_dict["conv_params_temp"],
                                                    args=self.args,
                                                    PET=flow_out["PET_hydro"] * (1 / (1000 * 86400)),   # converting mm/day to m/sec,
-                                                   srflow=srflow,
-                                                   ssflow=ssflow,
-                                                   gwflow=gwflow)
+                                                   source_flows=source_flows_dict)
 
                 return {**flow_out, **temp_out}   # combining both dictionaries
             else:

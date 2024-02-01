@@ -87,3 +87,39 @@ def update_args(args, **kw):
             print("didn't find " + key + " in args")
     return args
 
+def source_flow_calculation(args, flow_out, c_NN, after_routing=True):
+    varC_NN = args["varC_NN"]
+    if "DRAIN_SQKM" in varC_NN:
+        area_name = "DRAIN_SQKM"
+    elif "area_gages2" in varC_NN:
+        area_name = "area_gages2"
+    else:
+        print("area of basins are not available among attributes dataset")
+    area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+        flow_out["flow_sim"].shape[
+            0], 1, 1)
+    # flow calculation. converting mm/day to m3/sec
+    if after_routing == True:
+        srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+        if args["hydro_model_name"] == "marrmot_PRMS_gw0":   # there are four flow outputs
+            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow"]).repeat(1, 1, args["nmul"])
+    else:
+        srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+        ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
+        gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
+        if args["hydro_model_name"] == "marrmot_PRMS_gw0":   # there are four flow outputs
+            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow_no_rout"]).repeat(1, 1, args["nmul"])
+    # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
+    # ssflow = torch.clamp(ssflow, min=0.0)
+    # gwflow = torch.clamp(gwflow, min=0.0)
+    if args["hydro_model_name"] == "marrmot_PRMS_gw0":  # there are four flow outputs
+        return dict(srflow=srflow,
+                    ssflow=ssflow,
+                    gwflow=gwflow,
+                    bas_shallow=bas_shallow)
+    else:    # there is three flow outputs
+        return dict(srflow=srflow,
+                    ssflow=ssflow,
+                    gwflow=gwflow)

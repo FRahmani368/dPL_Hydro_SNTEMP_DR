@@ -492,27 +492,3 @@ class SACSMA_snow_Mul(torch.nn.Module):
                         ssflow_no_rout=ssflow_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=gwflow_sim.mean(-1, keepdim=True),
                         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
