@@ -158,7 +158,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                 source_flows_dict = source_flow_calculation(self.args, flow_out,
                                                               dataset_dictionary_sample[
                                                                   "c_NN_sample"],
-                                                              after_routing=False)
+                                                              after_routing=True)
                 # temperature model
                 temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
                                                    dataset_dictionary_sample["c_temp_model_sample"],

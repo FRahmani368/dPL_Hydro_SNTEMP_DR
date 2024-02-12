@@ -239,8 +239,8 @@ class SNTEMP_flowSim_gw0(nn.Module):
         m = a.shape
         lenF = min(a.shape[0], lenF)
         w = torch.zeros([lenF, m[1], m[2]])
-        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
-        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.1. First dimension of a is repeat
+        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.5
         # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
         # t = t.cuda(aa.device)
         t = (torch.linspace(0.001, 20, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
@@ -711,8 +711,10 @@ class SNTEMP_flowSim_gw0(nn.Module):
                     srflow_temp=srflow_temp.mean(-1, keepdim=True),
                     ssflow_temp=ssflow_temp.mean(-1, keepdim=True),
                     gwflow_temp=gwflow_temp.mean(-1, keepdim=True),
+                    bas_shallow_temp = bas_shallow_temp.mean(-1, keepdim=True),
                     w_gwflow=w_gwflow.permute([2, 0, 1]),
                     w_ssflow=w_ssflow.permute([2, 0, 1]),
+                    w_bas_shallow = w_bas_shallow.permute([2, 0, 1]),
                     # AET_temp=AET.mean(-1, keepdim=True),
                     # PET_temp=PET.mean(-1, keepdim=True) * (1 / (1000 * 86400)),   # converting to m/sec, same as AET
                     shade_fraction_riparian=params_dict["shade_fraction_riparian"].mean(-1, keepdim=True),
@@ -725,7 +727,9 @@ class SNTEMP_flowSim_gw0(nn.Module):
                     a_ssflow=params_dict["a_ssflow"].mean(-1, keepdim=True),
                     b_ssflow=params_dict["b_ssflow"].mean(-1, keepdim=True),
                     a_gwflow=params_dict["a_gwflow"].mean(-1, keepdim=True),
-                    b_gwflow=params_dict["b_gwflow"].mean(-1, keepdim=True)
+                    b_gwflow=params_dict["b_gwflow"].mean(-1, keepdim=True),
+                    a_bas_shallow=params_dict["a_bas_shallow"].mean(-1, keepdim=True),
+                    b_bas_shallow=params_dict["b_bas_shallow"].mean(-1, keepdim=True),
                     )
 
 # from dataclasses import dataclass

@@ -76,7 +76,7 @@ def test_differentiable_model(args, diff_model):
     diff_model.eval()
     # read data for test time range
     dataset_dictionary = loadData(args, trange=args["t_test"])
-    np.save(os.path.join(args["out_dir"], "x.npy"), dataset_dictionary["x_NN"])  # saves with the overlap in the beginning
+    #np.save(os.path.join(args["out_dir"], "x.npy"), dataset_dictionary["x_NN"])  # saves with the overlap in the beginning
     # normalizing
     x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
     c_NN_scaled = transNorm(args, dataset_dictionary["c_NN"], varLst=args["varC_NN"], toNorm=True)

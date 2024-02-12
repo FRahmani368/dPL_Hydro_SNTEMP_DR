@@ -292,6 +292,10 @@ class prms_marrmot(torch.nn.Module):
         ras_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         snk_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         AET = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        inf_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        PC_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        SEP_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        GAD_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         for t in range(Ndays):
             delta_t = 1  # timestep (day)
             P = Precip[t, :, :]
@@ -383,6 +387,10 @@ class prms_marrmot(torch.nn.Module):
             ras_sim[t, :, :] = flux_ras
             snk_sim[t, :, :] = flux_snk
             AET[t, :, :] = flux_ein + flux_eim + flux_ea + transp
+            inf_sim[t, :, :] = flux_inf
+            PC_sim[t, :, :] = flux_pc
+            SEP_sim[t, :, :] = flux_sep
+            GAD_sim[t, :, :] = flux_gad
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
                                             bounds=self.conv_routing_hydro_model_bound[0])
@@ -431,4 +439,8 @@ class prms_marrmot(torch.nn.Module):
                         srflow_no_rout=(sas_sim + sro_sim).mean(-1, keepdim=True),
                         ssflow_no_rout=ras_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=bas_sim.mean(-1, keepdim=True),
+                        flux_inf=inf_sim.mean(-1, keepdim=True),
+                        flux_pc=PC_sim.mean(-1, keepdim=True),
+                        flux_sep=SEP_sim.mean(-1, keepdim=True),
+                        flux_gad=GAD_sim.mean(-1, keepdim=True),
                         )
