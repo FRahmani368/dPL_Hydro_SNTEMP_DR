@@ -19,12 +19,12 @@ class SNTEMP_flowSim_gw0(nn.Module):
             albedo=[0.06, 0.1]     #albedo     [0.06, 0.1]
         )
         self.conv_temp_model_bound = dict(
-            a_ssflow=[0.01, 12.0],  # a (k) for ss flow temp
-            b_ssflow=[0.01, 12.0],    #b (theta)  for ss flow temp
-            a_gwflow=[0.01, 12.0],    # a (k) for gw flow temp
-            b_gwflow=[0.01, 12.0],    # b (theta)  for gw flow temp
-            a_bas_shallow=[0.01, 12.0],  # a (k) for gw flow temp
-            b_bas_shallow=[0.01, 12.0],  # b (theta)  for gw flow temp
+            a_ssflow=[0.001, 12.0],  # a (k) for ss flow temp
+            b_ssflow=[0.001, 12.0],    #b (theta)  for ss flow temp
+            a_gwflow=[0.001, 12.0],    # a (k) for gw flow temp
+            b_gwflow=[0.001, 12.0],    # b (theta)  for gw flow temp
+            a_bas_shallow=[0.001, 12.0],  # a (k) for gw flow temp
+            b_bas_shallow=[0.001, 12.0],  # b (theta)  for gw flow temp
         )
         self.lat_adj_params_bound = [
              [-3, 5]                            # lateral temp adjusment
@@ -402,7 +402,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
                 dim=3,
             )
 
-        denom = gwflow + ssflow + srflow
+        denom = gwflow + ssflow + srflow + bas_shallow
         mask_denom = denom.eq(0.0)
         denom = denom + mask_denom.int().float()
 
@@ -410,7 +410,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
             gwflow_temp = gwflow_temp + lat_temp_adj
 
         T_l = (
-                      (gwflow * gwflow_temp) + (srflow * srflow_temp) + (ssflow * ssflow_temp)
+                      (gwflow * gwflow_temp) + (srflow * srflow_temp) + (ssflow * ssflow_temp) + (bas_shallow * bas_shallow_temp)
               ) / denom
 
         mask_less_zero = T_l.le(NEARZERO)

@@ -3655,17 +3655,17 @@ class SNTEMP_flowSim(nn.Module):
     def __init__(self):
         super(SNTEMP_flowSim, self).__init__()
         self.parameters_bound = dict(
-            w1_shade=[0.001, 0.0011],        # raw rip shade factor [0, 1]
-            w2_shade=[0.001, 0.0011],              # raw topo shade factor  [0, 1]
-            width_coef_factor=[9.0, 9.0001],    # width A coefficient, c=9.0
-            width_coef_pow=[0.2273, 0.2274],     # width power coefficient, c=0.2273
-            albedo=[0.0999, 0.1]     #albedo     [0.06, 0.1]
+            w1_shade=[0.001, 1.0],        # raw rip shade factor [0, 1]
+            w2_shade=[0.001, 1.0],              # raw topo shade factor  [0, 1]
+            width_coef_factor=[1.0, 25.0],    # width A coefficient, c=9.0
+            width_coef_pow=[0.01, 0.25],     # width power coefficient, c=0.2273
+            albedo=[0.06, 0.1]     #albedo     [0.06, 0.1]
         )
         self.conv_temp_model_bound = dict(
-            a_ssflow=[0.01, 0.011],  # a (k) for ss flow temp
-            b_ssflow=[0.01, 0.011],    #b (theta)  for ss flow temp
-            a_gwflow=[0.01, 0.011],    # a (k) for gw flow temp
-            b_gwflow=[0.01, 0.011],    # b (theta)  for gw flow temp
+            a_ssflow=[0.001, 12.0],  # a (k) for ss flow temp
+            b_ssflow=[0.001, 12.0],    #b (theta)  for ss flow temp
+            a_gwflow=[0.001, 12.0],    # a (k) for gw flow temp
+            b_gwflow=[0.001, 12.0],    # b (theta)  for gw flow temp
         )
         self.lat_adj_params_bound = [
              [-3, 5]                            # lateral temp adjusment
