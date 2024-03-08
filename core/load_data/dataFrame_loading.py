@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import torch
 from core.load_data.time import tRange2Array
 class DataFrame_dataset:
     def __init__(self, tRange):
@@ -96,10 +97,103 @@ class DataFrame_dataset:
         # if rmNan is True:
         #     data[np.where(np.isnan(data))] = 0
         return data
+
+class numpy_dataset:
+    def __init__(self, tRange):
+        self.time = tRange2Array(tRange)
+        self.all_forcings_name = ['Lwd', 'PET', 'P_MSWEP', 'Pres', 'RelHum', 'Temp', 'Tmax', 'Tmin', 'Wind']
+        self.attrLst_name = ['aridity', 'meanP', 'ETPOT_Hargr', 'NDVI', 'FW', 'meanslope', 'SoilGrids1km_sand',
+                        'SoilGrids1km_clay',
+                        'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel', 'HWSD_sand', 'HWSD_silt',
+                        'meanelevation', 'meanTa', 'permafrost', 'permeability',
+                        'seasonality_P', 'seasonality_PET', 'snow_fraction', 'snowfall_fraction', 'T_clay', 'T_gravel',
+                        'T_sand', 'T_silt', 'Porosity']
+
+    def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
+        if type(varLst) is str:
+            varLst = [varLst]
+        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
+        inputfile_attr = os.path.join(os.path.realpath(args["attr_path"]))
+        if inputfile.endswith(".npy"):
+            forcing_main = np.load(inputfile)
+            attr_main = pd.load(inputfile_attr)
+        elif inputfile.endswith(".pt"):
+            forcing_main = torch.load(inputfile)
+            attr_main = torch.load(inputfile_attr)
+        else:
+            print("data type is not supported")
+            exit()
+
+        varLst_index_forcing = []
+        varLst_index_attr = []
+        for var in varLst:
+            if var in self.all_forcings_name:
+                varLst_index_forcing.append(self.all_forcings_name.index(var))
+            elif var in self.attrLst_name:
+                varLst_index_attr.append(self.attrLst_name.index(var))
+            else:
+                print(var, "the var is not in forcing file nor in attr file")
+
+        x = forcing_main[:, :, varLst_index_forcing]
+        ## for attr
+        if len(varLst_attr) > 0:
+            x_attr_t = attr_main[:, varLst_index_attr]
+            x_attr_t = np.expand_dims(x_attr_t, axis=2)
+            xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
+            xattr = np.transpose(xattr, (0, 2, 1))
+            x = np.concatenate((x, xattr), axis=2)
+
+        data = x
+        tLst = tRange2Array(args["tRange"])
+        C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
+        data = data[:, ind2, :]
+        # if os.path.isdir(out):
+        #     pass
+        # else:
+        #     os.makedirs(out)
+        # np.save(os.path.join(out, 'x.npy'), data)
+        # if doNorm is True:
+        #     data = transNorm(data, varLst, toNorm=True)
+        # if rmNan is True:
+        #     data[np.where(np.isnan(data))] = 0
+        return np.swapaxes(data, 1, 0)
+
+    def getDataConst(self, args, varLst, doNorm=True, rmNan=True):
+        if type(varLst) is str:
+            varLst = [varLst]
+        inputfile = os.path.join(os.path.realpath(args["attr_path"]))
+        if inputfile.endswith(".npy"):
+            dfC = np.load(inputfile)
+        elif inputfile.endswith(".pt"):
+            dfC = torch.load(inputfile)
+        else:
+            print("data type is not supported")
+            exit()
+
+        varLst_index_attr = []
+        for var in varLst:
+            if var in self.attrLst_name:
+                varLst_index_attr.append(self.attrLst_name.index(var))
+            else:
+                print(var, "the var is not in forcing file nor in attr file")
+        c = dfC[:, varLst_index_attr]
+
+        data = c
+        # if doNorm is True:
+        #     data = transNorm(data, varLst, toNorm=True)
+        # if rmNan is True:
+        #     data[np.where(np.isnan(data))] = 0
+        return data
+
 def loadData(args, trange):
 
     out_dict = dict()
-    df = DataFrame_dataset(tRange=trange)
+    # Todo: I should this section to a wrapper class
+    inputfile_forcing = os.path.join(os.path.realpath(args["forcing_path"]))
+    if inputfile_forcing.endswith(".feather") or inputfile_forcing.endswith(".csv"):
+        df = DataFrame_dataset(tRange=trange)
+    elif inputfile_forcing.endswith(".npy") or inputfile_forcing.endswith(".pt"):
+        df = numpy_dataset(tRange=trange)
     # getting inputs for NN model:
     out_dict["x_NN"] = df.getDataTs(args, varLst=args["varT_NN"])
     out_dict["c_NN"] = df.getDataConst(args, varLst=args["varC_NN"])

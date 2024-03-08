@@ -22,7 +22,7 @@ output_model: "G:\\Farshid\\fzr5082\\PGML_STemp_results\\models\\PRMS_SNTEMP\\jo
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
+loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
 loss_function_weights:
     w1: 11.0      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
