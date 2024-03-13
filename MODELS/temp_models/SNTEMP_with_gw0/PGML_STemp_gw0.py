@@ -613,22 +613,23 @@ class SNTEMP_flowSim_gw0(nn.Module):
             params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
 
 
-        Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        mean_air_temp = (Tmaxf + Tminf) / 2
-        dayl = x[warm_up:, :, varT.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
-        up_inflow = torch.zeros_like(Tmaxf)
+        # Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # mean_air_temp = (Tmaxf + Tminf) / 2
+        # dayl = x[warm_up:, :, varT.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul)
+        # up_inflow = torch.zeros_like(Tmaxf)
         vp = 0.01 * x[warm_up:, :, varT.index("vp(Pa)")].unsqueeze(-1).repeat(1, 1, nmul)  # converting to mbar
-        swrad = (x[warm_up:, :, varT.index("srad(W/m2)")] * x[warm_up:, :, varT.index("dayl(s)")] / 86400).unsqueeze(
-            -1).repeat(1, 1, nmul)
+        # swrad = (x[warm_up:, :, varT.index("srad(W/m2)")] * x[warm_up:, :, varT.index("dayl(s)")] / 86400).unsqueeze(
+        #     -1).repeat(1, 1, nmul)   # this one is when srad(W/m2) is directly from daymet  which is only for daylight
+        swrad = x[warm_up:, :, varT.index("srad(W/m2)")].unsqueeze(-1).repeat(1, 1, nmul)
         cloud_fraction = x[warm_up:, :, varT.index("ccov")].unsqueeze(-1).repeat(1, 1, nmul)
-        elev = c[:, varC.index("ELEV_MEAN_M_BASIN")].unsqueeze(-1).repeat(Tmaxf.shape[0], 1, nmul)
-        slope = 0.01 * c[:, varC.index("SLOPE_PCT")].unsqueeze(-1).repeat(Tmaxf.shape[0], 1, nmul)  # adding the percentage, it is a watershed slope not a stream slope
+        elev = c[:, varC.index("ELEV_MEAN_M_BASIN")].unsqueeze(-1).repeat(swrad.shape[0], 1, nmul)
+        slope = 0.01 * c[:, varC.index("SLOPE_PCT")].unsqueeze(-1).repeat(swrad.shape[0], 1, nmul)  # adding the percentage, it is a watershed slope not a stream slope
         # stream_density = x[:, :, vars.index("STREAMS_KM_SQ_KM")]
         # stream_length = 1000 * (stream_density * x[:, :, vars.index("DRAIN_SQKM")]).unsqueeze(-1).repeat(1,1,nmul)
         # stream_length = x[:, :, vars.index("stream_length_artificial")]
         # stream_length = x[:, :, vars.index("NHDlength_tot(m)")].unsqueeze(-1).repeat(1,1,nmul)
-        stream_length = c[:, varC.index("stream_length_square")].unsqueeze(-1).repeat(Tmaxf.shape[0], 1, nmul) * 1000.0   # km to meter
+        stream_length = c[:, varC.index("stream_length_square")].unsqueeze(-1).repeat(swrad.shape[0], 1, nmul) * 1000.0   # km to meter
 
         top_width = params_dict["width_coef_factor"] * torch.pow(Q_tot + 0.0001, params_dict["width_coef_pow"]) + 0.2
 

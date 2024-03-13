@@ -1,9 +1,22 @@
+from abc import ABC, abstractmethod
 import os
 import numpy as np
 import pandas as pd
 import torch
 from core.load_data.time import tRange2Array
-class DataFrame_dataset:
+
+
+class Data_Reader(ABC):
+    @abstractmethod
+    def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
+        raise NotImplementedError
+
+    @abstractmethod
+    def getDataConst(self, args, varLst, doNorm=True, rmNan=True):
+        raise NotImplementedError
+
+
+class DataFrame_dataset(Data_Reader):
     def __init__(self, tRange):
         self.time = tRange2Array(tRange)
 
@@ -98,16 +111,21 @@ class DataFrame_dataset:
         #     data[np.where(np.isnan(data))] = 0
         return data
 
-class numpy_dataset:
+class numpy_dataset(Data_Reader):
     def __init__(self, tRange):
         self.time = tRange2Array(tRange)
-        self.all_forcings_name = ['Lwd', 'PET', 'P_MSWEP', 'Pres', 'RelHum', 'Temp', 'Tmax', 'Tmin', 'Wind']
-        self.attrLst_name = ['aridity', 'meanP', 'ETPOT_Hargr', 'NDVI', 'FW', 'meanslope', 'SoilGrids1km_sand',
-                        'SoilGrids1km_clay',
-                        'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel', 'HWSD_sand', 'HWSD_silt',
-                        'meanelevation', 'meanTa', 'permafrost', 'permeability',
-                        'seasonality_P', 'seasonality_PET', 'snow_fraction', 'snowfall_fraction', 'T_clay', 'T_gravel',
-                        'T_sand', 'T_silt', 'Porosity']
+
+        # These are default forcings and attributes that are read from the dataset
+        self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
+                                'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
+                                'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
+                                'vp(Pa)', "00060_Mean", "00010_Mean", 'dayl(s)']
+        self.attrLst_name = ['aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
+                             'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
+                             'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
+                             'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
+                             'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
+                             "DRAIN_SQKM", "lat", "site_no_int", "stream_length_square", "lon"]
 
     def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
@@ -116,7 +134,7 @@ class numpy_dataset:
         inputfile_attr = os.path.join(os.path.realpath(args["attr_path"]))
         if inputfile.endswith(".npy"):
             forcing_main = np.load(inputfile)
-            attr_main = pd.load(inputfile_attr)
+            attr_main = np.load(inputfile_attr)
         elif inputfile.endswith(".pt"):
             forcing_main = torch.load(inputfile)
             attr_main = torch.load(inputfile_attr)
@@ -133,10 +151,11 @@ class numpy_dataset:
                 varLst_index_attr.append(self.attrLst_name.index(var))
             else:
                 print(var, "the var is not in forcing file nor in attr file")
+                exit()
 
         x = forcing_main[:, :, varLst_index_forcing]
         ## for attr
-        if len(varLst_attr) > 0:
+        if len(varLst_index_attr) > 0:
             x_attr_t = attr_main[:, varLst_index_attr]
             x_attr_t = np.expand_dims(x_attr_t, axis=2)
             xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
@@ -176,6 +195,7 @@ class numpy_dataset:
                 varLst_index_attr.append(self.attrLst_name.index(var))
             else:
                 print(var, "the var is not in forcing file nor in attr file")
+                exit()
         c = dfC[:, varLst_index_attr]
 
         data = c
@@ -191,17 +211,17 @@ def loadData(args, trange):
     # Todo: I should this section to a wrapper class
     inputfile_forcing = os.path.join(os.path.realpath(args["forcing_path"]))
     if inputfile_forcing.endswith(".feather") or inputfile_forcing.endswith(".csv"):
-        df = DataFrame_dataset(tRange=trange)
+        read_data = DataFrame_dataset(tRange=trange)
     elif inputfile_forcing.endswith(".npy") or inputfile_forcing.endswith(".pt"):
-        df = numpy_dataset(tRange=trange)
+        read_data = numpy_dataset(tRange=trange)
     # getting inputs for NN model:
-    out_dict["x_NN"] = df.getDataTs(args, varLst=args["varT_NN"])
-    out_dict["c_NN"] = df.getDataConst(args, varLst=args["varC_NN"])
-    out_dict["obs"] = df.getDataTs(args, varLst=args["target"])
+    out_dict["x_NN"] = read_data.getDataTs(args, varLst=args["varT_NN"])
+    out_dict["c_NN"] = read_data.getDataConst(args, varLst=args["varC_NN"])
+    out_dict["obs"] = read_data.getDataTs(args, varLst=args["target"])
     if args["hydro_model_name"] != "None":
-        out_dict["x_hydro_model"] = df.getDataTs(args, varLst=args["varT_hydro_model"])
-        out_dict["c_hydro_model"] = df.getDataConst(args, varLst=args["varC_hydro_model"])
+        out_dict["x_hydro_model"] = read_data.getDataTs(args, varLst=args["varT_hydro_model"])
+        out_dict["c_hydro_model"] = read_data.getDataConst(args, varLst=args["varC_hydro_model"])
     if args["temp_model_name"] != "None":
-        out_dict["x_temp_model"] = df.getDataTs(args, varLst=args["varT_temp_model"])
-        out_dict["c_temp_model"] = df.getDataConst(args, varLst=args["varC_temp_model"])
+        out_dict["x_temp_model"] = read_data.getDataTs(args, varLst=args["varT_temp_model"])
+        out_dict["c_temp_model"] = read_data.getDataConst(args, varLst=args["varC_temp_model"])
     return out_dict
