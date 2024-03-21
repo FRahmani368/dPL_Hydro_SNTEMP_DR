@@ -5,8 +5,6 @@ import os
 from config.read_configurations import config_PRMS_SNTEMP as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
-
-from MODELS.loss_functions.get_loss_function import get_lossFun
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
 def main_hydro_temp(args):
@@ -19,17 +17,12 @@ def main_hydro_temp(args):
     # Creating output directories and adding it to args
     args = create_output_dirs(args)
 
-
-    lossFun = get_lossFun(args)
     if 0 in args["Action"]:       # training mode
         diff_model = diff_hydro_temp_model(args)
-        # lossFun = globals()[args["loss_function"]](w1=args["loss_function_weights"]["w1"],
-        #                                            w2=args["loss_function_weights"]["w2"])
         optim = torch.optim.Adadelta(diff_model.parameters())
         train_test.train_differentiable_model(
             args=args,
             diff_model=diff_model,
-            lossFun=lossFun,
             optim=optim
         )
     if 1 in args["Action"]:    # testing mode

@@ -5,15 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58245d29-b43b-4023-bbc3-36a582b22c6f" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/MODELS/loss_functions/NSEsqrtLoss_flow.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/MODELS/loss_functions/NSEsqrtLoss_flow_temp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/Differentiable_models.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/Differentiable_models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS/prms_marrmot2.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS/prms_marrmot_changed.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_gw0/prms_marrmot_gw0.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_gw0/prms_marrmot_gw0.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_BFI_temp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_BFI_temp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_comb.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_comb.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp_BFI.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp_BFI.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp_BFI_PET.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_flow_temp_BFI_PET.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_temp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/RmseLoss_temp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/get_loss_function.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/get_loss_function.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/train_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/train_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_hydro_temp.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_hydro_temp.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/load_data/dataFrame_loading.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/load_data/dataFrame_loading.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/load_data/data_prep.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/load_data/data_prep.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_hydro_temp.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_hydro_temp.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -123,12 +129,12 @@
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MODELS/train_test.py</url>
-          <line>156</line>
+          <line>154</line>
           <option name="timeStamp" value="395" />
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MODELS/train_test.py</url>
-          <line>166</line>
+          <line>164</line>
           <option name="timeStamp" value="396" />
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
@@ -138,7 +144,7 @@
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MODELS/train_test.py</url>
-          <line>77</line>
+          <line>80</line>
           <option name="timeStamp" value="482" />
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
@@ -229,9 +235,9 @@
           <option name="timeStamp" value="649" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MODELS/train_test.py</url>
-          <line>116</line>
-          <option name="timeStamp" value="674" />
+          <url>file://$PROJECT_DIR$/core/load_data/dataFrame_loading.py</url>
+          <line>243</line>
+          <option name="timeStamp" value="697" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

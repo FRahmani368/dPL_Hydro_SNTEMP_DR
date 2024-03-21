@@ -119,7 +119,7 @@ class numpy_dataset(Data_Reader):
         self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
                                 'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
                                 'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
-                                'vp(Pa)',  'dayl(s)']  #"00060_Mean", "00010_Mean",'dayl(s)'
+                                'vp(Pa)', "00060_Mean", "00010_Mean",'dayl(s)']  #
         self.attrLst_name = ['aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
                              'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
                              'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
@@ -217,7 +217,12 @@ def loadData(args, trange):
     # getting inputs for NN model:
     out_dict["x_NN"] = read_data.getDataTs(args, varLst=args["varT_NN"])
     out_dict["c_NN"] = read_data.getDataConst(args, varLst=args["varC_NN"])
-    out_dict["obs"] = read_data.getDataTs(args, varLst=args["target"])
+    obs_raw = read_data.getDataTs(args, varLst=args["target"])
+    ## converting the
+    if "00060_Mean" in args["target"]:
+        out_dict["obs"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
+                                                                         out_dict["c_NN"],
+                                                                         obs_raw)
     if args["hydro_model_name"] != "None":
         out_dict["x_hydro_model"] = read_data.getDataTs(args, varLst=args["varT_hydro_model"])
         out_dict["c_hydro_model"] = read_data.getDataConst(args, varLst=args["varC_hydro_model"])
@@ -225,3 +230,18 @@ def loadData(args, trange):
         out_dict["x_temp_model"] = read_data.getDataTs(args, varLst=args["varT_temp_model"])
         out_dict["c_temp_model"] = read_data.getDataConst(args, varLst=args["varC_temp_model"])
     return out_dict
+
+
+def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_NN_sample, obs_sample):
+    varTar_NN = args["target"]
+    if "00060_Mean" in varTar_NN:
+        obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
+            area_name = "DRAIN_SQKM"
+        elif "area_gages2" in varC_NN:
+            area_name = "area_gages2"
+        # area = (c_NN_sample[:, varC_NN.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)  # torch version
+        area = np.expand_dims(c_NN_sample[:, varC_NN.index(area_name)], axis=0).repeat(obs_flow_v.shape[0], 0)  # np ver
+        obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
+    return obs_sample

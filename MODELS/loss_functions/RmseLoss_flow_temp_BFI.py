@@ -11,7 +11,7 @@ class RmseLoss_flow_temp_BFI(torch.nn.Module):
         self.w2 = w2
         self.w3 = w3
 
-    def forward(self, args, y_sim, y_obs):
+    def forward(self, args, y_sim, y_obs, igrid):
         if self.w2 == None:    # w1 + w2 =1
             self.w2 = 1 - self.w1
         # flow

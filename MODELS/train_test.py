@@ -11,17 +11,11 @@ from core.load_data.dataFrame_loading import loadData
 from core.load_data.data_prep import (
     No_iter_nt_ngrid,
     take_sample_train,
-    take_sample_test,
-    converting_flow_from_ft3_per_sec_to_mm_per_day
+    take_sample_test
 )
 from core.load_data.normalizing import transNorm
-def train_differentiable_model(args, diff_model, lossFun, optim):
-    if torch.cuda.is_available():
-        diff_model = diff_model.to(args["device"])
-        lossFun = lossFun.to(args["device"])
-        torch.backends.cudnn.deterministic = True
-        CUDA_LAUNCH_BLOCKING = 1
-
+from MODELS.loss_functions.get_loss_function import get_lossFun
+def train_differentiable_model(args, diff_model, optim):
     # preparing training dataset
     dataset_dictionary = loadData(args, trange=args["t_train"])
     ### normalizing
@@ -34,6 +28,13 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
     del dataset_dictionary["x_NN"],   # no need the real values anymore
     dataset_dictionary["inputs_NN_scaled"] = np.concatenate((x_NN_scaled, c_NN_scaled), axis=2)
     del x_NN_scaled, c_NN_scaled   # we just need "inputs_NN_model" which is a combination of these two
+    ### defining the loss function
+    lossFun = get_lossFun(args, dataset_dictionary["obs"])  # obs is needed for certain loss functions, not all of them
+    if torch.cuda.is_available():
+        diff_model = diff_model.to(args["device"])
+        lossFun = lossFun.to(args["device"])
+        torch.backends.cudnn.deterministic = True
+        CUDA_LAUNCH_BLOCKING = 1
 
     ngrid_train, nIterEp, nt, batchSize = No_iter_nt_ngrid("t_train", args, dataset_dictionary["inputs_NN_scaled"])
     diff_model.zero_grad()
@@ -47,7 +48,9 @@ def train_differentiable_model(args, diff_model, lossFun, optim):
             # Batch running of the differentiable model
             out_diff_model = diff_model(dataset_dictionary_sample)
             # loss function
-            loss = lossFun(args, out_diff_model, dataset_dictionary_sample["obs_sample"])
+            loss = lossFun(args, out_diff_model,
+                           dataset_dictionary_sample["obs_sample"],
+                           igrid=dataset_dictionary_sample["iGrid"])
             loss.backward()  # retain_graph=True
             optim.step()
             diff_model.zero_grad()
@@ -104,13 +107,8 @@ def test_differentiable_model(args, diff_model):
         # out_diff_model_cpu = tuple(outs.cpu().detach() for outs in out_diff_model)
         list_out_diff_model.append(out_diff_model_cpu)
 
-    # getting rid of warm-up period in observation dataset and making the dimension similar to
-    # converting numpy to tensor
-    # y_obs = torch.tensor(np.swapaxes(y_obs[:, warm_up:, :], 0, 1), dtype=torch.float32)
-    # c_hydro_model = torch.tensor(c_hydro_model, dtype=torch.float32)
-    # if len(args["target"]) > 0:
-    y_obs = converting_flow_from_ft3_per_sec_to_mm_per_day(args, dataset_dictionary["c_NN"],
-                                                           dataset_dictionary["obs"][warm_up:, :, :])
+    # getting rid of warm-up period in observation dataset
+    y_obs = dataset_dictionary["obs"][warm_up:, :, :]
 
     save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True)
     torch.cuda.empty_cache()

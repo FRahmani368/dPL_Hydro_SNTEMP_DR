@@ -8,7 +8,7 @@ class RmseLoss_BFI_temp(torch.nn.Module):
         else:
             self.w2 = w2
 
-    def forward(self, args, y_sim, y_obs):
+    def forward(self, args, y_sim, y_obs, igrid):
         # flow
         varTar_NN = args["target"]
         obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]

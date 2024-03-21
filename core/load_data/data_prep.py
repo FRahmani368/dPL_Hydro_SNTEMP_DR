@@ -194,6 +194,7 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
     dimSubset = [batchSize, args["rho"]]
     iGrid, iT = randomIndex(ngrid_train, nt, dimSubset, warm_up=args["warm_up"])
     dataset_dictionary_sample = dict()
+    dataset_dictionary_sample["iGrid"] = iGrid
     dataset_dictionary_sample["inputs_NN_scaled_sample"] = selectSubset(args, dataset_dictionary["inputs_NN_scaled"],
                                                                         iGrid, iT, args["rho"], has_grad=False,
                                                                         warm_up=args["warm_up"])
@@ -201,13 +202,13 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
         dataset_dictionary["c_NN"][iGrid], device=args["device"], dtype=torch.float32
     )
     # collecting observation samples
-    obs_sample_v = selectSubset(
+    dataset_dictionary_sample["obs_sample"] = selectSubset(
         args, dataset_dictionary["obs"], iGrid, iT, args["rho"], has_grad=False, warm_up=args["warm_up"]
     )[args["warm_up"]:, :, :]
-    dataset_dictionary_sample["obs_sample"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
-                                                                                             dataset_dictionary_sample[
-                                                                                                 "c_NN_sample"],
-                                                                                             obs_sample_v)
+    # dataset_dictionary_sample["obs_sample"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
+    #                                                                                          dataset_dictionary_sample[
+    #                                                                                              "c_NN_sample"],
+    #                                                                                          obs_sample_v)
     # Hydro model sampling
     if args["hydro_model_name"] != "None":
         dataset_dictionary_sample["x_hydro_model_sample"] = selectSubset(
@@ -227,18 +228,7 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
 
     return dataset_dictionary_sample
 
-def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_NN_sample, obs_sample):
-    varTar_NN = args["target"]
-    if "00060_Mean" in varTar_NN:
-        obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
-        varC_NN = args["varC_NN"]
-        if "DRAIN_SQKM" in varC_NN:
-            area_name = "DRAIN_SQKM"
-        elif "area_gages2" in varC_NN:
-            area_name = "area_gages2"
-        area = (c_NN_sample[:, varC_NN.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
-        obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
-    return obs_sample
+
 
 def take_sample_test(args, dataset_dictionary, iS, iE):
     dataset_dictionary_sample = dict()

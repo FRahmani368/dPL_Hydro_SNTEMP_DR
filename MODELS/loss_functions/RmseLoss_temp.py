@@ -9,7 +9,7 @@ class RmseLoss_temp(torch.nn.Module):
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
 
-    def forward(self, args, y_sim, y_obs):
+    def forward(self, args, y_sim, y_obs, igrid):
         varTar_NN = args["target"]
         obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]
         sim_temp = y_sim["temp_sim"].squeeze()

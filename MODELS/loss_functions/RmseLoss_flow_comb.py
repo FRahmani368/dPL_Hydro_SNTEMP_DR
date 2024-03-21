@@ -9,7 +9,7 @@ class RmseLoss_flow_comb(torch.nn.Module):
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
 
-    def forward(self, args, y_sim, y_obs):
+    def forward(self, args, y_sim, y_obs, igrid):
         varTar_NN = args["target"]
         obs_flow = y_obs[:, :, varTar_NN.index("00060_Mean")]
         sim_flow = y_sim["flow_sim"].squeeze()

@@ -12,7 +12,7 @@ class RmseLoss_flow_temp(torch.nn.Module):
         if self.w2 == None:    # w1 + w2 =1
             self.w2 = 1 - self.w1
 
-    def forward(self, args, y_sim, y_obs):
+    def forward(self, args, y_sim, y_obs, igrid):
         varTar_NN = args["target"]
         obs_flow = y_obs[:, :, varTar_NN.index("00060_Mean")]
         sim_flow = y_sim["flow_sim"].squeeze()

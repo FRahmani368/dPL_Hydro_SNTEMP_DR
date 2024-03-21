@@ -2,9 +2,9 @@
 ##### See below for what you need to have
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
-Action: [1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 16
+nmul: 2
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -16,8 +16,8 @@ nmul: 16
 # Windows server
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\merit\\f1384_mswep_03122024.npy"   #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\merit\\attrs1384_mswep_03122024.npy"
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
@@ -25,21 +25,21 @@ output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp
+loss_function: "NSEsqrtLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
 loss_function_weights:
-    w1: 7.0      # w1: flow loss weight (11.0), flor RmseLoss_BFI_temp(w1=0.05, w2=1.0)
+    w1: 11.0      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: []#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #"00060_Mean", "00010_Mean"
+target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19800101, 20230101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 100
-EPOCHS: 20
+batch_size: 25
+EPOCHS: 3
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 20
+saveEpoch: 3
 no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
 varC_NN: [
