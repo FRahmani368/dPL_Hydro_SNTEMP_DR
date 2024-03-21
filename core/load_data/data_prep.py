@@ -229,14 +229,15 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
 
 def converting_flow_from_ft3_per_sec_to_mm_per_day(args, c_NN_sample, obs_sample):
     varTar_NN = args["target"]
-    obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
-    varC_NN = args["varC_NN"]
-    if "DRAIN_SQKM" in varC_NN:
-        area_name = "DRAIN_SQKM"
-    elif "area_gages2" in varC_NN:
-        area_name = "area_gages2"
-    area = (c_NN_sample[:, varC_NN.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
-    obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
+    if "00060_Mean" in varTar_NN:
+        obs_flow_v = obs_sample[:, :, varTar_NN.index("00060_Mean")]
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
+            area_name = "DRAIN_SQKM"
+        elif "area_gages2" in varC_NN:
+            area_name = "area_gages2"
+        area = (c_NN_sample[:, varC_NN.index(area_name)]).unsqueeze(0).repeat(obs_flow_v.shape[0], 1)
+        obs_sample[:, :, varTar_NN.index("00060_Mean")] = (10 ** 3) * obs_flow_v * 0.0283168 * 3600 * 24 / (area * (10 ** 6)) # convert ft3/s to mm/day
     return obs_sample
 
 def take_sample_test(args, dataset_dictionary, iS, iE):

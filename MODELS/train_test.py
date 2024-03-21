@@ -98,7 +98,6 @@ def test_differentiable_model(args, diff_model):
     list_out_diff_model = []
     for i in range(0, len(iS)):
         dataset_dictionary_sample = take_sample_test(args, dataset_dictionary, iS[i], iE[i])
-
         out_diff_model = diff_model(dataset_dictionary_sample)
         # Convert all tensors in the dictionary to CPU
         out_diff_model_cpu = {key: tensor.cpu().detach() for key, tensor in out_diff_model.items()}
@@ -109,6 +108,7 @@ def test_differentiable_model(args, diff_model):
     # converting numpy to tensor
     # y_obs = torch.tensor(np.swapaxes(y_obs[:, warm_up:, :], 0, 1), dtype=torch.float32)
     # c_hydro_model = torch.tensor(c_hydro_model, dtype=torch.float32)
+    # if len(args["target"]) > 0:
     y_obs = converting_flow_from_ft3_per_sec_to_mm_per_day(args, dataset_dictionary["c_NN"],
                                                            dataset_dictionary["obs"][warm_up:, :, :])
 

@@ -66,7 +66,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.hydro_model = SACSMAMul()
             elif self.args["hydro_model_name"] == "SACSMA_with_snow":
                 self.hydro_model = SACSMA_snow_Mul()
-            elif self.args["hydro_model_name"] != "None":
+            else:
                 print("hydrology (streamflow) model type has not been defined")
                 exit()
             # temp_model_initialization
@@ -75,7 +75,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.temp_model = SNTEMP_flowSim()  # this model needs a hydrology model as backbone
             elif self.args["temp_model_name"] == "SNTEMP_gw0":
                 self.temp_model = SNTEMP_flowSim_gw0()  # this model needs a hydrology model as backbone, and 4 outflow
-            elif self.args["temp_model_name"] != "None":
+            else:
                 print("temp model type has not been defined")
                 exit()
         # get the dimensions of NN model based on hydro modela and temp model

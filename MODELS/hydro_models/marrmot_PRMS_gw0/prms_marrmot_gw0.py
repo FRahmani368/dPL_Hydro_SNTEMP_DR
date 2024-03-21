@@ -28,7 +28,7 @@ class prms_marrmot_gw0(torch.nn.Module):
                                      k5=[0, 1],    # k5, Baseflow coefficient [d-1]
                                      k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
                                      cgw0=[0, 20],  # cgw, Constant drainage to deep groundwater [mm/d]
-                                     k7 = [0,1],
+                                     k7=[0,1],
                                      k8=[0,1]
                                      )
         self.conv_routing_hydro_model_bound = [
@@ -308,7 +308,8 @@ class prms_marrmot_gw0(torch.nn.Module):
         SEP_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         GAD_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         GW0_GW_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
-
+        ea_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         ###adding new GW_storage0
         bas_shallow_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         for t in range(Ndays):
@@ -425,6 +426,8 @@ class prms_marrmot_gw0(torch.nn.Module):
             SEP_sim[t, :, :] = flux_sep
             GAD_sim[t, :, :] = flux_gad
             GW0_GW_sim[t, :, :] = flux_GW0_GW
+            ea_sim[t, :, :] = flux_ea
+            qres_sim[t, :, :] = flux_qres
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
                                             bounds=self.conv_routing_hydro_model_bound[0])
@@ -486,4 +489,6 @@ class prms_marrmot_gw0(torch.nn.Module):
                         flux_sep=SEP_sim.mean(-1, keepdim=True),
                         flux_gad=GAD_sim.mean(-1, keepdim=True),
                         flux_gw0_gw=GW0_GW_sim.mean(-1, keepdim=True),
+                        flux_ea=ea_sim.mean(-1, keepdim=True),
+                        flux_qres=qres_sim.mean(-1, keepdim=True),
                         )
