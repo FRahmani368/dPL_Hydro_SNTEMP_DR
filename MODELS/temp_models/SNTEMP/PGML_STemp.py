@@ -4201,8 +4201,7 @@ class SNTEMP_flowSim(nn.Module):
         """
         # with torch.no_grad():
         if args["res_time_type"] == "SNTEMP":
-            mask_ave_air_temp = ave_air_temp.ge(0)
-            ave_air_temp = ave_air_temp * mask_ave_air_temp.int().float()
+            ave_air_temp = torch.clamp(ave_air_temp, min=NEARZERO)
 
             srflow_temp = ave_air_temp[:, :, :, 0]  # .clone().detach()
             ssflow_temp = ave_air_temp[:, :, :, 1]  # .clone().detach()
@@ -4310,7 +4309,7 @@ class SNTEMP_flowSim(nn.Module):
                             torch.sign(denom) * NEARZERO,
                             denom)
         Tw = T_e - (delt * r / denom)
-        Tw = torch.clamp(Tw, min=0.0)
+        Tw = torch.clamp(Tw, min=NEARZERO)
         return Tw
 
         #

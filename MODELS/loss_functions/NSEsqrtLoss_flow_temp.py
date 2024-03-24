@@ -28,7 +28,10 @@ class NSEsqrtLoss_flow_temp(torch.nn.Module):
             p = sim_flow[mask_flow1]
             t = obs_flow[mask_flow1]
             stdw = stdbatch[mask_flow1]
-            sqRes = torch.sqrt((p - t)**2)
+            # p = torch.where((p == t),
+            #                      p + 0.1 * self.eps,
+            #                      p)
+            sqRes = torch.sqrt(args["NEARZERO"] + (p - t)**2)
             normRes = sqRes / (stdw + self.eps)
             loss_flow = torch.mean(normRes)
         else:
@@ -36,14 +39,18 @@ class NSEsqrtLoss_flow_temp(torch.nn.Module):
 
         # for temp
         if len(obs_temp[obs_temp==obs_temp]) > 0:
+            nt = obs_temp.shape[0]
             stdse_temp = np.tile(self.std_temp[igrid], (nt, 1))
             stdbatch_temp = torch.tensor(stdse_temp, requires_grad=False).float().to(args["device"])
             mask_temp1 = obs_temp == obs_temp
             p_temp = sim_temp[mask_temp1]
             t_temp = obs_temp[mask_temp1]
             stdw_temp = stdbatch_temp[mask_temp1]
-            p_temp[p_temp==0] = args["NEARZERO"]  # zero makes some nan value where obs is zero at the same time
-            sqRes_temp = torch.sqrt((p_temp - t_temp) ** 2)
+            # p_temp = torch.where(abs(p_temp - t_temp) < args["NEARZERO"],
+            #                      p_temp + 0.1 * self.eps,
+            #                      p_temp)
+            # p_temp[p_temp==t_temp] = args["NEARZERO"]  # zero makes some nan value where obs is zero at the same time
+            sqRes_temp = torch.sqrt(args["NEARZERO"] + (p_temp - t_temp) ** 2)
             normRes_temp = sqRes_temp / (stdw_temp + self.eps)
             loss_temp = torch.mean(normRes_temp)
         else:

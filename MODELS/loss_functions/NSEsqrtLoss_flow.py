@@ -25,7 +25,10 @@ class NSEsqrtLoss_flow(torch.nn.Module):
             p = sim_flow[mask_flow1]
             t = obs_flow[mask_flow1]
             stdw = stdbatch[mask_flow1]
-            sqRes = torch.sqrt((p - t)**2)
+            # p = torch.where((p == t),
+            #                 p + args["NEARZERO"],
+            #                 p)
+            sqRes = torch.sqrt(args["NEARZERO"] + (p - t)**2)
             normRes = sqRes / (stdw + self.eps)
             loss = torch.mean(normRes)
         else:

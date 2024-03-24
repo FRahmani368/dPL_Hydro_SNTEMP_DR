@@ -16,8 +16,8 @@ nmul: 2
 # Windows server
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f1031_mswep_515nanflow_0823_03122024.npy"   #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr1031_mswep_03122024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
@@ -35,11 +35,11 @@ t_train: [20080101, 20230101]   # there should be an overlap because of the warm
 t_test: [19800101, 20230101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 25
-EPOCHS: 3
+batch_size: 100
+EPOCHS: 5
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 3
+saveEpoch: 1
 no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
 varC_NN: [
@@ -90,7 +90,7 @@ STemp_default_albedo: 0.1
 STemp_default_delta_Z: 1.0       # for streambed conduction
 params_water_density: 1000
 params_C_w: 4184    # J/kg. K
-NEARZERO: 1e-10
+NEARZERO: 1e-5
 Epan_coef: 1.0
 initial_values_shade_fraction: 0.1
 varT_temp_model: ['tmax(C)', 'tmin(C)',  "ccov", "PET_hargreaves(mm/day)",

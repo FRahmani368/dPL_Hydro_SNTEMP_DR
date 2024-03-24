@@ -324,7 +324,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
         return ave_air_temp, w_ssflow, w_gwflow, w_bas_shallow
 
     def lateral_flow_temperature(
-            self, srflow, ssflow, gwflow, bas_shallow, ave_air_temp, args, lat_temp_adj, NEARZERO=1e-6
+            self, srflow, ssflow, gwflow, bas_shallow, ave_air_temp, args, lat_temp_adj, NEARZERO=1e-10
     ):
         """
         :param srflow: surface runoff
@@ -337,8 +337,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
         """
         # with torch.no_grad():
         if args["res_time_type"] == "SNTEMP":
-            mask_ave_air_temp = ave_air_temp.ge(0)
-            ave_air_temp = ave_air_temp * mask_ave_air_temp.int().float()
+            ave_air_temp = torch.clamp(ave_air_temp, min=NEARZERO)
 
             srflow_temp = ave_air_temp[:, :, :, 0]  # .clone().detach()
             ssflow_temp = ave_air_temp[:, :, :, 1]  # .clone().detach()
@@ -358,16 +357,12 @@ class SNTEMP_flowSim_gw0(nn.Module):
         elif args["res_time_type"] == "van Vliet":
             # look at http://dx.doi.org/10.1029/2018WR023250 page 4
             srflow_temp = ave_air_temp[:, :, :, 0] - 1.5
-            mask_srflow_temp = srflow_temp.ge(0.0)
-            srflow_temp = srflow_temp * mask_srflow_temp.int().float()
+            srflow_temp = torch.clamp(srflow_temp, min=NEARZERO)
 
             ssflow_temp = ave_air_temp[:, :, :, 0]
-            mask_ssflow_temp = ssflow_temp.ge(0.0)
-            ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
+            ssflow_temp = torch.clamp(ssflow_temp, min=NEARZERO)
 
             gwflow_temp = ave_air_temp[:, :, :, 2]
-            mask_gwflow_temp = gwflow_temp.ge(5.0)
-            gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
             gwflow_temp = torch.clamp(gwflow_temp, min=5.0)
             lat_flow_temp = torch.cat(
                 (
@@ -382,16 +377,13 @@ class SNTEMP_flowSim_gw0(nn.Module):
         elif args["res_time_type"] == "Meisner":
             # look at http://dx.doi.org/10.1029/2018WR023250 page 4
             srflow_temp = ave_air_temp[:, :, :, 0]
-            mask_srflow_temp = srflow_temp.ge(0)
-            srflow_temp = srflow_temp * mask_srflow_temp.int().float()
+            srflow_temp = torch.clamp(srflow_temp, min=NEARZERO)
 
             ssflow_temp = ave_air_temp[:, :, :, 1]
-            mask_ssflow_temp = ssflow_temp.ge(0.0)
-            ssflow_temp = ssflow_temp * mask_ssflow_temp.int().float()
+            ssflow_temp = torch.clamp(ssflow_temp, min=NEARZERO)
 
             gwflow_temp = ave_air_temp[:, :, :, 2]
-            mask_gwflow_temp = gwflow_temp.ge(0)
-            gwflow_temp = gwflow_temp * mask_gwflow_temp.int().float()
+            gwflow_temp = torch.clamp(gwflow_temp, min=NEARZERO)
 
             lat_flow_temp = torch.cat(
                 (
@@ -403,8 +395,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
             )
 
         denom = gwflow + ssflow + srflow + bas_shallow
-        mask_denom = denom.eq(0.0)
-        denom = denom + mask_denom.int().float()
+        denom[denom == 0] = 1.0
 
         if args["lat_temp_adj"] == True:
             gwflow_temp = gwflow_temp + lat_temp_adj
@@ -448,7 +439,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
                             torch.sign(denom) * NEARZERO,
                             denom)
         Tw = T_e - (delt * r / denom)
-        Tw = torch.clamp(Tw, min=0.0)
+        Tw = torch.clamp(Tw, min=NEARZERO)
         return Tw
 
         #
