@@ -289,12 +289,16 @@ class SNTEMP_flowSim_gw0(nn.Module):
         varT = args["varT_temp_model"]
         nmul = args["nmul"]
         warm_up = args["warm_up"]
-        mean_air_temp_all = ((x[:, :, varT.index("tmax(C)")] + x[:, :, varT.index("tmin(C)")]) / 2).unsqueeze(
-            -1).repeat(1, 1, nmul)
-        air_sample_sr = mean_air_temp_all[warm_up - args["res_time_lenF_srflow"]:, :, 0:1]
-        air_sample_ss = mean_air_temp_all[warm_up - args["res_time_lenF_ssflow"]:, :, 0:1]
-        air_sample_gw = mean_air_temp_all[warm_up - args["res_time_lenF_gwflow"]:, :, 0:1]
-        air_sample_bas_shallow = mean_air_temp_all[warm_up - args["res_time_lenF_bas_shallow"]:, :, 0:1]
+        air_sample_sr = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_srflow"]:, :, 0:1]
+        air_sample_ss = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_ssflow"]:, :, 0:1]
+        air_sample_bas_shallow = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_bas_shallow"]:, :, 0:1]
+        air_sample_gw = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_gwflow"]:, :, 0:1]
+        # mean_air_temp_all = ((x[:, :, varT.index("tmax(C)")] + x[:, :, varT.index("tmin(C)")]) / 2).unsqueeze(
+        #     -1).repeat(1, 1, nmul)
+        # air_sample_sr = mean_air_temp_all[warm_up - args["res_time_lenF_srflow"]:, :, 0:1]
+        # air_sample_ss = mean_air_temp_all[warm_up - args["res_time_lenF_ssflow"]:, :, 0:1]
+        # air_sample_gw = mean_air_temp_all[warm_up - args["res_time_lenF_gwflow"]:, :, 0:1]
+        # air_sample_bas_shallow = mean_air_temp_all[warm_up - args["res_time_lenF_bas_shallow"]:, :, 0:1]
         ave_air_sr = (air_sample_sr[args["res_time_lenF_srflow"]:, :, :]).repeat(1, 1, nmul)
 
         w_ssflow = self.UH_gamma(a=a_ssflow, b=b_ssflow,
@@ -570,7 +574,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
 
-    def forward(self, x, c, params_raw, conv_params_temp, args, PET, source_flows):
+    def forward(self, x, airT_memory, c, params_raw, conv_params_temp, args, PET, source_flows):
         NEARZERO = args["NEARZERO"]
         warm_up = args["warm_up"]
         nmul = args["nmul"]
@@ -641,7 +645,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
 
         # calculating the temperature of source flow using convolution
         ave_air_temp, w_ssflow, w_gwflow, w_bas_shallow = self.ave_air_temp_calculation(
-            args, x, params_dict["a_ssflow"], params_dict["b_ssflow"], params_dict["a_gwflow"], params_dict["b_gwflow"],
+            args, airT_memory, params_dict["a_ssflow"], params_dict["b_ssflow"], params_dict["a_gwflow"], params_dict["b_gwflow"],
             params_dict["a_bas_shallow"], params_dict["b_bas_shallow"])
         # modifying the source flow temperature with physical constraints
         T_0, srflow_temp, ssflow_temp, gwflow_temp, bas_shallow_temp, ave_air_temp_new = self.lateral_flow_temperature(

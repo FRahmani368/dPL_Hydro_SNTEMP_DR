@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from core.load_data.time import tRange2Array
-
+from datetime import datetime, timedelta
 
 class Data_Reader(ABC):
     @abstractmethod
@@ -229,6 +229,22 @@ def loadData(args, trange):
     if args["temp_model_name"] != "None":
         out_dict["x_temp_model"] = read_data.getDataTs(args, varLst=args["varT_temp_model"])
         out_dict["c_temp_model"] = read_data.getDataConst(args, varLst=args["varC_temp_model"])
+        # preparing the airT matrix for calculating source water temp
+        # airT_memory = max(0, max([args["res_time_lenF_srflow"],
+        #                       args["res_time_lenF_ssflow"],
+        #                       args["res_time_lenF_bas_shallow"],
+        #                       args["res_time_lenF_gwflow"]]) - args["rho"])
+        airT_memory = max([args["res_time_lenF_srflow"],
+                              args["res_time_lenF_ssflow"],
+                              args["res_time_lenF_bas_shallow"],
+                              args["res_time_lenF_gwflow"]])
+        init_time = datetime.strptime(str(trange[0]), "%Y%m%d")
+        new_init_time = init_time - timedelta(days=airT_memory) + timedelta(days=args["warm_up"])
+        new_init_time_str = new_init_time.strftime("%Y%m%d")
+        # updating read_data class
+        read_data.time = tRange2Array([int(new_init_time_str), trange[1]])
+        out_dict["airT_mem_temp_model"] = read_data.getDataTs(args, varLst=['tmean(C)'])
+        # out_dict["airT_memory"] = airT_memory
     return out_dict
 
 

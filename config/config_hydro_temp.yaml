@@ -16,8 +16,8 @@ nmul: 2
 # Windows server
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f1031_mswep_515nanflow_0823_03122024.npy"   #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr1031_mswep_03122024.npy"
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
@@ -32,11 +32,11 @@ loss_function_weights:
 target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
-t_test: [19800101, 20230101]    # the first year is for warm_up
+t_test: [19810101, 20230101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 100
-EPOCHS: 5
+batch_size: 50
+EPOCHS: 1
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
@@ -78,7 +78,7 @@ routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
 res_time_lenF_bas_shallow: 180 #
-res_time_lenF_gwflow: 365 #
+res_time_lenF_gwflow: 730 #
 res_time_lenF_srflow: 1
 lat_temp_adj: True
 shade_smoothening: False
@@ -94,7 +94,7 @@ NEARZERO: 1e-5
 Epan_coef: 1.0
 initial_values_shade_fraction: 0.1
 varT_temp_model: ['tmax(C)', 'tmin(C)',  "ccov", "PET_hargreaves(mm/day)",
-              'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)"]    #'dayl(s)',  , "dayofyear", "t_monthly(C)",
+              'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)", 'tmean(C)']    #'dayl(s)',  , "dayofyear", "t_monthly(C)",
 varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
               'ELEV_MEAN_M_BASIN']       #  "area_gages2",   "RIP100_FOREST", "lat"   'PPTAVG_BASIN',
 

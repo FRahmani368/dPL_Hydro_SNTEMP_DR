@@ -161,6 +161,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                                                               after_routing=True)
                 # temperature model
                 temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
+                                                   dataset_dictionary_sample["airT_mem_temp_model_sample"],
                                                    dataset_dictionary_sample["c_temp_model_sample"],
                                                    params_dict["temp_params_raw"],
                                                    conv_params_temp=params_dict["conv_params_temp"],

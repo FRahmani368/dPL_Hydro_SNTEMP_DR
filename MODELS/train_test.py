@@ -88,7 +88,8 @@ def test_differentiable_model(args, diff_model):
     del x_NN_scaled, dataset_dictionary["x_NN"]
     # converting the numpy arrays to torch tensors:
     for key in dataset_dictionary.keys():
-        dataset_dictionary[key] = torch.from_numpy(dataset_dictionary[key]).float()
+        if type(dataset_dictionary[key]) == np.ndarray:  # to avoid int or others to be saved
+            dataset_dictionary[key] = torch.from_numpy(dataset_dictionary[key]).float()
 
     # args_mod = args.copy()
     args["batch_size"] = args["no_basins"]

@@ -225,6 +225,18 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
         dataset_dictionary_sample["c_temp_model_sample"] = torch.tensor(
             dataset_dictionary["c_temp_model"][iGrid], device=args["device"], dtype=torch.float32
         )
+        ## airT_memory. has been used in  dataframe_loading.py as well
+        airT_memory = max([args["res_time_lenF_srflow"],
+                           args["res_time_lenF_ssflow"],
+                           args["res_time_lenF_bas_shallow"],
+                           args["res_time_lenF_gwflow"]])
+
+        dataset_dictionary_sample["airT_mem_temp_model_sample"] = selectSubset(
+            args, dataset_dictionary["airT_mem_temp_model"], iGrid,
+            iT + airT_memory - args["warm_up"], args["rho"], has_grad=False,
+            warm_up=airT_memory    #args["warm_up"] +
+        )
+
 
     return dataset_dictionary_sample
 
