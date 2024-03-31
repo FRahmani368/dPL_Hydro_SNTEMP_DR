@@ -3,7 +3,7 @@ import json
 import os
 
 class RmseLoss_flow_temp_BFI(torch.nn.Module):
-    def __init__(self, w1=0.5, w2=None, w3=0.05, alpha=0.25, beta=1e-6):
+    def __init__(self, w1=5.0, w2=1.0, w3=0.05, alpha=0.25, beta=1e-6):
         super(RmseLoss_flow_temp_BFI, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
@@ -58,8 +58,5 @@ class RmseLoss_flow_temp_BFI(torch.nn.Module):
             loss_BFI = torch.sqrt(((p_BFI2 - t_BFI) ** 2).mean())  # RMSE item
         else:
             loss_BFI = 0.0
-
-
-
         loss = self.w1 * loss_flow_total + self.w2 * loss_temp + self.w3 * loss_BFI
         return loss
