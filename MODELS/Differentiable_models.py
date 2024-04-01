@@ -150,7 +150,12 @@ class diff_hydro_temp_model(torch.nn.Module):
                 conv_params_hydro=params_dict["conv_params_hydro"]
             )
             # baseflow index percentage
-            flow_out["BFI_sim"] = 100 * (torch.sum(flow_out["gwflow"], dim=0) / (
+            ## means we are using two deep groundwater buckets named gwflow & bas_shallow
+            if "bas_shallow" in flow_out.keys():
+                baseflow = flow_out["gwflow"] + flow_out["bas_shallow"]
+            else:
+                baseflow = flow_out["gwflow"]
+            flow_out["BFI_sim"] = 100 * (torch.sum(baseflow, dim=0) / (
                     torch.sum(flow_out["flow_sim"], dim=0) + 0.00001))[:, 0]
 
             if self.args['temp_model_name'] != "None":
