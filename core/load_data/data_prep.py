@@ -195,34 +195,53 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
     iGrid, iT = randomIndex(ngrid_train, nt, dimSubset, warm_up=args["warm_up"])
     dataset_dictionary_sample = dict()
     dataset_dictionary_sample["iGrid"] = iGrid
-    dataset_dictionary_sample["inputs_NN_scaled_sample"] = selectSubset(args, dataset_dictionary["inputs_NN_scaled"],
+    dataset_dictionary_sample["inputs_NN_scaled"] = selectSubset(args, dataset_dictionary["inputs_NN_scaled"],
                                                                         iGrid, iT, args["rho"], has_grad=False,
                                                                         warm_up=args["warm_up"])
-    dataset_dictionary_sample["c_NN_sample"] = torch.tensor(
+    dataset_dictionary_sample["c_NN"] = torch.tensor(
         dataset_dictionary["c_NN"][iGrid], device=args["device"], dtype=torch.float32
     )
     # collecting observation samples
-    dataset_dictionary_sample["obs_sample"] = selectSubset(
+    dataset_dictionary_sample["obs"] = selectSubset(
         args, dataset_dictionary["obs"], iGrid, iT, args["rho"], has_grad=False, warm_up=args["warm_up"]
     )[args["warm_up"]:, :, :]
-    # dataset_dictionary_sample["obs_sample"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
+    # dataset_dictionary_sample["obs"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
     #                                                                                          dataset_dictionary_sample[
-    #                                                                                              "c_NN_sample"],
+    #                                                                                              "c_NN"],
     #                                                                                          obs_sample_v)
     # Hydro model sampling
     if args["hydro_model_name"] != "None":
-        dataset_dictionary_sample["x_hydro_model_sample"] = selectSubset(
+        dataset_dictionary_sample["x_hydro_model"] = selectSubset(
             args, dataset_dictionary["x_hydro_model"], iGrid, iT, args["rho"], has_grad=False, warm_up=args["warm_up"]
         )
-        dataset_dictionary_sample["c_hydro_model_sample"] = torch.tensor(
+        dataset_dictionary_sample["c_hydro_model"] = torch.tensor(
             dataset_dictionary["c_hydro_model"][iGrid], device=args["device"], dtype=torch.float32
+        )
+    else:
+        dataset_dictionary_sample["srflow"] = selectSubset(
+            args, dataset_dictionary["srflow"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
+        )
+        dataset_dictionary_sample["ssflow"] = selectSubset(
+            args, dataset_dictionary["ssflow"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
+        )
+        dataset_dictionary_sample["gwflow"] = selectSubset(
+            args, dataset_dictionary["gwflow"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
+        )
+        dataset_dictionary_sample["bas_shallow"] = selectSubset(
+            args, dataset_dictionary["bas_shallow"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
+        )
+        dataset_dictionary_sample["flow_sim"] = selectSubset(
+            args, dataset_dictionary["flow_sim"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
+        )
+        dataset_dictionary_sample["PET_hydro"] = selectSubset(
+            args, dataset_dictionary["PET_hydro"], iGrid, iT, args["rho"], has_grad=False, warm_up=0
         )
     # temperture model sampling
     if args["temp_model_name"] != "None":
-        dataset_dictionary_sample["x_temp_model_sample"] = selectSubset(
+        dataset_dictionary_sample["x_temp_model"] = selectSubset(
             args, dataset_dictionary["x_temp_model"], iGrid, iT, args["rho"], has_grad=False, warm_up=args["warm_up"]
         )  # [warm_up:,:, :]there is no need for warm up in temp section yet
-        dataset_dictionary_sample["c_temp_model_sample"] = torch.tensor(
+        dataset_dictionary_sample["c_temp_model"] = torch.tensor(
             dataset_dictionary["c_temp_model"][iGrid], device=args["device"], dtype=torch.float32
         )
         ## airT_memory. has been used in  dataframe_loading.py as well
@@ -231,7 +250,7 @@ def take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize):
                            args["res_time_lenF_bas_shallow"],
                            args["res_time_lenF_gwflow"]])
 
-        dataset_dictionary_sample["airT_mem_temp_model_sample"] = selectSubset(
+        dataset_dictionary_sample["airT_mem_temp_model"] = selectSubset(
             args, dataset_dictionary["airT_mem_temp_model"], iGrid,
             iT + airT_memory - args["warm_up"], args["rho"], has_grad=False,
             warm_up=airT_memory    #args["warm_up"] +
@@ -246,10 +265,15 @@ def take_sample_test(args, dataset_dictionary, iS, iE):
     dataset_dictionary_sample = dict()
     for key in dataset_dictionary.keys():
         if len(dataset_dictionary[key].shape) == 3:
-            dataset_dictionary_sample[key + "_sample"] = dataset_dictionary[key][:, iS: iE, :].to(
+            # we need to remove the warm up period for all except airT_memory and inputs for temp model
+            if (key == "airT_mem_temp_model") or (key == "x_temp_model") or (key == "x_hydro_model"):
+                warm_up = 0
+            else:
+                warm_up = args["warm_up"]
+            dataset_dictionary_sample[key] = dataset_dictionary[key][warm_up:, iS: iE, :].to(
                 args["device"])
         elif len(dataset_dictionary[key].shape) == 2:
-            dataset_dictionary_sample[key + "_sample"] = dataset_dictionary[key][iS: iE, :].to(
+            dataset_dictionary_sample[key] = dataset_dictionary[key][iS: iE, :].to(
                 args["device"])
     return dataset_dictionary_sample
 

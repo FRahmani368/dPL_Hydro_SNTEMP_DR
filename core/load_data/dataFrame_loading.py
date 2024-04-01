@@ -17,20 +17,25 @@ class Data_Reader(ABC):
 
 
 class DataFrame_dataset(Data_Reader):
-    def __init__(self, tRange):
+    def __init__(self, args, tRange, data_path, attr_path=None):
         self.time = tRange2Array(tRange)
+        self.args = args
+        self.inputfile = data_path
+        if attr_path == None:
+            self.inputfile_attr = os.path.join(os.path.realpath(self.args["attr_path"]))  # the static data
+        else:
+            self.inputfile_attr = os.path.join(os.path.realpath(attr_path))  # the static data
 
     def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
-        inputfile_attr = os.path.join(os.path.realpath(args["attr_path"]))
-        if inputfile.endswith(".csv"):
-            dfMain = pd.read_csv(inputfile)
-            dfMain_attr = pd.read_csv(inputfile_attr)
-        elif inputfile.endswith(".feather"):
-            dfMain = pd.read_feather(inputfile)
-            dfMain_attr = pd.read_feather(inputfile_attr)
+
+        if self.inputfile.endswith(".csv"):
+            dfMain = pd.read_csv(self.inputfile)
+            dfMain_attr = pd.read_csv(self.inputfile_attr)
+        elif self.inputfile.endswith(".feather"):
+            dfMain = pd.read_feather(self.inputfile)
+            dfMain_attr = pd.read_feather(self.inputfile_attr)
         else:
             print("data type is not supported")
             exit()
@@ -55,6 +60,8 @@ class DataFrame_dataset(Data_Reader):
         xtg = [xt[i.values, :] for k, i in g.groups.items()]
         x = np.array(xtg)
 
+        # TODO: Ths part is commented because I don't think we need to have it here as there ais a different
+        #  function to read static inputs
         ## for attr
         if len(varLst_attr) > 0:
             x_attr_t = dfMain_attr.loc[:, varLst_attr].values
@@ -66,33 +73,18 @@ class DataFrame_dataset(Data_Reader):
         data = x
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
         data = data[:, ind2, :]
-        # if os.path.isdir(out):
-        #     pass
-        # else:
-        #     os.makedirs(out)
-        # np.save(os.path.join(out, 'x.npy'), data)
-        # if doNorm is True:
-        #     data = transNorm(data, varLst, toNorm=True)
-        # if rmNan is True:
-        #     data[np.where(np.isnan(data))] = 0
         return np.swapaxes(data, 1, 0)
 
     def getDataConst(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
         inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
-        if inputfile.endswith(".csv"):
-            dfMain = pd.read_csv(inputfile)
-            inputfile2 = os.path.join(
-                os.path.realpath(args["attr_path"])
-            )  #   attr
-            dfC = pd.read_csv(inputfile2)
+        if self.inputfile_attr.endswith(".csv"):
+            dfMain = pd.read_csv(self.inputfile)
+            dfC = pd.read_csv(self.inputfile_attr)
         elif inputfile.endswith(".feather"):
-            dfMain = pd.read_feather(inputfile)
-            inputfile2 = os.path.join(
-                os.path.realpath(args["attr_path"])
-            )  #   attr
-            dfC = pd.read_feather(inputfile2)
+            dfMain = pd.read_feather(self.inputfile)
+            dfC = pd.read_feather(self.inputfile_attr)
         else:
             print("data type is not supported")
             exit()
@@ -112,9 +104,14 @@ class DataFrame_dataset(Data_Reader):
         return data
 
 class numpy_dataset(Data_Reader):
-    def __init__(self, tRange):
+    def __init__(self, args, tRange, data_path, attr_path=None):
         self.time = tRange2Array(tRange)
-
+        self.args = args
+        self.inputfile = data_path   # the dynamic data
+        if attr_path == None:
+            self.inputfile_attr = os.path.join(os.path.realpath(self.args["attr_path"]))  # the static data
+        else:
+            self.inputfile_attr = os.path.join(os.path.realpath(attr_path))  # the static data
         # These are default forcings and attributes that are read from the dataset
         self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
                                 'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
@@ -130,14 +127,16 @@ class numpy_dataset(Data_Reader):
     def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args["forcing_path"]))
-        inputfile_attr = os.path.join(os.path.realpath(args["attr_path"]))
-        if inputfile.endswith(".npy"):
-            forcing_main = np.load(inputfile)
-            attr_main = np.load(inputfile_attr)
-        elif inputfile.endswith(".pt"):
-            forcing_main = torch.load(inputfile)
-            attr_main = torch.load(inputfile_attr)
+       # TODO: looking for a way to read different types of attr + forcings together
+        if self.inputfile.endswith(".npy"):
+            forcing_main = np.load(self.inputfile)
+            if self.inputfile_attr.endswith(".npy"):
+                attr_main = np.load(self.inputfile_attr)
+            elif self.inputfile_attr.endswith(".feather"):
+                attr_main = pd.read_feather(self.inputfile_attr)
+        elif self.inputfile.endswith(".pt"):
+            forcing_main = torch.load(self.inputfile)
+            attr_main = torch.load(self.inputfile_attr)
         else:
             print("data type is not supported")
             exit()
@@ -166,25 +165,16 @@ class numpy_dataset(Data_Reader):
         tLst = tRange2Array(args["tRange"])
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
         data = data[:, ind2, :]
-        # if os.path.isdir(out):
-        #     pass
-        # else:
-        #     os.makedirs(out)
-        # np.save(os.path.join(out, 'x.npy'), data)
-        # if doNorm is True:
-        #     data = transNorm(data, varLst, toNorm=True)
-        # if rmNan is True:
-        #     data[np.where(np.isnan(data))] = 0
         return np.swapaxes(data, 1, 0)
 
     def getDataConst(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]
-        inputfile = os.path.join(os.path.realpath(args["attr_path"]))
-        if inputfile.endswith(".npy"):
-            dfC = np.load(inputfile)
-        elif inputfile.endswith(".pt"):
-            dfC = torch.load(inputfile)
+        # inputfile = os.path.join(os.path.realpath(args["attr_path"]))
+        if self.inputfile_attr.endswith(".npy"):
+            dfC = np.load(self.inputfile_attr)
+        elif self.inputfile_attr.endswith(".pt"):
+            dfC = torch.load(self.inputfile_attr)
         else:
             print("data type is not supported")
             exit()
@@ -205,30 +195,55 @@ class numpy_dataset(Data_Reader):
         #     data[np.where(np.isnan(data))] = 0
         return data
 
+class choose_class_to_read_dataset():
+    def __init__(self, args, trange, data_path):
+        self.args = args
+        self.trange = trange
+        self.data_path = data_path
+        self.get_dataset_class()
+    def get_dataset_class(self) -> None:
+        if self.data_path.endswith(".feather") or self.data_path.endswith(".csv"):
+            self.read_data = DataFrame_dataset(args=self.args, tRange=self.trange, data_path=self.data_path)
+        elif self.data_path.endswith(".npy") or self.data_path.endswith(".pt"):
+            self.read_data = numpy_dataset(args=self.args, tRange=self.trange, data_path=self.data_path)
+
+
+
+
+
+
+
 def loadData(args, trange):
 
     out_dict = dict()
-    # Todo: I should this section to a wrapper class
-    inputfile_forcing = os.path.join(os.path.realpath(args["forcing_path"]))
-    if inputfile_forcing.endswith(".feather") or inputfile_forcing.endswith(".csv"):
-        read_data = DataFrame_dataset(tRange=trange)
-    elif inputfile_forcing.endswith(".npy") or inputfile_forcing.endswith(".pt"):
-        read_data = numpy_dataset(tRange=trange)
+    forcing_dataset_class = choose_class_to_read_dataset(args, trange, args["forcing_path"])
     # getting inputs for NN model:
-    out_dict["x_NN"] = read_data.getDataTs(args, varLst=args["varT_NN"])
-    out_dict["c_NN"] = read_data.getDataConst(args, varLst=args["varC_NN"])
-    obs_raw = read_data.getDataTs(args, varLst=args["target"])
+    out_dict["x_NN"] = forcing_dataset_class.read_data.getDataTs(args, varLst=args["varT_NN"])
+    out_dict["c_NN"] = forcing_dataset_class.read_data.getDataConst(args, varLst=args["varC_NN"])
+    obs_raw = forcing_dataset_class.read_data.getDataTs(args, varLst=args["target"])
     ## converting the
     if "00060_Mean" in args["target"]:
         out_dict["obs"] = converting_flow_from_ft3_per_sec_to_mm_per_day(args,
                                                                          out_dict["c_NN"],
                                                                          obs_raw)
+    else:
+        out_dict["obs"] = obs_raw
     if args["hydro_model_name"] != "None":
-        out_dict["x_hydro_model"] = read_data.getDataTs(args, varLst=args["varT_hydro_model"])
-        out_dict["c_hydro_model"] = read_data.getDataConst(args, varLst=args["varC_hydro_model"])
+        out_dict["x_hydro_model"] = forcing_dataset_class.read_data.getDataTs(args, varLst=args["varT_hydro_model"])
+        out_dict["c_hydro_model"] = forcing_dataset_class.read_data.getDataConst(args, varLst=args["varC_hydro_model"])
+    ## if it is None --> we read the flow from a dataset
+    else:
+        # defining a new dataset class to read the flow data
+        flow_dataset_class = choose_class_to_read_dataset(args, trange, args["flow_data_path"])
+        # this is the flowdata columns' names. it is
+        flow_dataset_class.read_data.all_forcings_name = ["srflow", "ssflow", "bas_shallow", "gwflow", "flow_sim"]
+        for col in flow_dataset_class.read_data.all_forcings_name:
+            out_dict[col] = flow_dataset_class.read_data.getDataTs(args, varLst=[col])
+        # reading PET from forcings
+        out_dict["PET_hydro"] = forcing_dataset_class.read_data.getDataTs(args, varLst=["PET_hargreaves(mm/day)"])
     if args["temp_model_name"] != "None":
-        out_dict["x_temp_model"] = read_data.getDataTs(args, varLst=args["varT_temp_model"])
-        out_dict["c_temp_model"] = read_data.getDataConst(args, varLst=args["varC_temp_model"])
+        out_dict["x_temp_model"] = forcing_dataset_class.read_data.getDataTs(args, varLst=args["varT_temp_model"])
+        out_dict["c_temp_model"] = forcing_dataset_class.read_data.getDataConst(args, varLst=args["varC_temp_model"])
         # preparing the airT matrix for calculating source water temp
         # airT_memory = max(0, max([args["res_time_lenF_srflow"],
         #                       args["res_time_lenF_ssflow"],
@@ -241,9 +256,9 @@ def loadData(args, trange):
         init_time = datetime.strptime(str(trange[0]), "%Y%m%d")
         new_init_time = init_time - timedelta(days=airT_memory) + timedelta(days=args["warm_up"])
         new_init_time_str = new_init_time.strftime("%Y%m%d")
-        # updating read_data class
-        read_data.time = tRange2Array([int(new_init_time_str), trange[1]])
-        out_dict["airT_mem_temp_model"] = read_data.getDataTs(args, varLst=['tmean(C)'])
+        # updating forcing_read_data class
+        forcing_dataset_class.read_data.time = tRange2Array([int(new_init_time_str), trange[1]])
+        out_dict["airT_mem_temp_model"] = forcing_dataset_class.read_data.getDataTs(args, varLst=['tmean(C)'])
         # out_dict["airT_memory"] = airT_memory
     return out_dict
 

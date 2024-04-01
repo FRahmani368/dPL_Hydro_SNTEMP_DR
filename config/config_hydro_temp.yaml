@@ -14,8 +14,8 @@ nmul: 2
 #attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_2003_fill_NaN.feather"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models//cross_1031_NanFlow_0823"
 # Windows server
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\forcing_415_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
+forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\forcing_50_20240331.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\attr50.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
@@ -29,10 +29,10 @@ loss_function: "RmseLoss_flow_temp_BFI"      # "RmseLoss_flow_temp", "RmseLoss_f
 loss_function_weights:
     w1: 5      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00060_Mean", "00010_Mean", "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00010_Mean", "00060_Mean", "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
-t_train: [20080101, 20230101]   # there should be an overlap because of the warm_up
-t_test: [19810101, 20230101]    # the first year is for warm_up
+t_train: [20150101, 20230101]   # there should be an overlap because of the warm_up
+t_test: [19810101, 20000101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
@@ -73,7 +73,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -100,10 +100,12 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
 
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS_gw0"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
+hydro_model_name: "SACSMA_with_snow"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
+# if hydro_model_name = None --> we need a path to read the flow data from
+flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
 
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef

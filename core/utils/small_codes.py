@@ -103,23 +103,25 @@ def source_flow_calculation(args, flow_out, c_NN, after_routing=True):
         srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
         ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
         gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
-        if args["hydro_model_name"] == "marrmot_PRMS_gw0":   # there are four flow outputs
+        # if args["hydro_model_name"] == "marrmot_PRMS_gw0":   # there are four flow outputs
+        if "bas_shallow" in flow_out.keys():
             bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow"]).repeat(1, 1, args["nmul"])
     else:
         srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
         ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
         gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
-        if args["hydro_model_name"] == "marrmot_PRMS_gw0":   # there are four flow outputs
+        # if args["hydro_model_name"] == "marrmot_PRM_gw0":   # there are four flow outputs
+        if "bas_shallow_no_rout" in flow_out.keys():
             bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow_no_rout"]).repeat(1, 1, args["nmul"])
     # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
     # ssflow = torch.clamp(ssflow, min=0.0)
     # gwflow = torch.clamp(gwflow, min=0.0)
-    if args["hydro_model_name"] == "marrmot_PRMS_gw0":  # there are four flow outputs
+    if "bas_shallow" in flow_out.keys():  # there are four flow outputs
         return dict(srflow=srflow,
                     ssflow=ssflow,
                     gwflow=gwflow,
                     bas_shallow=bas_shallow)
-    else:    # there is three flow outputs
+    else:  # there is three flow outputs
         return dict(srflow=srflow,
                     ssflow=ssflow,
                     gwflow=gwflow)

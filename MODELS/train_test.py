@@ -49,7 +49,7 @@ def train_differentiable_model(args, diff_model, optim):
             out_diff_model = diff_model(dataset_dictionary_sample)
             # loss function
             loss = lossFun(args, out_diff_model,
-                           dataset_dictionary_sample["obs_sample"],
+                           dataset_dictionary_sample["obs"],
                            igrid=dataset_dictionary_sample["iGrid"])
             loss.backward()  # retain_graph=True
             optim.step()
@@ -133,16 +133,20 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
     if calculate_metrics == True:
         predLst = list()
         obsLst = list()
-        flow_sim = torch.cat([d["flow_sim"] for d in list_out_diff_model], dim=1)
-        flow_obs = y_obs[:, :, args["target"].index("00060_Mean")]
-        predLst.append(flow_sim.numpy())
-        obsLst.append(np.expand_dims(flow_obs, 2))
+        name_list = []
+        if args["hydro_model_name"] != "None":
+            flow_sim = torch.cat([d["flow_sim"] for d in list_out_diff_model], dim=1)
+            flow_obs = y_obs[:, :, args["target"].index("00060_Mean")]
+            predLst.append(flow_sim.numpy())
+            obsLst.append(np.expand_dims(flow_obs, 2))
+            name_list.append("flow")
         if args["temp_model_name"] != "None":
             temp_sim = torch.cat([d["temp_sim"] for d in list_out_diff_model], dim=1)
             predLst.append(temp_sim.numpy())
-            if "00010_Mean" in args["target"]:   # this line helps have flow_temp model with only flow in loss func
+            if "00010_Mean" in args["target"]:  # this line helps have flow_temp model with only flow in loss func
                 temp_obs = y_obs[:, :, args["target"].index("00010_Mean")]
                 obsLst.append(np.expand_dims(temp_obs, 2))
+                name_list.append("temp")
 
 
         # we need to swap axes here to have [basin, days]
@@ -152,7 +156,6 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
         ]
         ### save this file
         # median and STD calculation
-        name_list = ["flow", "temp"]
         for st, name in zip(statDictLst, name_list):
             count = 0
             mdstd = np.zeros([len(st), 3])

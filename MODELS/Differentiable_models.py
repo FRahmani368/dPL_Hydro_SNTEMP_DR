@@ -134,14 +134,14 @@ class diff_hydro_temp_model(torch.nn.Module):
 
 
     def forward(self, dataset_dictionary_sample):
-        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled_sample"][self.args["warm_up"]:, :, :])
+        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled"][self.args["warm_up"]:, :, :])
         # breaking down the parameters to different pieces for different models (PET, hydro, temp)
         params_dict = self.breakdown_params(params_all)
         if self.args['hydro_model_name'] != "None":
             # hydro model
             flow_out = self.hydro_model(
-                dataset_dictionary_sample["x_hydro_model_sample"],
-                dataset_dictionary_sample["c_hydro_model_sample"],
+                dataset_dictionary_sample["x_hydro_model"],
+                dataset_dictionary_sample["c_hydro_model"],
                 params_dict['hydro_params_raw'],
                 self.args,
                 # PET_param=params_dict["params_PET_model"],  # PET is in both temp and flow model
@@ -156,19 +156,41 @@ class diff_hydro_temp_model(torch.nn.Module):
             if self.args['temp_model_name'] != "None":
                 # source flow calculation and converting mm/day to m3/ day
                 source_flows_dict = source_flow_calculation(self.args, flow_out,
-                                                              dataset_dictionary_sample[
-                                                                  "c_NN_sample"],
-                                                              after_routing=True)
+                                                            dataset_dictionary_sample[
+                                                                "c_NN"],
+                                                            after_routing=True)
                 # temperature model
-                temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model_sample"],
-                                                   dataset_dictionary_sample["airT_mem_temp_model_sample"],
-                                                   dataset_dictionary_sample["c_temp_model_sample"],
+                temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model"],
+                                                   dataset_dictionary_sample["airT_mem_temp_model"],
+                                                   dataset_dictionary_sample["c_temp_model"],
                                                    params_dict["temp_params_raw"],
                                                    conv_params_temp=params_dict["conv_params_temp"],
                                                    args=self.args,
-                                                   PET=flow_out["PET_hydro"] * (1 / (1000 * 86400)),   # converting mm/day to m/sec,
+                                                   PET=flow_out["PET_hydro"] * (1 / (1000 * 86400)),
+                                                   # converting mm/day to m/sec,
                                                    source_flows=source_flows_dict)
 
-                return {**flow_out, **temp_out}   # combining both dictionaries
+                return {**flow_out, **temp_out}  # combining both dictionaries
             else:
                 return flow_out
+        else:
+            ## flow data comes from a dataset (pre-saved model's output, or observations)
+            if self.args['temp_model_name'] != "None":
+                # source flow calculation and converting mm/day to m3/ day
+                source_flows_dict = source_flow_calculation(self.args, dataset_dictionary_sample,
+                                                            dataset_dictionary_sample[
+                                                                "c_NN"],
+                                                            after_routing=True)
+                # temperature model
+                temp_out = self.temp_model.forward(dataset_dictionary_sample["x_temp_model"],
+                                                   dataset_dictionary_sample["airT_mem_temp_model"],
+                                                   dataset_dictionary_sample["c_temp_model"],
+                                                   params_dict["temp_params_raw"],
+                                                   conv_params_temp=params_dict["conv_params_temp"],
+                                                   args=self.args,
+                                                   PET=dataset_dictionary_sample["PET_hydro"] * (
+                                                               1 / (1000 * 86400)),
+                                                   # converting mm/day to m/sec,
+                                                   source_flows=source_flows_dict)
+
+                return temp_out  # combining both dictionaries
