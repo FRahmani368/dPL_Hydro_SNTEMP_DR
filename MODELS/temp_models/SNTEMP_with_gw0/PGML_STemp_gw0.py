@@ -237,13 +237,13 @@ class SNTEMP_flowSim_gw0(nn.Module):
     def UH_gamma(self, a, b, lenF=10):
         # UH. a [time (same all time steps), batch, var]
         m = a.shape
-        lenF = min(a.shape[0], lenF)
+        # lenF = min(a.shape[0], lenF)
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.1. First dimension of a is repeat
         theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.5
         # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
         # t = t.cuda(aa.device)
-        t = (torch.linspace(0.001, 20, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
+        t = (torch.linspace(0.001, 10, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
         t = t.to(aa.device)
         denom = (aa.lgamma().exp()) * (theta ** aa)
         mid = t ** (aa - 1)
@@ -293,12 +293,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
         air_sample_ss = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_ssflow"]:, :, 0:1]
         air_sample_bas_shallow = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_bas_shallow"]:, :, 0:1]
         air_sample_gw = x[args["res_time_lenF_gwflow"] - args["res_time_lenF_gwflow"]:, :, 0:1]
-        # mean_air_temp_all = ((x[:, :, varT.index("tmax(C)")] + x[:, :, varT.index("tmin(C)")]) / 2).unsqueeze(
-        #     -1).repeat(1, 1, nmul)
-        # air_sample_sr = mean_air_temp_all[warm_up - args["res_time_lenF_srflow"]:, :, 0:1]
-        # air_sample_ss = mean_air_temp_all[warm_up - args["res_time_lenF_ssflow"]:, :, 0:1]
-        # air_sample_gw = mean_air_temp_all[warm_up - args["res_time_lenF_gwflow"]:, :, 0:1]
-        # air_sample_bas_shallow = mean_air_temp_all[warm_up - args["res_time_lenF_bas_shallow"]:, :, 0:1]
+
         ave_air_sr = (air_sample_sr[args["res_time_lenF_srflow"]:, :, :]).repeat(1, 1, nmul)
 
         w_ssflow = self.UH_gamma(a=a_ssflow, b=b_ssflow,
@@ -598,8 +593,12 @@ class SNTEMP_flowSim_gw0(nn.Module):
                                                          bounds=self.parameters_bound[param])
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
+                rep = max(args["res_time_lenF_ssflow"],
+                          args["res_time_lenF_bas_shallow"],
+                          args["res_time_lenF_gwflow"],
+                          Nstep)
                 params_dict[param] = self.change_param_range(param=conv_params_temp[:, num],
-                                                   bounds=self.conv_temp_model_bound[param]).repeat(Nstep, 1).unsqueeze(-1)
+                                                   bounds=self.conv_temp_model_bound[param]).repeat(rep, 1).unsqueeze(-1)
         if args["lat_temp_adj"] == True:
             lat_temp_params_raw = params_raw[:, -1, :]
             params_dict["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,

@@ -73,7 +73,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -100,7 +100,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
 
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS_gw0"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
+hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True

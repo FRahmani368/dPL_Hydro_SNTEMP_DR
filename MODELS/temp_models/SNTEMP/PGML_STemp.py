@@ -4059,13 +4059,13 @@ class SNTEMP_flowSim(nn.Module):
     def UH_gamma(self, a, b, lenF=10):
         # UH. a [time (same all time steps), batch, var]
         m = a.shape
-        lenF = min(a.shape[0], lenF)
+        # lenF = min(a.shape[0], lenF)
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
         theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
         # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
         # t = t.cuda(aa.device)
-        t = (torch.linspace(0.001, 20, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
+        t = (torch.linspace(0.001, 10, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
         t = t.to(aa.device)
         denom = (aa.lgamma().exp()) * (theta ** aa)
         mid = t ** (aa - 1)
@@ -4684,8 +4684,13 @@ class SNTEMP_flowSim(nn.Module):
                                                          bounds=self.parameters_bound[param])
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
+                rep = max(args["res_time_lenF_ssflow"],
+                          args["res_time_lenF_gwflow"],
+                          Nstep)
                 params_dict[param] = self.change_param_range(param=conv_params_temp[:, num],
-                                                   bounds=self.conv_temp_model_bound[param]).repeat(Nstep, 1).unsqueeze(-1)
+                                                             bounds=self.conv_temp_model_bound[param]).repeat(rep,
+                                                                                                              1).unsqueeze(
+                    -1)
         if args["lat_temp_adj"] == True:
             lat_temp_params_raw = params_raw[:, -1, :]
             params_dict["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
