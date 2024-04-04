@@ -118,7 +118,7 @@ class HBVMul(torch.nn.Module):
     def change_param_range(self, param, bounds):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
-    def forward(self, x_hydro_model, c_hydro_model, hbv_params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -132,7 +132,7 @@ class HBVMul(torch.nn.Module):
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
                 initmodel = HBVMul().to(args["device"])
-                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, hbv_params_raw, args,
+                Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
         else:
@@ -145,6 +145,14 @@ class HBVMul(torch.nn.Module):
             SUZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             SLZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
+
+        ## parameters for prms_marrmot. there are 18 parameters in it. we take all params and make the changes
+        # inside the for loop
+        params_dict_raw = dict()
+        for num, param in enumerate(self.parameters_bound.keys()):
+            params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
+                                                             bounds=self.parameters_bound[param])
+
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
         P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
@@ -177,12 +185,6 @@ class HBVMul(torch.nn.Module):
             PET = x_hydro_model[warm_up:, :, vars.index(args["potet_dataset_name"])].unsqueeze(-1).repeat(1, 1, nmul)
             # AET = PET_coef * PET
 
-        ## scale the parameters
-        params_dict = dict()
-        for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=hbv_params_raw[:, num, :],
-                                                         bounds=self.parameters_bound[param])
-
         Nstep, Ngrid = P.size()
 
         # Apply correction factor to precipitation
@@ -201,7 +203,18 @@ class HBVMul(torch.nn.Module):
         # logRE = np.zeros(P.size())
         AET = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
 
+        # do static parameters
+        params_dict = dict()
+        for key in params_dict_raw.keys():
+            if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key][-1, :, :]
+
         for t in range(Nstep):
+            # do dynamic parameters
+            for key in params_dict_raw.keys():
+                if key in args["dyn_params_list_hydro"]:  ## it is a dynamic parameter
+                    params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+
             # Separate precipitation into liquid and solid components
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
             RAIN = torch.mul(PRECIP, (mean_air_temp[t, :, :] >= params_dict["parTT"]).type(torch.float32))

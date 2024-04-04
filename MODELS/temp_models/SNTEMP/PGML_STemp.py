@@ -4680,7 +4680,7 @@ class SNTEMP_flowSim(nn.Module):
         ## scale the parameters
         params_dict = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=params_raw[:, num, :],
+            params_dict[param] = self.change_param_range(param=params_raw[warm_up:, :, num, :],
                                                          bounds=self.parameters_bound[param])
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
@@ -4692,9 +4692,13 @@ class SNTEMP_flowSim(nn.Module):
                                                                                                               1).unsqueeze(
                     -1)
         if args["lat_temp_adj"] == True:
-            lat_temp_params_raw = params_raw[:, -1, :]
+            if "lat_temp_adj" in args["dyn_params_list_temp"]:
+                lat_temp_params_raw = params_raw[:, :, -1, :]
+            else:
+                lat_temp_params_raw = params_raw[-1, :, -1, :]
+
             params_dict["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
-                                                   bounds=self.lat_adj_params_bound[0])
+                                                                  bounds=self.lat_adj_params_bound[0])
         else:
             params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
 

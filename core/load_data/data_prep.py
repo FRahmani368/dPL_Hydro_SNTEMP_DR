@@ -266,7 +266,8 @@ def take_sample_test(args, dataset_dictionary, iS, iE):
     for key in dataset_dictionary.keys():
         if len(dataset_dictionary[key].shape) == 3:
             # we need to remove the warm up period for all except airT_memory and inputs for temp model
-            if (key == "airT_mem_temp_model") or (key == "x_temp_model") or (key == "x_hydro_model"):
+            if (key == "airT_mem_temp_model") or (key == "x_temp_model") or (key == "x_hydro_model") or (
+                    key == "inputs_NN_scaled"):
                 warm_up = 0
             else:
                 warm_up = args["warm_up"]

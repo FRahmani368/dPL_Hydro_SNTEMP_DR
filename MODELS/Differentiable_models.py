@@ -94,8 +94,8 @@ class diff_hydro_temp_model(torch.nn.Module):
 
     def breakdown_params(self, params_all):
         params_dict = dict()
-        params_hydro_model = params_all[-1, :, :self.ny_hydro]
-        params_temp_model = params_all[-1, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
+        params_hydro_model = params_all[:, :, :self.ny_hydro]
+        params_temp_model = params_all[:, :, self.ny_hydro: (self.ny_hydro + self.ny_temp)]
         # if self.ny_PET > 0:
         #     params_dict["params_PET_model"] = torch.sigmoid(params_all[-1, :, (self.ny_hydro + self.ny_temp):])
         # else:
@@ -108,25 +108,25 @@ class diff_hydro_temp_model(torch.nn.Module):
         if self.args['hydro_model_name'] != "None":
             # hydro params
             params_dict["hydro_params_raw"] = torch.sigmoid(
-                params_hydro_model[:, :len(self.hydro_model.parameters_bound) * self.args["nmul"]]).view(
-                params_hydro_model.shape[0], len(self.hydro_model.parameters_bound),
+                params_hydro_model[:, :, :len(self.hydro_model.parameters_bound) * self.args["nmul"]]).view(
+                params_hydro_model.shape[0], params_hydro_model.shape[1], len(self.hydro_model.parameters_bound),
                 self.args["nmul"])
             # routing params
             if self.args["routing_hydro_model"] == True:
                 params_dict["conv_params_hydro"] = torch.sigmoid(
-                    params_hydro_model[:, len(self.hydro_model.parameters_bound) * self.args["nmul"]:])
+                    params_hydro_model[-1, :, len(self.hydro_model.parameters_bound) * self.args["nmul"]:])
             else:
                 params_dict["conv_params_hydro"] = None
 
         if self.args['temp_model_name'] != "None":
             # hydro params
             params_dict["temp_params_raw"] = torch.sigmoid(
-                params_temp_model[:, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
-                params_temp_model.shape[0], len(self.temp_model.parameters_bound),
+                params_temp_model[:, :, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
+                params_temp_model.shape[0], params_temp_model.shape[1], len(self.temp_model.parameters_bound),
                 self.args["nmul"])
             # convolution parameters for ss and gw temp calculation
             if self.args["routing_temp_model"] == True:
-                params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[:, -len(self.temp_model.conv_temp_model_bound):])
+                params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[-1, :, -len(self.temp_model.conv_temp_model_bound):])
             else:
                 print("it has not been defined yet what approach should be taken in place of conv")
                 exit()
@@ -134,7 +134,7 @@ class diff_hydro_temp_model(torch.nn.Module):
 
 
     def forward(self, dataset_dictionary_sample):
-        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled"][self.args["warm_up"]:, :, :])
+        params_all = self.NN_model(dataset_dictionary_sample["inputs_NN_scaled"])   # [self.args["warm_up"]:, :, :]
         # breaking down the parameters to different pieces for different models (PET, hydro, temp)
         params_dict = self.breakdown_params(params_all)
         if self.args['hydro_model_name'] != "None":

@@ -242,7 +242,7 @@ class SACSMA_snow_Mul(torch.nn.Module):
         # gwflow = torch.clamp(gwflow, min=0.0)
         return srflow, ssflow, gwflow
 
-    def forward(self, x_hydro_model, c_hydro_model, SACSMA_params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -257,7 +257,7 @@ class SACSMA_snow_Mul(torch.nn.Module):
                 xinit = x_hydro_model[0:warm_up, :, :]
                 warm_up_model = SACSMA_snow_Mul().to(args["device"])
                 Qsrout, SNOWPACK, MELTWATER, UZTW_storage, UZFW_storage, LZTW_storage, \
-                LZFWP_storage, LZFWS_storage = warm_up_model(xinit, c_hydro_model, SACSMA_params_raw, args,
+                LZFWP_storage, LZFWS_storage = warm_up_model(xinit, c_hydro_model, params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
         else:
@@ -271,6 +271,14 @@ class SACSMA_snow_Mul(torch.nn.Module):
             LZFWP_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
             LZFWS_storage = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.0001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
+
+        ## parameters for prms_marrmot. there are 18 parameters in it. we take all params and make the changes
+        # inside the for loop
+        params_dict_raw = dict()
+        for num, param in enumerate(self.parameters_bound.keys()):
+            params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
+                                                             bounds=self.parameters_bound[param])
+
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
         P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
@@ -307,24 +315,31 @@ class SACSMA_snow_Mul(torch.nn.Module):
         ssflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         gwflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         AET = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
-        ## scale the parameters
+        # do static parameters
         params_dict = dict()
-        for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=SACSMA_params_raw[:, num, :],
-                                                         bounds=self.parameters_bound[param])
-        uztwm = params_dict["f1"] * params_dict["smax"]
-        uzfwm = torch.clamp(params_dict["f2"] * (params_dict["smax"] - uztwm), min=0.005/4)
-        lztwm = torch.clamp(params_dict["f3"] * (params_dict["smax"] - uztwm - uzfwm), min=0.005 / 4)
-        lzfwpm = torch.clamp(params_dict["f4"] * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
-        lzfwsm = torch.clamp((1 - params_dict["f4"]) * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
-        pbase = lzfwpm * params_dict["klzp"] + lzfwsm * params_dict["klzs"]
-        zperc = torch.clamp((lztwm + lzfwsm * (1 - params_dict["klzs"])) / (lzfwsm * params_dict["klzs"] +
-                                                                            lzfwpm * params_dict["klzp"]) +
-                            (lzfwpm * (1 - params_dict["klzp"])) / (lzfwsm * params_dict["klzs"] +
-                                                                    lzfwpm * params_dict["klzp"]), max=100000.0)
+        for key in params_dict_raw.keys():
+            if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key][-1, :, :]
+
         Nstep, Ngrid = P.size()
 
         for t in range(Nstep):
+            # do dynamic parameters
+            for key in params_dict_raw.keys():
+                if key in args["dyn_params_list_hydro"]:  ## it is a dynamic parameter
+                    params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+
+            uztwm = params_dict["f1"] * params_dict["smax"]
+            uzfwm = torch.clamp(params_dict["f2"] * (params_dict["smax"] - uztwm), min=0.005 / 4)
+            lztwm = torch.clamp(params_dict["f3"] * (params_dict["smax"] - uztwm - uzfwm), min=0.005 / 4)
+            lzfwpm = torch.clamp(params_dict["f4"] * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
+            lzfwsm = torch.clamp((1 - params_dict["f4"]) * (params_dict["smax"] - uztwm - uzfwm - lztwm), min=0.005 / 4)
+            pbase = lzfwpm * params_dict["klzp"] + lzfwsm * params_dict["klzs"]
+            zperc = torch.clamp((lztwm + lzfwsm * (1 - params_dict["klzs"])) / (lzfwsm * params_dict["klzs"] +
+                                                                                lzfwpm * params_dict["klzp"]) +
+                                (lzfwpm * (1 - params_dict["klzp"])) / (lzfwsm * params_dict["klzs"] +
+                                                                        lzfwpm * params_dict["klzp"]), max=100000.0)
+
             # Separate precipitation into liquid and solid components
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
             RAIN = torch.mul(PRECIP, (mean_air_temp[t, :, :] >= params_dict["parTT"]).type(torch.float32))

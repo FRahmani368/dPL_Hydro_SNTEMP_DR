@@ -25,11 +25,11 @@ output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_temp_BFI"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
+loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
 loss_function_weights:
     w1: 5      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00010_Mean", "00060_Mean", "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean"]# , "00010_Mean"] #, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20150101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19810101, 20000101]    # the first year is for warm_up
@@ -97,16 +97,16 @@ varT_temp_model: ['tmax(C)', 'tmin(C)',  "ccov", "PET_hargreaves(mm/day)",
               'prcp(mm/day)', 'vp(Pa)', "srad(W/m2)", 'tmean(C)']    #'dayl(s)',  , "dayofyear", "t_monthly(C)",
 varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
               'ELEV_MEAN_M_BASIN']       #  "area_gages2",   "RIP100_FOREST", "lat"   'PPTAVG_BASIN',
-
+dyn_params_list_temp: ["width_coef_pow", "w1_shade"]
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
+hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-
+dyn_params_list_hydro: ["parTT"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"

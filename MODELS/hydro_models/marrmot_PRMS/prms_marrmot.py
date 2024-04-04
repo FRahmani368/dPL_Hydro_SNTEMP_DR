@@ -251,13 +251,13 @@ class prms_marrmot(torch.nn.Module):
                                      device=args["device"]) + 0.001
 
         ## parameters for prms_marrmot. there are 18 parameters in it
-        params_dict = dict()
+        ## parameters for prms_marrmot. there are 18 parameters in it. we take all params and make the changes
+        # inside the for loop
+        params_dict_raw = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=params_raw[:, num, :],
-                                                         bounds=self.parameters_bound[param])
-        scn = params_dict["fscn"] * params_dict["scx"]
-        remx = (1 - params_dict["flz"]) * params_dict["stot"]
-        smax = params_dict["flz"] * params_dict["stot"]
+            params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
+                                                             bounds=self.parameters_bound[param])
+
         # PWT_coef , for converting PET to AET
         # PET_coef = self.change_param_range(param=PET_param,
         #                                                  bounds=self.PET_coef_bound[0])
@@ -296,7 +296,22 @@ class prms_marrmot(torch.nn.Module):
         PC_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         SEP_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         GAD_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        ea_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        # do static parameters
+        params_dict = dict()
+        for key in params_dict_raw.keys():
+            if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key][-1, :, :]
         for t in range(Ndays):
+            # do dynamic parameters
+            for key in params_dict_raw.keys():
+                if key in args["dyn_params_list_hydro"]:  ## it is a dynamic parameter
+                    params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+            scn = params_dict["fscn"] * params_dict["scx"]
+            remx = (1 - params_dict["flz"]) * params_dict["stot"]
+            smax = params_dict["flz"] * params_dict["stot"]
+
             delta_t = 1  # timestep (day)
             P = Precip[t, :, :]
             Ep = PET[t, :, :]
@@ -391,6 +406,9 @@ class prms_marrmot(torch.nn.Module):
             PC_sim[t, :, :] = flux_pc
             SEP_sim[t, :, :] = flux_sep
             GAD_sim[t, :, :] = flux_gad
+            ea_sim[t, :, :] = flux_ea
+            qres_sim[t, :, :] = flux_qres
+
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
                                             bounds=self.conv_routing_hydro_model_bound[0])
@@ -443,4 +461,6 @@ class prms_marrmot(torch.nn.Module):
                         flux_pc=PC_sim.mean(-1, keepdim=True),
                         flux_sep=SEP_sim.mean(-1, keepdim=True),
                         flux_gad=GAD_sim.mean(-1, keepdim=True),
+                        flux_ea=ea_sim.mean(-1, keepdim=True),
+                        flux_qres=qres_sim.mean(-1, keepdim=True),
                         )

@@ -261,14 +261,13 @@ class prms_marrmot_gw0(torch.nn.Module):
             GW_storage0 = torch.zeros([x_hydro_model.shape[1], nmul], dtype=torch.float32,
                                      device=args["device"]) + 0.001
 
-        ## parameters for prms_marrmot. there are 18 parameters in it
-        params_dict = dict()
+        ## parameters for prms_marrmot. there are 18 parameters in it. we take all params and make the changes
+        # inside the for loop
+        params_dict_raw = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=params_raw[:, num, :],
+            params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
                                                          bounds=self.parameters_bound[param])
-        scn = params_dict["fscn"] * params_dict["scx"]
-        remx = (1 - params_dict["flz"]) * params_dict["stot"]
-        smax = params_dict["flz"] * params_dict["stot"]
+
         # PWT_coef , for converting PET to AET
         # PET_coef = self.change_param_range(param=PET_param,
         #                                                  bounds=self.PET_coef_bound[0])
@@ -312,7 +311,22 @@ class prms_marrmot_gw0(torch.nn.Module):
         qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         ###adding new GW_storage0
         bas_shallow_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+
+        # do static parameters
+        params_dict = dict()
+        for key in params_dict_raw.keys():
+            if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key][-1, :, :]
+
         for t in range(Ndays):
+            # do dynamic parameters
+            for key in params_dict_raw.keys():
+                if key in args["dyn_params_list_hydro"]:   ## it is a dynamic parameter
+                    params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+            scn = params_dict["fscn"] * params_dict["scx"]
+            remx = (1 - params_dict["flz"]) * params_dict["stot"]
+            smax = params_dict["flz"] * params_dict["stot"]
+
             delta_t = 1  # timestep (day)
             P = Precip[t, :, :]
             Ep = PET[t, :, :]
