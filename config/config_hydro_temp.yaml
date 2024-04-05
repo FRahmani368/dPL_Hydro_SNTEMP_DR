@@ -29,17 +29,17 @@ loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_
 loss_function_weights:
     w1: 5      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=0.05, w2=1.0)
     w2: 1.0
-target: ["00060_Mean"]# , "00010_Mean"] #, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean" ] #, "00010_Mean"] #, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
 t_train: [20150101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19810101, 20000101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
-EPOCHS: 1
+EPOCHS: 50
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 1
+saveEpoch: 10
 no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
 varC_NN: [
@@ -73,7 +73,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -106,7 +106,7 @@ varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["parTT"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: ["parBETA", "parFC"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"

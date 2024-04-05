@@ -2,7 +2,7 @@ import sys
 sys.path.append("../")
 import torch
 import os
-from config.read_configurations import config_PRMS_SNTEMP as config
+from config.read_configurations import config_hydro_temp as config
 from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
 from MODELS.Differentiable_models import diff_hydro_temp_model
