@@ -55,13 +55,30 @@ def create_output_dirs(args):
     if not os.path.exists(os.path.join(args["output_model"], out_folder)):
         os.makedirs(os.path.join(args["output_model"], out_folder))
 
+    ## make a folder for static and dynamic parametrization
+    dyn_params = ""
+    if args["hydro_model_name"]!= "None":
+        if len(args["dyn_params_list_hydro"]) > 0:
+            dyn_list_sorted = sorted(args["dyn_params_list_hydro"])
+            for i in dyn_list_sorted:
+                dyn_params = dyn_params + i + "_"
+        else:
+            dyn_params = "hydro_stat_"
+    if args["temp_model_name"]!= "None":
+        if len(args["dyn_params_list_temp"]) > 0:
+            dyn_list_sorted = sorted(args["dyn_params_list_temp"])
+            for i in dyn_list_sorted:
+                dyn_params = dyn_params + i + "_"
+        else:
+            dyn_params = dyn_params + "temp_stat"
+
     testing_dir = "ts" + str(args["t_test"][0])[:4] + "_" + str(args["t_test"][1])[:4]
-    if not os.path.exists(os.path.join(args["output_model"], out_folder, testing_dir)):
-        os.makedirs(os.path.join(args["output_model"], out_folder, testing_dir))
+    if not os.path.exists(os.path.join(args["output_model"], out_folder, dyn_params, testing_dir)):
+        os.makedirs(os.path.join(args["output_model"], out_folder, dyn_params, testing_dir))
     # else:
     #     shutil.rmtree(os.path.join(args['output']['model'], out_folder))
     #     os.makedirs(os.path.join(args['output']['model'], out_folder))
-    args["out_dir"] = os.path.join(args["output_model"], out_folder)
+    args["out_dir"] = os.path.join(args["output_model"], out_folder, dyn_params)
     args["testing_dir"] = testing_dir
 
     # saving the args file in output directory
