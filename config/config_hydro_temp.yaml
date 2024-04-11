@@ -73,7 +73,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -100,13 +100,13 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
 dyn_params_list_temp: ["width_coef_pow", "w1_shade"]
 
 ### process based streamflow model configurations
-hydro_model_name: "HBV"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
+hydro_model_name: "marrmot_PRMS_gw0"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0 or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)', 'tmax(C)', 'tmin(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["parBETA", "parFC"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: ["scx", "beta", "cgw0"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"

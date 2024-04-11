@@ -408,7 +408,7 @@ class prms_marrmot_gw0(torch.nn.Module):
             GW_storage0 = GW_storage0 + flux_gad + flux_sep
             flux_bas_shallow = params_dict["k7"] * GW_storage0
             GW_storage0 = torch.clamp(GW_storage0 - flux_bas_shallow, min=NEARZERO)
-            flux_GW0_GW = params_dict["k8"] * GW_storage0
+            flux_GW0_GW = torch.min(params_dict["k8"] * GW_storage0, params_dict["cgw0"])
             GW_storage0 = torch.clamp(GW_storage0 - flux_GW0_GW, min=NEARZERO)
             GW_storage = GW_storage + flux_GW0_GW
             flux_bas = params_dict["k5"] * GW_storage
