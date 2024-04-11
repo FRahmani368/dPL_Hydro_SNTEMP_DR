@@ -1,20 +1,18 @@
-import math
 import torch
 from MODELS.PET_models.potet import get_potet
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
+
+
 # from .dropout import DropMask, createMask
 # from . import cnn
-import csv
-import numpy as np
-import random
 
 
 class HBVMul(torch.nn.Module):
     """HBV Model Pytorch version"""
 
-    def __init__(self):
+    def __init__(self, args):
         """Initiate a HBV instance"""
         super(HBVMul, self).__init__()
         self.parameters_bound = dict(parBETA=[1.0, 6.0],
@@ -29,9 +27,12 @@ class HBVMul(torch.nn.Module):
                                      parCFMAX=[0.5, 10],
                                      parCFR=[0, 0.1],
                                      parCWH=[0, 0.2])
+        if 'parBETAET' in args['dyn_params_list_hydro']:
+            self.parameters_bound['parBETAET'] = [0.3, 5]
+
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
-            [0, 6.5]   # routing parameter b
+            [0, 6.5]  # routing parameter b
         ]
 
     def UH_gamma(self, a, b, lenF=10):
@@ -104,6 +105,7 @@ class HBVMul(torch.nn.Module):
         # ssflow = torch.clamp(ssflow, min=0.0)
         # gwflow = torch.clamp(gwflow, min=0.0)
         return srflow, ssflow, gwflow
+
     def param_bounds_2D(self, params, num, bounds, ndays, nmul):
 
         out_temp = (
@@ -115,10 +117,13 @@ class HBVMul(torch.nn.Module):
             ndays, params.shape[0], nmul
         )
         return out
+
     def change_param_range(self, param, bounds):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
-    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
+
+    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False,
+                comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         # HBV(P, ETpot, T, parameters)
         #
@@ -131,7 +136,7 @@ class HBVMul(torch.nn.Module):
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
-                initmodel = HBVMul().to(args["device"])
+                initmodel = HBVMul(args).to(args["device"])
                 Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
@@ -156,7 +161,7 @@ class HBVMul(torch.nn.Module):
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
         P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
-        Pm= P.unsqueeze(2).repeat(1, 1, nmul)
+        Pm = P.unsqueeze(2).repeat(1, 1, nmul)
         Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
         Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
         mean_air_temp = (Tmaxf + Tminf) / 2
@@ -165,7 +170,7 @@ class HBVMul(torch.nn.Module):
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
             PET = get_potet(
                 args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef
-            )     # mm/day
+            )  # mm/day
         elif args["potet_module"] == "potet_hargreaves":
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(day_of_year.shape[0], 1, nmul)
@@ -227,7 +232,8 @@ class HBVMul(torch.nn.Module):
             melt = torch.min(melt, SNOWPACK)
             MELTWATER = MELTWATER + melt
             SNOWPACK = SNOWPACK - melt
-            refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (params_dict["parTT"] - mean_air_temp[t, :, :])
+            refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (
+                        params_dict["parTT"] - mean_air_temp[t, :, :])
             refreezing = torch.clamp(refreezing, min=0.0)
             refreezing = torch.min(refreezing, MELTWATER)
             SNOWPACK = SNOWPACK + refreezing
@@ -245,11 +251,14 @@ class HBVMul(torch.nn.Module):
             excess = SM - params_dict["parFC"]
             excess = torch.clamp(excess, min=0.0)
             SM = SM - excess
-            evapfactor = SM / (params_dict["parLP"] * params_dict["parFC"])
-            evapfactor  = torch.clamp(evapfactor, min=0.0, max=1.0)
+            # parBETAET only has effect when it is a dynamic parameter (=1 otherwise).
+            evapfactor = (SM / (params_dict["parLP"] * params_dict["parFC"]))
+            if 'parBETAET' in params_dict:
+                evapfactor = evapfactor ** params_dict['parBETAET']
+            evapfactor = torch.clamp(evapfactor, min=0.0, max=1.0)
             ETact = PET[t, :, :] * evapfactor
             ETact = torch.min(SM, ETact)
-            AET[t,:,:] = ETact
+            AET[t, :, :] = ETact
             SM = torch.clamp(SM - ETact, min=PRECS)  # SM can not be zero for gradient tracking
 
             # Groundwater boxes
@@ -291,19 +300,18 @@ class HBVMul(torch.nn.Module):
             routa = tempa.repeat(Nstep, 1).unsqueeze(-1)
             routb = tempb.repeat(Nstep, 1).unsqueeze(-1)
             UH = self.UH_gamma(routa, routb, lenF=15)  # lenF: folter
-            rf = torch.unsqueeze(Qsim, -1).permute([1, 2, 0])   # dim:gage*var*time
+            rf = torch.unsqueeze(Qsim, -1).permute([1, 2, 0])  # dim:gage*var*time
             UH = UH.permute([1, 2, 0])  # dim: gage*var*time
             Qsrout = self.UH_conv(rf, UH).permute([2, 0, 1])
             # do routing individually for Q0, Q1, and Q2
             rf_Q0 = Q0_sim.mean(-1, keepdim=True).permute([1, 2, 0])  # dim:gage*var*time
             Q0_rout = self.UH_conv(rf_Q0, UH).permute([2, 0, 1])
-            rf_Q1 = Q1_sim.mean(-1, keepdim=True).permute([1, 2, 0])   # dim:gage*var*time
+            rf_Q1 = Q1_sim.mean(-1, keepdim=True).permute([1, 2, 0])  # dim:gage*var*time
             Q1_rout = self.UH_conv(rf_Q1, UH).permute([2, 0, 1])
             rf_Q2 = Q2_sim.mean(-1, keepdim=True).permute([1, 2, 0])  # dim:gage*var*time
             Q2_rout = self.UH_conv(rf_Q2, UH).permute([2, 0, 1])
 
-
-            if comprout is True: # Qs is [time, [gage*mult], var] now
+            if comprout is True:  # Qs is [time, [gage*mult], var] now
                 Qstemp = Qsrout.view(Nstep, Ngrid, nmul)
                 if muwts is None:
                     Qs = Qstemp.mean(-1, keepdim=True)
@@ -312,11 +320,11 @@ class HBVMul(torch.nn.Module):
             else:
                 Qs = Qsrout
 
-        else: # no routing, output the primary average simulations
+        else:  # no routing, output the primary average simulations
 
-            Qs = torch.unsqueeze(Qsimave, -1) # add a dimension
+            Qs = torch.unsqueeze(Qsimave, -1)  # add a dimension
 
-        if init is True:     # means we are in warm up
+        if init is True:  # means we are in warm up
             return Qs, SNOWPACK, MELTWATER, SM, SUZ, SLZ
         else:
             return dict(flow_sim=Qsrout,

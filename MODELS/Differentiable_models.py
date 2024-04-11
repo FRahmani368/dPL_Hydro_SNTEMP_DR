@@ -2,6 +2,7 @@ import torch.nn
 
 from MODELS.hydro_models.marrmot_PRMS.prms_marrmot import prms_marrmot
 from MODELS.hydro_models.marrmot_PRMS_gw0.prms_marrmot_gw0 import prms_marrmot_gw0
+from MODELS.hydro_models.marrmot_PRMS_inteflow.prms_marrmot_interflow import prms_marrmot_interflow
 from MODELS.hydro_models.HBV.HBVmul import HBVMul
 from MODELS.hydro_models.SACSMA.SACSMAmul import SACSMAMul
 from MODELS.hydro_models.SACSMA_with_snowpack.SACSMA_snow_mul import SACSMA_snow_Mul
@@ -60,8 +61,10 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.hydro_model = prms_marrmot()
             elif self.args["hydro_model_name"] == "marrmot_PRMS_gw0":
                 self.hydro_model = prms_marrmot_gw0()
+            elif self.args["hydro_model_name"] == "marrmot_PRMS_interflow":
+                self.hydro_model = prms_marrmot_interflow()
             elif self.args["hydro_model_name"] == "HBV":
-                self.hydro_model = HBVMul()
+                self.hydro_model = HBVMul(self.args)
             elif self.args["hydro_model_name"] == "SACSMA":
                 self.hydro_model = SACSMAMul()
             elif self.args["hydro_model_name"] == "SACSMA_with_snow":
