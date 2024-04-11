@@ -265,18 +265,17 @@ class prms_marrmot_interflow(torch.nn.Module):
         #################
         # inputs
         Precip = (x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")].unsqueeze(-1).repeat(1, 1, nmul))
-        Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
-        mean_air_temp = (Tmaxf + Tminf) / 2
-
+        mean_air_temp = x_hydro_model[warm_up:, :, vars.index('tmean(C)')].unsqueeze(-1).repeat(1, 1, nmul)
         Ndays, Ngrid = Precip.shape[0], Precip.shape[1]
 
         if args["potet_module"] == "potet_hamon":
             dayl = (x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul))
-            PET = get_potet(args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef)     # mm/day
+            PET = get_potet(args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef)  # mm/day
         elif args["potet_module"] == "potet_hargreaves":
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(Precip.shape[0], 1, nmul)
+            Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
+            Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
             PET = get_potet(args=args, tmin=Tminf, tmax=Tmaxf,
                             tmean=mean_air_temp, lat=lat,
                             day_of_year=day_of_year)

@@ -272,9 +272,7 @@ class SACSMAMul(torch.nn.Module):
         vars_c = args["varC_hydro_model"]
         P = x_hydro_model[warm_up:, :, vars.index("prcp(mm/day)")]
         Pm = P.unsqueeze(2).repeat(1, 1, nmul)
-        Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
-        Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
-        mean_air_temp = (Tmaxf + Tminf) / 2
+        mean_air_temp = x_hydro_model[warm_up:, :, vars.index('tmean(C)')].unsqueeze(2).repeat(1, 1, nmul)
 
         if args["potet_module"] == "potet_hamon":
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.004, 0.008], ndays=No_days, nmul=args["nmul"])
@@ -284,6 +282,8 @@ class SACSMAMul(torch.nn.Module):
         elif args["potet_module"] == "potet_hargreaves":
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(day_of_year.shape[0], 1, nmul)
+            Tmaxf = x_hydro_model[warm_up:, :, vars.index("tmax(C)")].unsqueeze(2).repeat(1, 1, nmul)
+            Tminf = x_hydro_model[warm_up:, :, vars.index("tmin(C)")].unsqueeze(2).repeat(1, 1, nmul)
             # PET_coef = self.param_bounds_2D(PET_coef, 0, bounds=[0.01, 1.0], ndays=No_days,
             #                                   nmul=args["nmul"])
 
