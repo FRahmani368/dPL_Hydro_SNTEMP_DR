@@ -304,6 +304,14 @@ class SACSMAMul(torch.nn.Module):
         ssflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         gwflow_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         AET = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        PC_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        pcfw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        pctw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        pcfws_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        twexls_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        twexlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Rls_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Rlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
 
         # do static parameters
         params_dict = dict()
@@ -433,6 +441,14 @@ class SACSMAMul(torch.nn.Module):
             ssflow_sim[t, :, :] = flux_Qint
             gwflow_sim[t, :, :] = flux_Qbfp + flux_Qbfs
             AET[t, :, :] = flux_Euztw + flux_Euzfw + flux_Elztw
+            PC_sim[t, :, :] = flux_Pc
+            pcfw_sim[t, :, :] = flux_Pcfw
+            pctw_sim[t, :, :] = flux_Pctw
+            pcfws_sim[t, :, :] = flux_Pcfws
+            twexls_sim[t, :, :] = flux_twexls
+            twexlp_sim[t, :, :] = flux_twexlp
+            Rlp_sim[t, :, :] = flux_Rlp
+            Rls_sim[t, :, :] = flux_Rls
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -476,6 +492,14 @@ class SACSMAMul(torch.nn.Module):
                         srflow_no_rout=srflow_sim.mean(-1, keepdim=True),
                         ssflow_no_rout=ssflow_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=gwflow_sim.mean(-1, keepdim=True),
+                        flux_pc=PC_sim.mean(-1, keepdim=True),
+                        flux_pcfw=pcfw_sim.mean(-1, keepdim=True),
+                        flux_pctw=pctw_sim.mean(-1, keepdim=True),
+                        flux_pcfws=pcfws_sim.mean(-1, keepdim=True),
+                        flux_twexlp=twexlp_sim.mean(-1, keepdim=True),
+                        flux_twexls=twexls_sim.mean(-1, keepdim=True),
+                        flux_Rlp=Rlp_sim.mean(-1, keepdim=True),
+                        flux_Rls=Rls_sim.mean(-1, keepdim=True),
                         )
 
 

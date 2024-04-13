@@ -207,6 +207,12 @@ class HBVMul(torch.nn.Module):
         # logswet = np.zeros(P.size())
         # logRE = np.zeros(P.size())
         AET = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+        recharge_sim = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+        excs_sim = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+        evapfactor_sim = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+        tosoil_sim = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+        PERC_sim = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.0001).to(args["device"])
+
 
         # do static parameters
         params_dict = dict()
@@ -278,6 +284,11 @@ class HBVMul(torch.nn.Module):
             Q2_sim[t, :, :] = Q2
             # # for debug state variables
             # SMlog[t,:] = SM.detach().cpu().numpy()
+            recharge_sim[t, :, :] = recharge
+            excs_sim[t, :, :] = excess
+            evapfactor_sim[t, :, :] = evapfactor
+            tosoil_sim[t, :, :] = tosoil
+            PERC_sim[t, :, :] = PERC
 
         # get the primary average
         if muwts is None:
@@ -337,5 +348,10 @@ class HBVMul(torch.nn.Module):
                         srflow_no_rout=Q0_sim.mean(-1, keepdim=True),
                         ssflow_no_rout=Q1_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=Q2_sim.mean(-1, keepdim=True),
+                        recharge=recharge_sim.mean(-1, keepdim=True),
+                        excs=excs_sim.mean(-1, keepdim=True),
+                        evapfactor=evapfactor_sim.mean(-1, keepdim=True),
+                        tosoil=tosoil_sim.mean(-1, keepdim=True),
+                        percolation=PERC_sim.mean(-1, keepdim=True),
                         )
 
