@@ -50,17 +50,22 @@ class prms_marrmot_interflow(torch.nn.Module):
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
         if after_routing == True:
-            srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            srflow = (1000 / 86400) * area * (
+                    flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
             ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
             gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow"]).repeat(1, 1, args["nmul"])
         else:
-            srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            srflow = (1000 / 86400) * area * (
+                flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
             ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
             gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
+            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow_no_rout"]).repeat(1, 1, args["nmul"])
+
         # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
         # ssflow = torch.clamp(ssflow, min=0.0)
         # gwflow = torch.clamp(gwflow, min=0.0)
-        return srflow, ssflow, gwflow
+        return srflow, ssflow, gwflow, bas_shallow
     def multi_comp_semi_static_params(
         self, params, param_no, args, interval=30, method="average"
     ):
