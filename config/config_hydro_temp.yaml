@@ -31,11 +31,11 @@ loss_function_weights:
     w2: 1.0
 target: ["00060_Mean" , "00010_Mean"] #, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
 tRange: [19800101, 20230101]
-t_train: [20150101, 20230101]   # there should be an overlap because of the warm_up
+t_train: [20160101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19810101, 20000101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 100
+batch_size: 50
 EPOCHS: 50
 hidden_size: 256
 dropout: 0.5
@@ -99,7 +99,7 @@ varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
 dyn_params_list_temp: [] #["width_coef_pow", "width_coef_factor", "w1_shade", ]    #"albedo", "w2_shade"
 
 ### process based streamflow model configurations
-hydro_model_name: "marrmot_PRMS_interflow"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0, marrmot_PRMS_interflow or None -> "None" means no hydrology model
+hydro_model_name: "marrmot_PRMS_gw0"  # it can be marrmot_PRMS, HBV, SACSMA, SACSMA_with_snow, marrmot_PRMS_gw0, marrmot_PRMS_interflow or None -> "None" means no hydrology model
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 routing_hydro_model: True

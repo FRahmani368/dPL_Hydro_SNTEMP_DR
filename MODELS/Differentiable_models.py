@@ -7,8 +7,8 @@ from MODELS.hydro_models.HBV.HBVmul import HBVMul
 from MODELS.hydro_models.SACSMA.SACSMAmul import SACSMAMul
 from MODELS.hydro_models.SACSMA_with_snowpack.SACSMA_snow_mul import SACSMA_snow_Mul
 
-from MODELS.temp_models.SNTEMP.PGML_STemp import SNTEMP_flowSim
-from MODELS.temp_models.SNTEMP_with_gw0.PGML_STemp_gw0 import SNTEMP_flowSim_gw0
+from MODELS.temp_models.SNTEMP.SNTEMP import SNTEMP_flowSim
+from MODELS.temp_models.SNTEMP_with_gw0.SNTEMP_gw0 import SNTEMP_flowSim_gw0
 
 from MODELS.NN_models.LSTM_models import CudnnLstmModel
 from MODELS.NN_models.MLP_models import MLPmul
