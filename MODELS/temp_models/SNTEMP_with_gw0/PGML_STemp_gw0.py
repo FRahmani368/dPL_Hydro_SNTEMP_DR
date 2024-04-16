@@ -575,6 +575,10 @@ class SNTEMP_flowSim_gw0(nn.Module):
         nmul = args["nmul"]
         varT = args["varT_temp_model"]
         varC = args["varC_temp_model"]
+        ## to make sure there are four flow sources in the inputs:
+        if len(source_flows.keys()) != 4:
+            print("inconsistency between hydrology model and temp model")
+            exit()
         # source flow components
         srflow = source_flows["srflow"]
         ssflow = source_flows["ssflow"]
@@ -586,10 +590,14 @@ class SNTEMP_flowSim_gw0(nn.Module):
         # initialization of the params
         Nstep = x.shape[0] - warm_up
 
+        ## scale the parameters
         params_dict_raw = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
+            params_dict_raw[param] = self.change_param_range(param=params_raw[warm_up:, :, num, :],
                                                              bounds=self.parameters_bound[param])
+
+        if args["lat_temp_adj"] == True:
+            lat_temp_params_raw = params_raw[:, :, -1, :]
         # do static & dynamic parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -597,6 +605,22 @@ class SNTEMP_flowSim_gw0(nn.Module):
                 params_dict[key] = params_dict_raw[key][-1, :, :]
             else:   # it is a dynamic parameter
                 params_dict[key] = params_dict_raw[key][warm_up:, :, :]
+
+        if args["lat_temp_adj"] == True:
+            lat_temp_params_raw = params_raw[:, :, -1, :]
+            params_dict_raw["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
+                                                                      bounds=self.lat_adj_params_bound[0])
+        else:
+            params_dict_raw["lat_temp_adj"] = 0.0 * params_dict_raw["w1_shade"]
+
+        # implementing static and dynamic parametrization
+        params_dict = dict()
+        for key in params_dict_raw.keys():
+            if key in args["dyn_params_list_temp"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key]
+            else:
+                params_dict[key] = params_dict_raw[key][-1, :, :]
+
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
                 rep = max(args["res_time_lenF_ssflow"],
@@ -605,18 +629,6 @@ class SNTEMP_flowSim_gw0(nn.Module):
                           Nstep)
                 params_dict[param] = self.change_param_range(param=conv_params_temp[:, num],
                                                    bounds=self.conv_temp_model_bound[param]).repeat(rep, 1).unsqueeze(-1)
-        if args["lat_temp_adj"] == True:
-            if "lat_temp_adj" in args["dyn_params_list_temp"]:
-                lat_temp_params_raw = params_raw[:, :, -1, :]
-            else:
-                lat_temp_params_raw = params_raw[-1, :, -1, :]
-
-            params_dict["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
-                                                   bounds=self.lat_adj_params_bound[0])
-        else:
-            params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
-
-
         # Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # mean_air_temp = (Tmaxf + Tminf) / 2

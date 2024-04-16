@@ -4673,15 +4673,35 @@ class SNTEMP_flowSim(nn.Module):
         ssflow = source_flows["ssflow"]
         gwflow = source_flows["gwflow"]
 
+        Q_tot = srflow + ssflow + gwflow
 
         # initialization of the params
         Nstep = x.shape[0] - warm_up
 
         ## scale the parameters
-        params_dict = dict()
+        params_dict_raw = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
-            params_dict[param] = self.change_param_range(param=params_raw[warm_up:, :, num, :],
+            params_dict_raw[param] = self.change_param_range(param=params_raw[warm_up:, :, num, :],
                                                          bounds=self.parameters_bound[param])
+
+        if args["lat_temp_adj"] == True:
+            lat_temp_params_raw = params_raw[:, :, -1, :]
+            # else:
+            #     lat_temp_params_raw = params_raw[-1, :, -1, :]
+
+            params_dict_raw["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
+                                                                  bounds=self.lat_adj_params_bound[0])
+        else:
+            params_dict_raw["lat_temp_adj"] = 0.0 * params_dict_raw["w1_shade"]
+
+        # implementing static and dynamic parametrization
+        params_dict = dict()
+        for key in params_dict_raw.keys():
+            if key in args["dyn_params_list_temp"]:  ## it is a static parameter
+                params_dict[key] = params_dict_raw[key]
+            else:
+                params_dict[key] = params_dict_raw[key][-1, :, :]
+
         if args["routing_temp_model"] == True:
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
                 rep = max(args["res_time_lenF_ssflow"],
@@ -4691,18 +4711,8 @@ class SNTEMP_flowSim(nn.Module):
                                                              bounds=self.conv_temp_model_bound[param]).repeat(rep,
                                                                                                               1).unsqueeze(
                     -1)
-        if args["lat_temp_adj"] == True:
-            if "lat_temp_adj" in args["dyn_params_list_temp"]:
-                lat_temp_params_raw = params_raw[:, :, -1, :]
-            else:
-                lat_temp_params_raw = params_raw[-1, :, -1, :]
 
-            params_dict["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
-                                                                  bounds=self.lat_adj_params_bound[0])
-        else:
-            params_dict["lat_temp_adj"] = 0.0 * params_dict["w1_shade"]
 
-        Q_tot = srflow + ssflow + gwflow
 
         # Tmaxf = x[warm_up:, :, varT.index("tmax(C)")].unsqueeze(-1).repeat(1, 1, nmul)
         # Tminf = x[warm_up:, :, varT.index("tmin(C)")].unsqueeze(-1).repeat(1, 1, nmul)
