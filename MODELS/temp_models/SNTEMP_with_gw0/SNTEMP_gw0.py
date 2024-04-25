@@ -27,7 +27,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
             b_bas_shallow=[0.001, 12.0],  # b (theta)  for gw flow temp
         )
         self.lat_adj_params_bound = [
-             [-3, 5]                            # lateral temp adjusment
+             [-4, 7]                            # lateral temp adjusment
         ]
         self.PET_coef_bound = [
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
@@ -600,20 +600,9 @@ class SNTEMP_flowSim_gw0(nn.Module):
             lat_temp_params_raw = params_raw[warm_up:, :, -1, :]
             params_dict_raw["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
                                                                       bounds=self.lat_adj_params_bound[0])
-        # do static & dynamic parameters
-        params_dict = dict()
-        for key in params_dict_raw.keys():
-            if key not in args["dyn_params_list_temp"]:  ## it is a static parameter
-                params_dict[key] = params_dict_raw[key][-1, :, :]
-            else:   # it is a dynamic parameter
-                params_dict[key] = params_dict_raw[key][warm_up:, :, :]
-
-        if args["lat_temp_adj"] == True:
-            lat_temp_params_raw = params_raw[:, :, -1, :]
-            params_dict_raw["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
-                                                                      bounds=self.lat_adj_params_bound[0])
         else:
             params_dict_raw["lat_temp_adj"] = 0.0 * params_dict_raw["w1_shade"]
+
 
         # implementing static and dynamic parametrization
         params_dict = dict()
@@ -623,7 +612,7 @@ class SNTEMP_flowSim_gw0(nn.Module):
             else:
                 params_dict[key] = params_dict_raw[key][-1, :, :]
 
-        if args["routing_temp_model"] == True:
+        if args["routing_temp_model"] == True:   # makes it consistent with airT_memory dimension
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
                 rep = max(args["res_time_lenF_ssflow"],
                           args["res_time_lenF_bas_shallow"],

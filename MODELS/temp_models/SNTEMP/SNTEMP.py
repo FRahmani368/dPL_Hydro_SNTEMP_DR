@@ -3668,7 +3668,7 @@ class SNTEMP_flowSim(nn.Module):
             b_gwflow=[0.001, 12.0],    # b (theta)  for gw flow temp
         )
         self.lat_adj_params_bound = [
-             [-3, 5]                            # lateral temp adjusment
+             [-4, 7]                            # lateral temp adjusment
         ]
         self.PET_coef_bound = [
             [0.01, 1]  # PET_coef -> for converting PET to AET  ( Farshid added this param to the model)
