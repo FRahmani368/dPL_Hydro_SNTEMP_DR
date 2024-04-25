@@ -597,7 +597,9 @@ class SNTEMP_flowSim_gw0(nn.Module):
                                                              bounds=self.parameters_bound[param])
 
         if args["lat_temp_adj"] == True:
-            lat_temp_params_raw = params_raw[:, :, -1, :]
+            lat_temp_params_raw = params_raw[warm_up:, :, -1, :]
+            params_dict_raw["lat_temp_adj"] = self.change_param_range(param=lat_temp_params_raw,
+                                                                      bounds=self.lat_adj_params_bound[0])
         # do static & dynamic parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
