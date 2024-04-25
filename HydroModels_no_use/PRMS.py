@@ -1,9 +1,6 @@
-import numpy as np
-import os
-import pandas as pd
 import torch
 from MODELS.PET_models.potet import get_potet
-from MODELS.surface_runoff import srunoff
+from HydroModels.surface_runoff import srunoff
 
 
 class PRMS_pytorch(torch.nn.Module):

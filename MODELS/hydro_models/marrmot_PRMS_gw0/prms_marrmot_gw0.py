@@ -9,8 +9,8 @@ class prms_marrmot_gw0(torch.nn.Module):
     def __init__(self):
         super(prms_marrmot_gw0, self).__init__()
         self.sigmoid = torch.nn.Sigmoid()
-        self.parameters_bound = dict(tt=[-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
-                                     ddf=[0, 20],    # ddf,  Degree-day factor for snowmelt [mm/oC/d]
+        self.parameters_bound = dict(tt=[-2.5, 2.5], #[-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
+                                     ddf=[0.5, 10], #[0, 20],    # ddf,  Degree-day factor for snowmelt [mm/oC/d]
                                      alpha=[0, 1],     # alpha, Fraction of rainfall on soil moisture going to interception [-]
                                      beta=[0, 1],    # beta, Fraction of catchment where rain goes to soil moisture [-]
                                      stor=[0, 5],    # stor, Maximum interception capcity [mm]
@@ -18,18 +18,18 @@ class prms_marrmot_gw0(torch.nn.Module):
                                      fscn=[0, 1],    # fscn, Fraction of SCX where SCN is located [-]
                                      scx=[0, 1],    # scx, Maximum contributing fraction area to saturation excess flow [-]
                                      flz=[0.005, 0.995],    # flz, Fraction of total soil moisture that is the lower zone [-]
-                                     stot=[1, 2000],    # stot, Total soil moisture storage [mm]: REMX+SMAX
-                                     cgw=[0, 20],    # cgw, Constant drainage to deep groundwater [mm/d]
+                                     stot=[1, 1000],    # stot, Total soil moisture storage [mm]: REMX+SMAX
+                                     cgw=[0, 25],    #[0, 20],    # cgw, Constant drainage to deep groundwater [mm/d]
                                      resmax=[1, 300],    # resmax, Maximum flow routing reservoir storage (used for scaling only, there is no overflow) [mm]
                                      k1=[0, 1],    # k1, Groundwater drainage coefficient [d-1]
-                                     k2=[1, 5],    # k2, Groundwater drainage non-linearity [-]
+                                     k2=[1.5, 4],   #[1, 5],    # k2, Groundwater drainage non-linearity [-]
                                      k3=[0, 1],    # k3, Interflow coefficient 1 [d-1]
-                                     k4=[0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
-                                     k5=[0, 1],    # k5, Baseflow coefficient [d-1]
-                                     k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
-                                     cgw0=[0, 20],  # cgw, Constant drainage to deep groundwater [mm/d]
-                                     k7=[0,1],
-                                     k8=[0,1]
+                                     # k4=[0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
+                                     k5=[0, 0.4],   #[0, 1],    # k5, Baseflow coefficient [d-1]
+                                     # k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
+                                     cgw0=[0, 25],   #[0, 20],  # cgw, Constant drainage to deep groundwater [mm/d]
+                                     k7=[0, 0.4],
+                                     k8=[0, 1]
                                      )
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
@@ -391,7 +391,11 @@ class prms_marrmot_gw0(torch.nn.Module):
             flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
 
             RES_storage = RES_storage + flux_qres
-            flux_ras = params_dict["k3"] * RES_storage + params_dict["k4"] * (RES_storage ** 2)
+            flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
+            flux_gad = torch.min(flux_gad, RES_storage)
+            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
+
+            flux_ras = params_dict["k3"] * RES_storage #+ params_dict["k4"] * (RES_storage ** 2)
             flux_ras = torch.min(flux_ras, RES_storage)
             RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
             # RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
@@ -399,9 +403,7 @@ class prms_marrmot_gw0(torch.nn.Module):
             # flux_ras = flux_ras + RES_excess
             # RES_storage = torch.clamp(RES_storage - RES_excess, min=NEARZERO)
 
-            flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
-            flux_gad = torch.min(flux_gad, RES_storage)
-            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
+
 
             ######## new GW_storage0 added
             GW_storage0 = GW_storage0 + flux_gad + flux_sep
@@ -412,8 +414,8 @@ class prms_marrmot_gw0(torch.nn.Module):
             GW_storage = GW_storage + flux_GW0_GW
             flux_bas = params_dict["k5"] * GW_storage
             GW_storage = torch.clamp(GW_storage - flux_bas, min=NEARZERO)
-            flux_snk = params_dict["k6"] * GW_storage
-            GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
+            # flux_snk = params_dict["k6"] * GW_storage
+            # GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
             Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras + flux_bas_shallow)
             bas_shallow_sim[t,: , :] = flux_bas_shallow
@@ -432,7 +434,7 @@ class prms_marrmot_gw0(torch.nn.Module):
             sro_sim[t, :, :] = flux_sro
             bas_sim[t, :, :] = flux_bas
             ras_sim[t, :, :] = flux_ras
-            snk_sim[t, :, :] = flux_snk
+            # snk_sim[t, :, :] = flux_snk
             AET[t, :, :] = flux_ein + flux_eim + flux_ea + transp
             inf_sim[t, :, :] = flux_inf
             PC_sim[t, :, :] = flux_pc
@@ -488,7 +490,7 @@ class prms_marrmot_gw0(torch.nn.Module):
                         srflow=Qsas_rout + Qsro_rout,
                         ssflow=Qras_rout,
                         gwflow=Qbas_rout,
-                        sink=torch.mean(snk_sim, -1).unsqueeze(-1),
+                        # sink=torch.mean(snk_sim, -1).unsqueeze(-1),
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
                         bas_shallow=Qbas_shallow_rout,   #### adding new GW_storage0

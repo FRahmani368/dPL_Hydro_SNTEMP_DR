@@ -376,6 +376,9 @@ class prms_marrmot(torch.nn.Module):
             flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
 
             RES_storage = RES_storage + flux_qres
+            flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
+            flux_gad = torch.min(flux_gad, RES_storage)
+            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
             flux_ras = params_dict["k3"] * RES_storage + params_dict["k4"] * (RES_storage ** 2)
             flux_ras = torch.min(flux_ras, RES_storage)
             RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
@@ -384,9 +387,7 @@ class prms_marrmot(torch.nn.Module):
             # flux_ras = flux_ras + RES_excess
             # RES_storage = torch.clamp(RES_storage - RES_excess, min=NEARZERO)
 
-            flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
-            flux_gad = torch.min(flux_gad, RES_storage)
-            RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
+
 
             GW_storage = GW_storage + flux_gad + flux_sep
             flux_bas = params_dict["k5"] * GW_storage

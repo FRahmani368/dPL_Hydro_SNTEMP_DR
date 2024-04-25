@@ -1,6 +1,8 @@
 import torch.nn
 
 from MODELS.hydro_models.marrmot_PRMS.prms_marrmot import prms_marrmot
+from MODELS.hydro_models.marrmot_PRMS_mod.prms_marrmot_mod import prms_marrmot_mod
+from MODELS.hydro_models.marrmot_PRMS_refreeze.prms_marrmot_refreeze import prms_marrmot_refreeze
 from MODELS.hydro_models.marrmot_PRMS_gw0.prms_marrmot_gw0 import prms_marrmot_gw0
 from MODELS.hydro_models.marrmot_PRMS_inteflow.prms_marrmot_interflow import prms_marrmot_interflow
 from MODELS.hydro_models.HBV.HBVmul import HBVMul
@@ -59,6 +61,10 @@ class diff_hydro_temp_model(torch.nn.Module):
         if self.args["hydro_model_name"] != "None":
             if self.args["hydro_model_name"] == "marrmot_PRMS":
                 self.hydro_model = prms_marrmot()
+            elif self.args["hydro_model_name"] == "marrmot_PRMS_mod":
+                self.hydro_model = prms_marrmot_mod()
+            elif self.args["hydro_model_name"] == "marrmot_PRMS_refreeze":
+                self.hydro_model = prms_marrmot_refreeze()
             elif self.args["hydro_model_name"] == "marrmot_PRMS_gw0":
                 self.hydro_model = prms_marrmot_gw0()
             elif self.args["hydro_model_name"] == "marrmot_PRMS_interflow":

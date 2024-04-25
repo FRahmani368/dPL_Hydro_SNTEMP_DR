@@ -5,29 +5,30 @@ from MODELS.PET_models.potet import get_potet
 import torch.nn.functional as F
 
 
-class prms_marrmot_interflow(torch.nn.Module):
+class prms_marrmot_mod(torch.nn.Module):
     def __init__(self):
-        super(prms_marrmot_interflow, self).__init__()
+        super(prms_marrmot_mod, self).__init__()
         self.sigmoid = torch.nn.Sigmoid()
         self.parameters_bound = dict(tt=[-2.5, 2.5], #[-3, 5],    # tt, Temperature threshold for snowfall and melt [oC]
                                      ddf=[0.5, 10], #[0, 20],    # ddf,  Degree-day factor for snowmelt [mm/oC/d]
+                                     # parCFR=[0, 0.2],
+                                     # BETAET=[0.7, 1.2],
                                      alpha=[0, 1],     # alpha, Fraction of rainfall on soil moisture going to interception [-]
                                      beta=[0, 1],    # beta, Fraction of catchment where rain goes to soil moisture [-]
                                      stor=[0, 5],    # stor, Maximum interception capcity [mm]
-                                     retip=[0, 50],    # retip, Maximum impervious area storage [mm]
+                                     retip=[0, 50], #[0, 50],    # retip, Maximum impervious area storage [mm]
                                      fscn=[0, 1],    # fscn, Fraction of SCX where SCN is located [-]
                                      scx=[0, 1],    # scx, Maximum contributing fraction area to saturation excess flow [-]
                                      flz=[0.005, 0.995],    # flz, Fraction of total soil moisture that is the lower zone [-]
-                                     stot=[1, 1000],  #[1, 2000],    # stot, Total soil moisture storage [mm]: REMX+SMAX
-                                     cgw=[0, 25],    # cgw, Constant drainage to deep groundwater [mm/d]
+                                     stot=[1, 1000],   # [1, 2000] # stot, Total soil moisture storage [mm]: REMX+SMAX
+                                     cgw=[0, 25],   #[0, 20],    # cgw, Constant drainage to deep groundwater [mm/d]
                                      resmax=[1, 300],    # resmax, Maximum flow routing reservoir storage (used for scaling only, there is no overflow) [mm]
                                      k1=[0, 1],    # k1, Groundwater drainage coefficient [d-1]
-                                     k2=[1.5, 4],    # k2, Groundwater drainage non-linearity [-]
+                                     k2=[1.5, 4],  #[1, 5],    # k2, Groundwater drainage non-linearity [-]
                                      k3=[0, 1],    # k3, Interflow coefficient 1 [d-1]
-                                     # k4=[0, 1],    # k4, Interflow coefficient 2 [mm-1 d-1]
-                                     k5=[0, 0.4],    # k5, Baseflow coefficient [d-1]
-                                     # k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
-                                     k7=[0, 1],    # k7, interflow from excs coefficient [d-1],
+                                     # k4=[0, 1],   # k4, Interflow coefficient 2 [mm-1 d-1]
+                                     k5=[0, 0.4],  #[0,1]  # k5, Baseflow coefficient [d-1]
+                                     #k6=[0, 1],    # k6, Groundwater sink coefficient [d-1],
                                      )
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
@@ -50,22 +51,17 @@ class prms_marrmot_interflow(torch.nn.Module):
                 0], 1, 1)
         # flow calculation. converting mm/day to m3/sec
         if after_routing == True:
-            srflow = (1000 / 86400) * area * (
-                    flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
             ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
             gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
-            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow"]).repeat(1, 1, args["nmul"])
         else:
-            srflow = (1000 / 86400) * area * (
-                flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
             ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
             gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
-            bas_shallow = (1000 / 86400) * area * (flow_out["bas_shallow_no_rout"]).repeat(1, 1, args["nmul"])
-
         # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
         # ssflow = torch.clamp(ssflow, min=0.0)
         # gwflow = torch.clamp(gwflow, min=0.0)
-        return srflow, ssflow, gwflow, bas_shallow
+        return srflow, ssflow, gwflow
     def multi_comp_semi_static_params(
         self, params, param_no, args, interval=30, method="average"
     ):
@@ -226,7 +222,7 @@ class prms_marrmot_interflow(torch.nn.Module):
                 xinit = x_hydro_model[0:warm_up, :, :]
                 # paramsinit = params[:, :warm_up, :]
                 # PET_coefinit = PET_coef[:, :warm_up, :]
-                warm_up_model = prms_marrmot_interflow().to(args["device"])
+                warm_up_model = prms_marrmot_mod().to(args["device"])
                 Q_init, snow_storage, XIN_storage, RSTOR_storage, \
                     RECHR_storage, SMAV_storage, \
                     RES_storage, GW_storage = warm_up_model(xinit, c_hydro_model, params_raw, args,
@@ -275,7 +271,7 @@ class prms_marrmot_interflow(torch.nn.Module):
 
         if args["potet_module"] == "potet_hamon":
             dayl = (x_hydro_model[warm_up:, :, vars.index("dayl(s)")].unsqueeze(-1).repeat(1, 1, nmul))
-            PET = get_potet(args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef)  # mm/day
+            PET = get_potet(args=args, mean_air_temp=mean_air_temp, dayl=dayl, hamon_coef=PET_coef)     # mm/day
         elif args["potet_module"] == "potet_hargreaves":
             day_of_year = x_hydro_model[warm_up:, :, vars.index("dayofyear")].unsqueeze(-1).repeat(1, 1, nmul)
             lat = c_hydro_model[:, vars_c.index("lat")].unsqueeze(0).unsqueeze(-1).repeat(Precip.shape[0], 1, nmul)
@@ -303,10 +299,6 @@ class prms_marrmot_interflow(torch.nn.Module):
         GAD_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         ea_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
-        interflow_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
-        excs1_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
-
-
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -345,12 +337,17 @@ class prms_marrmot_interflow(torch.nn.Module):
             flux_ptf = XIN_storage - params_dict["stor"]
             flux_ptf = torch.clamp(flux_ptf, min=0.0)
             XIN_storage = torch.clamp(XIN_storage - flux_ptf, min=NEARZERO)
-            evap_max_in = Ep * params_dict["beta"]   # only can happen in pervious area
+            evap_max_in = Ep * params_dict["beta"]    # only can happen in pervious area
             flux_ein = torch.min(evap_max_in, XIN_storage/delta_t)
             XIN_storage = torch.clamp(XIN_storage - flux_ein, min=NEARZERO)
 
             flux_mim = flux_m * (1 - params_dict["beta"])
             flux_msm = flux_m * params_dict["beta"]
+
+            # Refreez_flux = params_dict["parCFR"] * params_dict["ddf"] * (params_dict["tt"] - T)
+            # Refreez_flux = torch.clamp(Refreez_flux, min=0.0)
+
+
             RSTOR_storage = RSTOR_storage + flux_mim + flux_pim
             flux_sas = RSTOR_storage - params_dict["retip"]
             flux_sas = torch.clamp(flux_sas, min=0.0)
@@ -359,12 +356,17 @@ class prms_marrmot_interflow(torch.nn.Module):
             flux_eim = torch.min(evap_max_im, RSTOR_storage / delta_t)
             RSTOR_storage = torch.clamp(RSTOR_storage - flux_eim, min=NEARZERO)
 
+            # Refreeze_RSTOR = Refreez_flux * (1 - params_dict["beta"])
+            # Refreeze_RSTOR = torch.min(RSTOR_storage, Refreeze_RSTOR)
+            # RSTOR_storage = torch.clamp(RSTOR_storage - Refreeze_RSTOR, min=NEARZERO)
+            # snow_storage = snow_storage + Refreeze_RSTOR
+
             sro_lin_ratio = scn + (params_dict["scx"] - scn) * (RECHR_storage / remx)
             sro_lin_ratio = torch.clamp(sro_lin_ratio, min=0.0, max=1.0)
             flux_sro = sro_lin_ratio * (flux_msm + flux_ptf + flux_pby)
             flux_inf = flux_msm + flux_ptf + flux_pby - flux_sro
             RECHR_storage = RECHR_storage + flux_inf
-            flux_pc = RECHR_storage - remx
+            flux_pc = RECHR_storage - remx   # remx is maximum RECH_storage
             flux_pc = torch.clamp(flux_pc, min=0.0)
             RECHR_storage = RECHR_storage - flux_pc
             evap_max_a = (RECHR_storage / remx) * (Ep - flux_ein - flux_eim)
@@ -372,12 +374,12 @@ class prms_marrmot_interflow(torch.nn.Module):
             flux_ea = torch.min(evap_max_a, RECHR_storage / delta_t)
             RECHR_storage = torch.clamp(RECHR_storage - flux_ea, min=NEARZERO)
 
+            # Refreeze_RECHR = Refreez_flux * params_dict["beta"]
+            # Refreeze_RECHR = torch.min(RECHR_storage, Refreeze_RECHR)
+            # RECHR_storage = torch.clamp(RECHR_storage - Refreeze_RECHR, min=NEARZERO)
+            # snow_storage = snow_storage + Refreeze_RECHR
+
             SMAV_storage = SMAV_storage + flux_pc
-
-            flux_interflow = params_dict["k7"] * SMAV_storage
-            flux_interflow = torch.clamp(flux_interflow, min=0.0)
-            SMAV_storage = torch.clamp(SMAV_storage - flux_interflow, min=NEARZERO)
-
             flux_excs = SMAV_storage - smax
             flux_excs = torch.clamp(flux_excs, min=0.0)
             SMAV_storage = SMAV_storage - flux_excs
@@ -387,13 +389,6 @@ class prms_marrmot_interflow(torch.nn.Module):
             transp = torch.clamp(transp, min=0.0)    # in case Ep - flux_ein - flux_eim - flux_ea was negative
             SMAV_storage = torch.clamp(SMAV_storage - transp, min=NEARZERO)
 
-            # inteflow addition
-            # flux_interflow = params_dict["k7"] * flux_excs
-            # flux_interflow = torch.clamp(flux_interflow, min=0.0)
-            # flux_excs1 = torch.clamp(flux_excs - flux_interflow, min=0.0)
-
-
-
             flux_sep = torch.min(params_dict["cgw"], flux_excs)
             flux_qres = torch.clamp(flux_excs - flux_sep, min=0.0)
 
@@ -402,16 +397,18 @@ class prms_marrmot_interflow(torch.nn.Module):
             flux_gad = torch.min(flux_gad, RES_storage)
             RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
 
-
-            flux_ras = params_dict["k3"] * RES_storage #+ params_dict["k4"] * (RES_storage ** 2)
+            flux_ras = params_dict["k3"] * RES_storage #+ params_dict["k4"] #* (RES_storage ** 2)
             flux_ras = torch.min(flux_ras, RES_storage)
             RES_storage = torch.clamp(RES_storage - flux_ras, min=NEARZERO)
+
             # RES_excess = RES_storage - resmax[:, t, :]   # if there is still overflow, it happend in discrete version
             # RES_excess = torch.clamp(RES_excess, min=0.0)
             # flux_ras = flux_ras + RES_excess
             # RES_storage = torch.clamp(RES_storage - RES_excess, min=NEARZERO)
 
-
+            # flux_gad = params_dict["k1"] * ((RES_storage / params_dict['resmax']) ** params_dict["k2"])
+            # flux_gad = torch.min(flux_gad, RES_storage)
+            # RES_storage = torch.clamp(RES_storage - flux_gad, min=NEARZERO)
 
             GW_storage = GW_storage + flux_gad + flux_sep
             flux_bas = params_dict["k5"] * GW_storage
@@ -419,7 +416,7 @@ class prms_marrmot_interflow(torch.nn.Module):
             # flux_snk = params_dict["k6"] * GW_storage
             # GW_storage = torch.clamp(GW_storage - flux_snk, min=NEARZERO)
 
-            Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras + flux_interflow)
+            Q_sim[t, :, :] = (flux_sas + flux_sro + flux_bas + flux_ras)
             sas_sim[t, :, :] = flux_sas
             sro_sim[t, :, :] = flux_sro
             bas_sim[t, :, :] = flux_bas
@@ -432,8 +429,6 @@ class prms_marrmot_interflow(torch.nn.Module):
             GAD_sim[t, :, :] = flux_gad
             ea_sim[t, :, :] = flux_ea
             qres_sim[t, :, :] = flux_qres
-            interflow_sim[t, :, :] = flux_interflow
-            # excs1_sim[t, :, :] = flux_excs1
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -453,9 +448,6 @@ class prms_marrmot_interflow(torch.nn.Module):
 
             rf_sro = sro_sim.mean(-1, keepdim=True).permute([1, 2, 0])
             Qsro_rout = self.UH_conv(rf_sro, UH).permute([2, 0, 1])
-
-            rf_interflow = interflow_sim.mean(-1, keepdim=True).permute([1, 2, 0])
-            Q_interflow_rout = self.UH_conv(rf_interflow, UH).permute([2, 0, 1])
 
             rf_ras = ras_sim.mean(-1, keepdim=True).permute([1, 2, 0])
             Qras_rout = self.UH_conv(rf_ras, UH).permute([2, 0, 1])
@@ -477,16 +469,14 @@ class prms_marrmot_interflow(torch.nn.Module):
         else:
             return dict(flow_sim=Qsrout,
                         srflow=Qsas_rout + Qsro_rout,
-                        ssflow=Q_interflow_rout,
-                        bas_shallow=Qras_rout,
+                        ssflow=Qras_rout,
                         gwflow=Qbas_rout,
                         # sink=torch.mean(snk_sim, -1).unsqueeze(-1),
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
                         flow_sim_no_rout=Q_sim.mean(-1, keepdim=True),
                         srflow_no_rout=(sas_sim + sro_sim).mean(-1, keepdim=True),
-                        ssflow_no_rout=interflow_sim.mean(-1, keepdim=True),
-                        bas_shallow_no_rout=ras_sim.mean(-1, keepdim=True),
+                        ssflow_no_rout=ras_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=bas_sim.mean(-1, keepdim=True),
                         flux_inf=inf_sim.mean(-1, keepdim=True),
                         flux_pc=PC_sim.mean(-1, keepdim=True),
@@ -494,5 +484,4 @@ class prms_marrmot_interflow(torch.nn.Module):
                         flux_gad=GAD_sim.mean(-1, keepdim=True),
                         flux_ea=ea_sim.mean(-1, keepdim=True),
                         flux_qres=qres_sim.mean(-1, keepdim=True),
-                        # flux_excs1=excs1_sim.mean(-1, keepdim=True),
                         )
