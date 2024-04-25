@@ -39,13 +39,11 @@ class diff_hydro_temp_model(torch.nn.Module):
 
         # SNTEMP  # needs a and b for calculating different source flow temperatures with conv method
         if self.args["temp_model_name"] != "None":
-            if self.args["routing_temp_model"] == True:
-                self.ny_temp = self.args["nmul"] * (len(self.temp_model.parameters_bound)) + len(
-                    self.temp_model.conv_temp_model_bound)
-            else:
-                self.ny_temp = self.args["nmul"] * len(self.temp_model.parameters_bound)
+            self.ny_temp = self.args["nmul"] * len(self.temp_model.parameters_bound)
             if self.args["lat_temp_adj"] == True:
                 self.ny_temp = self.ny_temp + self.args["nmul"]
+            if self.args["routing_temp_model"] == True:
+                self.ny_temp = self.ny_temp + len(self.temp_model.conv_temp_model_bound)
         else:
             self.ny_temp = 0
         # if self.args["hydro_model_name"] == "HBV":   # no need to have a PET to AET coef
@@ -128,11 +126,21 @@ class diff_hydro_temp_model(torch.nn.Module):
                 params_dict["conv_params_hydro"] = None
 
         if self.args['temp_model_name'] != "None":
-            # hydro params
-            params_dict["temp_params_raw"] = torch.sigmoid(
-                params_temp_model[:, :, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
-                params_temp_model.shape[0], params_temp_model.shape[1], len(self.temp_model.parameters_bound),
-                self.args["nmul"])
+            # if lat_temp_adj is True --> dim:[days, basins, 5,  nmul]   , because there are 5 params in temp model
+            if self.args["lat_temp_adj"] == True:
+                params_dict["temp_params_raw"] = torch.sigmoid(
+                    params_temp_model[:, :,
+                    :(len(self.temp_model.parameters_bound) + len(self.temp_model.lat_adj_params_bound)) * self.args[
+                        "nmul"]]).view(
+                    params_temp_model.shape[0], params_temp_model.shape[1],
+                    len(self.temp_model.parameters_bound) + len(self.temp_model.lat_adj_params_bound),
+                    self.args["nmul"])
+            # if lat_temp_adj is False --> dim:[days, basins, 5 + 1,  nmul]
+            else:
+                params_dict["temp_params_raw"] = torch.sigmoid(
+                    params_temp_model[:, :, :len(self.temp_model.parameters_bound) * self.args["nmul"]]).view(
+                    params_temp_model.shape[0], params_temp_model.shape[1], len(self.temp_model.parameters_bound),
+                    self.args["nmul"])
             # convolution parameters for ss and gw temp calculation
             if self.args["routing_temp_model"] == True:
                 params_dict["conv_params_temp"] = torch.sigmoid(params_temp_model[-1, :, -len(self.temp_model.conv_temp_model_bound):])

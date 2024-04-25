@@ -4685,7 +4685,7 @@ class SNTEMP_flowSim(nn.Module):
                                                          bounds=self.parameters_bound[param])
 
         if args["lat_temp_adj"] == True:
-            lat_temp_params_raw = params_raw[:, :, -1, :]
+            lat_temp_params_raw = params_raw[warm_up:, :, -1, :]
             # else:
             #     lat_temp_params_raw = params_raw[-1, :, -1, :]
 
@@ -4702,7 +4702,7 @@ class SNTEMP_flowSim(nn.Module):
             else:
                 params_dict[key] = params_dict_raw[key][-1, :, :]
 
-        if args["routing_temp_model"] == True:
+        if args["routing_temp_model"] == True:   # makes it consistent with airT_memory dimension
             for num, param in enumerate(self.conv_temp_model_bound.keys()):
                 rep = max(args["res_time_lenF_ssflow"],
                           args["res_time_lenF_gwflow"],
