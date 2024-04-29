@@ -1,3 +1,5 @@
+###
+# Written by Farshid Rahmani,Penn State University
 import torch
 from MODELS.PET_models.potet import get_potet
 import torch.nn.functional as F
@@ -413,6 +415,9 @@ class SACSMA_snow_Mul(torch.nn.Module):
             flux_Rlp = torch.min(flux_Rlp, LZFWP_storage)
             LZFWP_storage = torch.clamp(LZFWP_storage - flux_Rlp, min=0.0001)
             LZTW_storage = LZTW_storage + flux_Rlp
+            ## if LZTW_storage > lztwm, we add the extra to flux_twexl
+            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
 
             flux_Rls = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
                                    lzfwsm * (Rl_nominator / Rl_denominator),
@@ -425,8 +430,8 @@ class SACSMA_snow_Mul(torch.nn.Module):
             flux_Pctw = (1 - params_dict["pfree"]) * flux_Pc
             flux_Pcfw = params_dict["pfree"] * flux_Pc
             LZTW_storage = LZTW_storage + flux_Pctw
-
-            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            ## this is the second time I added the extra water to flux_twexl
+            flux_twexl = flux_twexl + torch.clamp(LZTW_storage - lztwm, min=0.0)
             LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
             flux_Elztw = torch.where((LZTW_storage > 0.0) & (Ep > flux_Euztw + flux_Euzfw),
                                      (Ep - flux_Euztw - flux_Euzfw) * (LZTW_storage / (uztwm + lztwm)),
@@ -434,17 +439,17 @@ class SACSMA_snow_Mul(torch.nn.Module):
             flux_Elztw = torch.min(flux_Elztw, LZTW_storage)
             LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=0.0001)
 
-            flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
-                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_Pcfw
-            flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
-                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_twexl
+            flux_Pcfwp = torch.clamp(((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
+                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_Pcfw, min=0.0)
+            flux_twexlp = torch.clamp(((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
+                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_twexl, min=0.0)
             LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
             flux_Qbfp = params_dict["klzp"] * LZFWP_storage
             LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
             extra_LZFWP = torch.clamp(LZFWP_storage - lzfwpm, min=0.0)
             LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP,
                                         min=0.0001)  # I added this to make the storage not to exceed the max
-            # just to make sure LZFWP_storage is always smaller than lzfwpm
+            # just to make sure LZFWP_storage is always smaller than lzfwpm. we need it to calculate flux_twexls
             LZFWP_storage = torch.where(LZFWP_storage >= lzfwpm,
                                         lzfwpm - 0.0001,
                                         LZFWP_storage)

@@ -113,6 +113,7 @@ class numpy_dataset(Data_Reader):
         else:
             self.inputfile_attr = os.path.join(os.path.realpath(attr_path))  # the static data
         # These are default forcings and attributes that are read from the dataset
+        # self.forcing_name_file =
         self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
                                 'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
                                 'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
