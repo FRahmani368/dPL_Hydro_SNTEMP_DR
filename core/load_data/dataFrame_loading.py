@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 import os
 import numpy as np
@@ -113,18 +114,32 @@ class numpy_dataset(Data_Reader):
         else:
             self.inputfile_attr = os.path.join(os.path.realpath(attr_path))  # the static data
         # These are default forcings and attributes that are read from the dataset
-        # self.forcing_name_file =
-        self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
-                                'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
-                                'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
-                                'vp(Pa)', "00060_Mean", "00010_Mean",'dayl(s)']  #
-        self.attrLst_name = ['aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
-                             'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
-                             'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
-                             'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
-                             'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
-                             "DRAIN_SQKM", "lat", "site_no_int", "stream_length_square", "lon"]
-
+        ## getting the forcings and attrs names
+        self.all_forcings_name, self.attrLst_name = self.get_forcing_attr_names(args)
+        # self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
+        #                         'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
+        #                         'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
+        #                         'vp(Pa)', "00060_Mean", "00010_Mean",'dayl(s)']  #
+        # self.attrLst_name = ['aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
+        #                      'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
+        #                      'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
+        #                      'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
+        #                      'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
+        #                      "DRAIN_SQKM", "lat", "site_no_int", "stream_length_square", "lon"]
+    def get_forcing_attr_names(self, args):
+        # forcing
+        forcing_file_name = os.path.basename(args["forcing_path"])
+        forcing_name = forcing_file_name.split(".npy")[0] + "_name.json"
+        forcing_name_path = os.path.join(os.path.dirname(args["forcing_path"]), forcing_name)
+        with open(forcing_name_path, "r") as json_file:
+            forcing_name = json.load(json_file)
+        # attr
+        attr_file_name = os.path.basename(args["attr_path"])
+        attr_name = attr_file_name.split(".npy")[0] + "_name.json"
+        attr_name_path = os.path.join(os.path.dirname(args["attr_path"]), attr_name)
+        with open(attr_name_path, "r") as json_file:
+            attr_name = json.load(json_file)
+        return forcing_name, attr_name
     def getDataTs(self, args, varLst, doNorm=True, rmNan=True):
         if type(varLst) is str:
             varLst = [varLst]

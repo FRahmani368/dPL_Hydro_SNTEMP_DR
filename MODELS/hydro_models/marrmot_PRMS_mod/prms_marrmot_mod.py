@@ -343,11 +343,6 @@ class prms_marrmot_mod(torch.nn.Module):
 
             flux_mim = flux_m * (1 - params_dict["beta"])
             flux_msm = flux_m * params_dict["beta"]
-
-            # Refreez_flux = params_dict["parCFR"] * params_dict["ddf"] * (params_dict["tt"] - T)
-            # Refreez_flux = torch.clamp(Refreez_flux, min=0.0)
-
-
             RSTOR_storage = RSTOR_storage + flux_mim + flux_pim
             flux_sas = RSTOR_storage - params_dict["retip"]
             flux_sas = torch.clamp(flux_sas, min=0.0)

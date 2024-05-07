@@ -14,10 +14,12 @@ nmul: 2
 #attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//attr_415_tmean_ccov.feather"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_camels_all_sep14_2023.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
+#forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\forcing_415_20240331.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+#attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\attr_415_tmean_ccov.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
+forcing_path: "H:\\Farshid\\dataset\\lamaH\\LamaH_mswep_MSWX_inputs_calc\\f859_LamaH_mswep_05032024.npy"   #
+attr_path: "H:\\Farshid\\dataset\\lamaH\\LamaH_mswep_MSWX_inputs_calc\\attr_859_LamaH_mswep_05032024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
@@ -27,16 +29,16 @@ output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
 loss_function_weights:
-    w1: 20      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=0.05, w2=1.0)
+    w1: 5      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
-target: ["00060_Mean"]# , "00010_Mean"] #, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
-tRange: [19800101, 20140101]
-t_train: [19800101, 19950101]   # there should be an overlap because of the warm_up
+target: ["00060_Mean"]#, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+tRange: [19800101, 20230101]
+t_train: [20100101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19950101, 20100101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
-batch_size: 100
-EPOCHS: 50
+batch_size: 250
+EPOCHS: 1
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
@@ -44,12 +46,12 @@ no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
 varC_NN: [
   ############   for mswep inputs
-#  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
-#  'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
-#  'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
-#  'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
-#  'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
-#  "DRAIN_SQKM",
+  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
+  'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
+  'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
+  'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
+  'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
+  "DRAIN_SQKM",
   ############## for GAGES-II inputs
 #  'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
 #  'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
@@ -61,16 +63,16 @@ varC_NN: [
 #  'GEOL_REEDBUSH_DOM_PCT', 'GEOL_REEDBUSH_DOM',
 #   'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
   ################ For CAMELS inputs
-  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-  'dom_land_cover', 'root_depth_50', 'soil_depth_pelletier',
-  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-  'geol_permeability'
+#  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
+#  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
+#  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
+#  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
+#  'dom_land_cover', 'root_depth_50', 'soil_depth_pelletier',
+#  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
+#  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
+#  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
+#  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
+#  'geol_permeability'
 ]
 
 ### process based stream temperature model configuration
@@ -103,14 +105,14 @@ dyn_params_list_temp: [] #["width_coef_pow", "width_coef_factor", "w1_shade", ] 
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod
-hydro_model_name: "SACSMA_with_snow"
+hydro_model_name: "HBV"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
 
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: []  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"

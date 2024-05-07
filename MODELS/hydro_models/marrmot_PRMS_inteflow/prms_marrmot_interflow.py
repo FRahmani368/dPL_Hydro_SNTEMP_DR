@@ -469,6 +469,7 @@ class prms_marrmot_interflow(torch.nn.Module):
             Qsro_rout = sro_sim.mean(-1, keepdim=True)
             Qbas_rout = bas_sim.mean(-1, keepdim=True)
             Qras_rout = ras_sim.mean(-1, keepdim=True)
+            Q_interflow_rout = interflow_sim.mean(-1, keepdim=True)
 
 
         if init:  # means we are in warm up. here we just return the storages to be used as initial values
