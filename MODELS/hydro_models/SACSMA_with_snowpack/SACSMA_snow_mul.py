@@ -13,18 +13,18 @@ class SACSMA_snow_Mul(torch.nn.Module):
         """Initiate a HBV instance"""
         super(SACSMA_snow_Mul, self).__init__()
         self.parameters_bound = dict(pctim=[0.0, 1.0],
-                                     smax=[1, 2000],
+                                     smax=[1, 3000],    #[1, 3000]
                                      f1=[0.005, 0.995],
                                      f2=[0.005, 0.995],
                                      kuz=[0.0, 1],
-                                     rexp=[0.0, 7],
+                                     rexp=[0.0, 8],      #[0.0, 8]
                                      f3=[0.005, 0.995],
                                      f4=[0.005, 0.995],
                                      pfree=[0, 1],
                                      klzp=[0, 1],
                                      klzs=[0, 1],
-                                     parTT=[-2.5, 2.5],
-                                     parCFMAX=[0.5, 10],
+                                     parTT=[-3.0, 3.0],   #[-2.5, 2.5]
+                                     parCFMAX=[0.4, 12],   # [0.4, 12]
                                      parCFR=[0, 0.1],
                                      parCWH=[0, 0.2]
                                      )

@@ -3,25 +3,28 @@ import scipy.stats
 import warnings
 
 keyLst = ["Bias", "RMSE", "ubRMSE", "Corr", "MSE"]
+
+
 def statError(pred, target):
     ngrid, nt = pred.shape
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-    # Bias
+        # Bias
         Bias = np.nanmean(pred - target, axis=1)
         # RMSE
-        RMSE = np.sqrt(np.nanmean((pred - target)**2, axis=1))
+        RMSE = np.sqrt(np.nanmean((pred - target) ** 2, axis=1))
         # ubRMSE
-        predMean = np.tile(np.nanmean(pred, axis=1), (nt, 1)).transpose()
-        targetMean = np.tile(np.nanmean(target, axis=1), (nt, 1)).transpose()
-        predAnom = pred - predMean
-        targetAnom = target - targetMean
-        ubRMSE = np.sqrt(np.nanmean((predAnom - targetAnom)**2, axis=1))
+#         predMean = np.tile(np.nanmean(pred, axis=1), (nt, 1)).transpose()
+#         targetMean = np.tile(np.nanmean(target, axis=1), (nt, 1)).transpose()
+#         predAnom = pred - predMean
+#         targetAnom = target - targetMean
+#         ubRMSE = np.sqrt(np.nanmean((predAnom - targetAnom)**2, axis=1))
         # FDC metric
         predFDC = calFDC(pred)
         targetFDC = calFDC(target)
         FDCRMSE = np.sqrt(np.nanmean((predFDC - targetFDC) ** 2, axis=1))
-    # rho R2 NSE
+        # rho R2 NSE
+        ubRMSE = np.full(ngrid, np.nan)
         Corr = np.full(ngrid, np.nan)
         CorrSp = np.full(ngrid, np.nan)
         R2 = np.full(ngrid, np.nan)
@@ -45,6 +48,12 @@ def statError(pred, target):
                 # percent bias
                 PBias[k] = np.sum(xx - yy) / np.sum(yy) * 100
 
+                predMean = np.tile(np.nanmean(xx), (len(xx))).transpose()
+                targetMean = np.tile(np.nanmean(yy), (len(yy))).transpose()
+                predAnom = xx - predMean
+                targetAnom = yy - targetMean
+                ubRMSE[k] = np.sqrt(np.nanmean((predAnom - targetAnom) ** 2))
+
                 # FHV the peak flows bias 2%
                 # FLV the low flows bias bottom 30%, log space
                 pred_sort = np.sort(xx)
@@ -60,9 +69,9 @@ def statError(pred, target):
                 PBiaslow[k] = np.sum(lowpred - lowtarget) / np.sum(lowtarget) * 100
                 PBiashigh[k] = np.sum(highpred - hightarget) / np.sum(hightarget) * 100
                 PBiasother[k] = np.sum(otherpred - othertarget) / np.sum(othertarget) * 100
-                RMSElow[k] = np.sqrt(np.nanmean((lowpred - lowtarget)**2))
-                RMSEhigh[k] = np.sqrt(np.nanmean((highpred - hightarget)**2))
-                RMSEother[k] = np.sqrt(np.nanmean((otherpred - othertarget)**2))
+                RMSElow[k] = np.sqrt(np.nanmean((lowpred - lowtarget) ** 2))
+                RMSEhigh[k] = np.sqrt(np.nanmean((highpred - hightarget) ** 2))
+                RMSEother[k] = np.sqrt(np.nanmean((otherpred - othertarget) ** 2))
 
                 if ind.shape[0] > 1:
                     # Theoretically at least two points for correlation
@@ -72,16 +81,18 @@ def statError(pred, target):
                     yystd = np.std(yy)
                     xxmean = xx.mean()
                     xxstd = np.std(xx)
-                    KGE[k] = 1 - np.sqrt((Corr[k]-1)**2 + (xxstd/yystd-1)**2 + (xxmean/yymean-1)**2)
-                    KGE12[k] = 1 - np.sqrt((Corr[k] - 1) ** 2 + ((xxstd*yymean)/ (yystd*xxmean) - 1) ** 2 + (xxmean / yymean - 1) ** 2)
-                    SST = np.sum((yy-yymean)**2)
-                    SSReg = np.sum((xx-yymean)**2)
-                    SSRes = np.sum((yy-xx)**2)
-                    R2[k] = 1-SSRes/SST
-                    NSE[k] = 1-SSRes/SST
+                    KGE[k] = 1 - np.sqrt((Corr[k] - 1) ** 2 + (xxstd / yystd - 1) ** 2 + (xxmean / yymean - 1) ** 2)
+                    KGE12[k] = 1 - np.sqrt((Corr[k] - 1) ** 2 + ((xxstd * yymean) / (yystd * xxmean) - 1) ** 2 + (
+                                xxmean / yymean - 1) ** 2)
+                    SST = np.sum((yy - yymean) ** 2)
+                    SSReg = np.sum((xx - yymean) ** 2)
+                    SSRes = np.sum((yy - xx) ** 2)
+                    R2[k] = 1 - SSRes / SST
+                    NSE[k] = 1 - SSRes / SST
 
     outDict = dict(Bias=Bias, RMSE=RMSE, ubRMSE=ubRMSE, Corr=Corr, CorrSp=CorrSp, R2=R2, NSE=NSE,
-                   FLV=PBiaslow, FHV=PBiashigh, PBias=PBias, PBiasother=PBiasother, KGE=KGE, KGE12=KGE12, fdcRMSE=FDCRMSE,
+                   FLV=PBiaslow, FHV=PBiashigh, PBias=PBias, PBiasother=PBiasother, KGE=KGE, KGE12=KGE12,
+                   fdcRMSE=FDCRMSE,
                    lowRMSE=RMSElow, highRMSE=RMSEhigh, midRMSE=RMSEother)
     return outDict
 
