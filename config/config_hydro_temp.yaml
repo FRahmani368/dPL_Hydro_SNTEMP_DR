@@ -14,12 +14,14 @@ nmul: 2
 #attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//attr_415_tmean_ccov.feather"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20231113\\attr_camels_all_sep14_2023.feather"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
+forcing_path: "G:\\Farshid\\camels-20240527T2133Z\\force_dp_cam_orig.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "G:\\Farshid\\camels-20240527T2133Z\\attr_dp.npy"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f50_mswep_03122024.npy"   #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\attr50_mswep_03122024.npy"
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f415_mswep_10_fold_Nanflow_1023\\fFlow_f415_mswep_f_in_10_05062024.npy"   #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f415_mswep_10_fold_Nanflow_1023\\attr_Flow_f415_mswep_f_in_10_05062024.npy"
+#forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\fFlow_mswep415_all_but_reg_1_05062024.npy"
+#attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\attr_Flow_mswep415_all_but_reg_1_05062024.npy"
 output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
@@ -32,18 +34,18 @@ loss_function_weights:
     w1: 11      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
 target: ["00060_Mean"]#, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
-tRange: [19800101, 20140101]
-t_train: [19801001, 20101001]   # there should be an overlap because of the warm_up
+tRange: [19801001, 19941001]
+t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
 t_test: [19951001, 20101001]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
-EPOCHS: 60
+EPOCHS: 4
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
 no_basins: 25   # number of basins sampled in testing
-varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas
+varT_NN: ['prcp(mm/day)', 'tmean(C)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas  'dayl(s)',
 varC_NN: [
   ############   for mswep inputs
 #  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
@@ -105,9 +107,9 @@ dyn_params_list_temp: ["smax"] #, "f1", "f2" ["width_coef_pow", "width_coef_fact
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod
-hydro_model_name: "SACSMA_with_snow"
+hydro_model_name: "HBV"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
-varC_hydro_model: ['DRAIN_SQKM', "lat"]    # "area_gages2"
+varC_hydro_model: ['area_gages2']    # "area_gages2"    DRAIN_SQKM   , "lat"
 
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from

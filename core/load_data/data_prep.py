@@ -278,6 +278,20 @@ def take_sample_test(args, dataset_dictionary, iS, iE):
                 args["device"])
     return dataset_dictionary_sample
 
-
-
+def sub_Nans_for_mean(dataset_dictionary):
+    for k in dataset_dictionary.keys():
+        if k != "obs":  # for observations, we are allowed to have Nans
+            data = dataset_dictionary[k].copy()
+            if len(data.shape) == 3:    # for forcings
+                for i in range(data.shape[2]):
+                    data_temp = data[:, :, i].copy()
+                    data_temp[np.isnan(data_temp)] = np.nanmean(data_temp)
+                    data[:, :, i] = data_temp
+            elif len(data.shape) == 2:   # for attributes
+                for i in range(data.shape[1]):
+                    data_temp = data[:, i].copy()
+                    data_temp[np.isnan(data_temp)] = np.nanmean(data_temp)
+                    data[:, i] = data_temp
+            dataset_dictionary[k] = data
+    return dataset_dictionary
 # TODO add batch size into calculations here

@@ -11,13 +11,16 @@ from core.load_data.dataFrame_loading import loadData
 from core.load_data.data_prep import (
     No_iter_nt_ngrid,
     take_sample_train,
-    take_sample_test
+    take_sample_test,
+    sub_Nans_for_mean
 )
 from core.load_data.normalizing import transNorm
 from MODELS.loss_functions.get_loss_function import get_lossFun
 def train_differentiable_model(args, diff_model, optim):
     # preparing training dataset
     dataset_dictionary = loadData(args, trange=args["t_train"])
+    # substitute Nan values for mean (except for obs)
+    dataset_dictionary = sub_Nans_for_mean(dataset_dictionary)
     ### normalizing
     # creating the stats for normalization of NN inputs
     init_norm_stats(args, dataset_dictionary["x_NN"], dataset_dictionary["c_NN"], dataset_dictionary["obs"])
@@ -79,6 +82,8 @@ def test_differentiable_model(args, diff_model):
     diff_model.eval()
     # read data for test time range
     dataset_dictionary = loadData(args, trange=args["t_test"])
+    # substitute Nan values for mean (except for obs)
+    dataset_dictionary = sub_Nans_for_mean(dataset_dictionary)
     #np.save(os.path.join(args["out_dir"], "x.npy"), dataset_dictionary["x_NN"])  # saves with the overlap in the beginning
     # normalizing
     x_NN_scaled = transNorm(args, dataset_dictionary["x_NN"], varLst=args["varT_NN"], toNorm=True)
