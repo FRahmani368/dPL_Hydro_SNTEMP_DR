@@ -3663,9 +3663,9 @@ class SNTEMP_flowSim(nn.Module):
         )
         self.conv_temp_model_bound = dict(
             a_ssflow=[0.001, 12.0],  # a (k) for ss flow temp
-            b_ssflow=[0.001, 12.0],    #b (theta)  for ss flow temp
+            # b_ssflow=[0.001, 12.0],    #b (theta)  for ss flow temp
             a_gwflow=[0.001, 12.0],    # a (k) for gw flow temp
-            b_gwflow=[0.001, 12.0],    # b (theta)  for gw flow temp
+            # b_gwflow=[0.001, 12.0],    # b (theta)  for gw flow temp
         )
         self.lat_adj_params_bound = [
              [-4, 7]                            # lateral temp adjusment
@@ -4056,13 +4056,14 @@ class SNTEMP_flowSim(nn.Module):
             www = ww / ww.sum(0)  # scale to 1 for each UH
         return www
 
-    def UH_gamma(self, a, b, lenF=10):
+    def UH_gamma(self, a, lenF=10):
         # UH. a [time (same all time steps), batch, var]
         m = a.shape
         # lenF = min(a.shape[0], lenF)
+        b = torch.ones(a.shape).to(a)
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.1. First dimension of a is repeat
-        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.5
+        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) #+ 0.001  # minimum 0.5
         # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
         # t = t.cuda(aa.device)
         t = (torch.linspace(0.001, 10, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
@@ -4158,7 +4159,7 @@ class SNTEMP_flowSim(nn.Module):
 
         return y
 
-    def ave_air_temp_calculation(self, args, x, a_ssflow, b_ssflow, a_gwflow, b_gwflow):
+    def ave_air_temp_calculation(self, args, x, a_ssflow, a_gwflow):
         varT = args["varT_temp_model"]
         nmul = args["nmul"]
         warm_up = args["warm_up"]
@@ -4169,15 +4170,13 @@ class SNTEMP_flowSim(nn.Module):
 
         ave_air_sr = (air_sample_sr[args["res_time_lenF_srflow"]:, :, :]).repeat(1, 1, nmul)
 
-        w_ssflow = self.UH_gamma(a=a_ssflow, b=b_ssflow,
-                                 lenF=args["res_time_lenF_ssflow"])
+        w_ssflow = self.UH_gamma(a=a_ssflow, lenF=args["res_time_lenF_ssflow"])
         air_sample_ss = air_sample_ss.permute([1, 2, 0])  # dim:gage*var*time
         w_ssflow = w_ssflow.permute([1, 2, 0])  # dim: gage*var*time
         ave_air_ss = self.UH_conv(air_sample_ss, w_ssflow)[:, :, args["res_time_lenF_ssflow"]:].permute(
             [2, 0, 1]).repeat(1, 1, nmul)
 
-        w_gwflow = self.UH_gamma(a=a_gwflow, b=b_gwflow,
-                                 lenF=args["res_time_lenF_gwflow"])
+        w_gwflow = self.UH_gamma(a=a_gwflow, lenF=args["res_time_lenF_gwflow"])
         air_sample_gw = air_sample_gw.permute([1, 2, 0])  # dim:gage*var*time
         w_gwflow = w_gwflow.permute([1, 2, 0])  # dim: gage*var*time
         ave_air_gw = self.UH_conv(air_sample_gw, w_gwflow)[:, :, args["res_time_lenF_gwflow"]:].permute(
@@ -4830,7 +4829,7 @@ class SNTEMP_flowSim(nn.Module):
 
         # calculating the temperature of source flow using convolution
         ave_air_temp, w_ssflow, w_gwflow = self.ave_air_temp_calculation(
-            args, airT_memory, params_dict["a_ssflow"], params_dict["b_ssflow"], params_dict["a_gwflow"], params_dict["b_gwflow"])
+            args, airT_memory, params_dict["a_ssflow"],  params_dict["a_gwflow"])
         # modifying the source flow temperature with physical constraints
         T_0, srflow_temp, ssflow_temp, gwflow_temp, ave_air_temp_new = self.lateral_flow_temperature(
             srflow=srflow,
@@ -4902,9 +4901,7 @@ class SNTEMP_flowSim(nn.Module):
                     # PET_coef_temp=params_dict["PET_coef"].mean(-1, keepdim=True),
                     lat_temp_adj=params_dict["lat_temp_adj"].mean(-1, keepdim=True),
                     a_ssflow=params_dict["a_ssflow"].mean(-1, keepdim=True),
-                    b_ssflow=params_dict["b_ssflow"].mean(-1, keepdim=True),
                     a_gwflow=params_dict["a_gwflow"].mean(-1, keepdim=True),
-                    b_gwflow=params_dict["b_gwflow"].mean(-1, keepdim=True)
                     )
 
 # from dataclasses import dataclass

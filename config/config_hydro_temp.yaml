@@ -78,7 +78,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -101,13 +101,13 @@ initial_values_shade_fraction: 0.1
 varT_temp_model: ["ccov", 'vp(Pa)', "srad(W/m2)"]  # tmean is used in air_T_memory.  #'dayl(s)',  , "dayofyear", "t_monthly(C)",
 varC_temp_model: ["DRAIN_SQKM", "stream_length_square", 'SLOPE_PCT',
               'ELEV_MEAN_M_BASIN']       #  "area_gages2",   "RIP100_FOREST", "lat"   'PPTAVG_BASIN',
-dyn_params_list_temp: ["smax"] #, "f1", "f2" ["width_coef_pow", "width_coef_factor", "w1_shade", ]    #"albedo", "w2_shade"
+dyn_params_list_temp: [] #, "f1", "f2" ["width_coef_pow", "width_coef_factor", "w1_shade", ]    #"albedo", "w2_shade"
 
 ### process based streamflow model configurations
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod
-hydro_model_name: "marrmot_PRMS"
+hydro_model_name: "marrmot_PRMS_gw0"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
 
