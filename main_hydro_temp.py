@@ -29,7 +29,7 @@ def main_hydro_temp(args):
             optim=optim
         )
     if 1 in args["Action"]:  # testing mode
-        modelFile = os.path.join(args["out_dir"], "model_Ep" + str(args["EPOCHS"]) + ".pt")
+        modelFile = os.path.join(args["out_dir"], "model_Ep" + str(args["EPOCH_testing"]) + ".pt")
         diff_model = torch.load(modelFile)
         train_test.test_differentiable_model(
             args=args,

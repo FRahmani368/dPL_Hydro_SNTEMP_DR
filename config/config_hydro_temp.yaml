@@ -29,23 +29,24 @@ output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
+loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
 loss_function_weights:
     w1: 11      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
-target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
-tRange: [19801001, 19941001]
-t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
-t_test: [19951001, 20101001]    # the first year is for warm_up
+target: ["00060_Mean"]#, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+tRange: [19800101, 20230101]
+t_train: [20100101, 20150101]   # there should be an overlap because of the warm_up
+t_test: [20150101, 20180101]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
-EPOCHS: 4
+EPOCHS: 20    # number of epochs to train
+EPOCH_testing: 2   # which epoch you want to pick to test?
 hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
 no_basins: 25   # number of basins sampled in testing
-varT_NN: ['prcp(mm/day)', 'tmean(C)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas  'dayl(s)',
+varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas  'dayl(s)',
 varC_NN: [
   ############   for mswep inputs
 #  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
@@ -78,7 +79,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -95,7 +96,7 @@ STemp_default_albedo: 0.1
 STemp_default_delta_Z: 1.0       # for streambed conduction
 params_water_density: 1000
 params_C_w: 4184    # J/kg. K
-NEARZERO: 1e-5
+NEARZERO: 1e-4
 Epan_coef: 1.0
 initial_values_shade_fraction: 0.1
 varT_temp_model: ["ccov", 'vp(Pa)', "srad(W/m2)"]  # tmean is used in air_T_memory.  #'dayl(s)',  , "dayofyear", "t_monthly(C)",
@@ -107,14 +108,14 @@ dyn_params_list_temp: [] #, "f1", "f2" ["width_coef_pow", "width_coef_factor", "
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod
-hydro_model_name: "marrmot_PRMS_gw0"
+hydro_model_name: "SACSMA_with_snow"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
 
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: []  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: ["smax"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"
