@@ -3,8 +3,8 @@
 ##### Make sure the paths are correct. They are individual to your machine
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
-device: "cuda"
-nmul: 2
+device: "cuda:7"
+nmul: 16
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -16,17 +16,17 @@ nmul: 2
 # Windows server
 #forcing_path: "G:\\Farshid\\camels-20240527T2133Z\\force_dp_cam_orig.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\camels-20240527T2133Z\\attr_dp.npy"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
-forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\forcing_50_20240331.feather"   #
-attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\attr50.feather"
+#forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\forcing_50_20240331.feather"   #
+#attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240331\\attr50.feather"
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f415_mswep_10_fold_Nanflow_1023\\fFlow_f415_mswep_f_in_10_05062024.npy"   #
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f415_mswep_10_fold_Nanflow_1023\\attr_Flow_f415_mswep_f_in_10_05062024.npy"
 #forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\fFlow_mswep415_all_but_reg_1_05062024.npy"
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\attr_Flow_mswep415_all_but_reg_1_05062024.npy"
-output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
+#output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
-#forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//camels_671_dp_20231113.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
-#attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//PRMS_SNTEMP//dataset_20231113//attr_camels_all_sep14_2023.feather"
-#output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
+forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//camels_671_dp_20240331.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//attr_camels_all_sep14_2023.feather"
+output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
@@ -34,17 +34,17 @@ loss_function_weights:
     w1: 11      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
 target: ["00060_Mean"]#, "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
-tRange: [19800101, 20230101]
-t_train: [20100101, 20150101]   # there should be an overlap because of the warm_up
-t_test: [20150101, 20180101]    # the first year is for warm_up
+tRange: [19800101, 20150101]
+t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
+t_test: [19941001, 20101001]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
-EPOCHS: 20    # number of epochs to train
+EPOCHS: 100    # number of epochs to train
 EPOCH_testing: 2   # which epoch you want to pick to test?
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 1
+saveEpoch: 10
 no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)"]   # 'dayl(s)', , 'tmin(C)', 'vp(Pa)','srad(W/m2)', pet_nldas  'dayl(s)',
 varC_NN: [
@@ -56,26 +56,26 @@ varC_NN: [
 #  'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
 #  "DRAIN_SQKM",
   ############## for GAGES-II inputs
-  'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
-  'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
-  'FRAGUN_BASIN', 'FORESTNLCD06',  'AWCAVE', 'PERMAVE', 'BDAVE',
-  'ROCKDEPAVE', 'CLAYAVE', 'SILTAVE', 'SANDAVE', 'HGA', 'HGB',
-  'HGC', 'HGVAR', 'HGD', 'PPTAVG_BASIN', 'SNOW_PCT_PRECIP',
-  'PRECIP_SEAS_IND', 'T_AVG_BASIN',  'T_MAX_BASIN',
-  'T_MAXSTD_BASIN', 'RH_BASIN',
-  'GEOL_REEDBUSH_DOM_PCT', 'GEOL_REEDBUSH_DOM',
-   'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
+#  'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
+#  'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
+#  'FRAGUN_BASIN', 'FORESTNLCD06',  'AWCAVE', 'PERMAVE', 'BDAVE',
+#  'ROCKDEPAVE', 'CLAYAVE', 'SILTAVE', 'SANDAVE', 'HGA', 'HGB',
+#  'HGC', 'HGVAR', 'HGD', 'PPTAVG_BASIN', 'SNOW_PCT_PRECIP',
+#  'PRECIP_SEAS_IND', 'T_AVG_BASIN',  'T_MAX_BASIN',
+#  'T_MAXSTD_BASIN', 'RH_BASIN',
+#  'GEOL_REEDBUSH_DOM_PCT', 'GEOL_REEDBUSH_DOM',
+#   'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR', 'RIP100_FOREST'
   ################ For CAMELS inputs
-#  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
-#  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
-#  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
-#  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
-#  'dom_land_cover', 'root_depth_50', 'soil_depth_pelletier',
-#  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
-#  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
-#  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
-#  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
-#  'geol_permeability'
+  'p_mean', 'pet_mean', 'p_seasonality', 'frac_snow', 'aridity',
+  'high_prec_freq', 'high_prec_dur', 'low_prec_freq', 'low_prec_dur',
+  'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
+  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac',
+  'dom_land_cover', 'root_depth_50', 'soil_depth_pelletier',
+  'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
+  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac',
+  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
+  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
+  'geol_permeability'
 ]
 
 ### process based stream temperature model configuration
