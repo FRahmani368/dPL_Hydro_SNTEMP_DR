@@ -115,7 +115,7 @@ varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["smax"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: []  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"

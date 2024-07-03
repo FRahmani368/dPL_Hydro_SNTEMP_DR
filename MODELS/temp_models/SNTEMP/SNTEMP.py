@@ -4060,7 +4060,7 @@ class SNTEMP_flowSim(nn.Module):
         # UH. a [time (same all time steps), batch, var]
         m = a.shape
         # lenF = min(a.shape[0], lenF)
-        b = torch.ones(a.shape).to(a)
+        b = 4.0 * torch.ones(a.shape).to(a)
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.1. First dimension of a is repeat
         theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) #+ 0.001  # minimum 0.5
