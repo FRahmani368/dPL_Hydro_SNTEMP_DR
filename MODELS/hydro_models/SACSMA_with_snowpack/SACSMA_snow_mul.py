@@ -327,6 +327,9 @@ class SACSMA_snow_Mul(torch.nn.Module):
         twexlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Rls_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Rlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Elztw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Euzfw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Twexu_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -519,6 +522,9 @@ class SACSMA_snow_Mul(torch.nn.Module):
             twexlp_sim[t, :, :] = flux_twexlp
             Rlp_sim[t, :, :] = flux_Rlp
             Rls_sim[t, :, :] = flux_Rls
+            Elztw_sim[t, :, :] = flux_Elztw
+            Euzfw_sim[t, :, :] = flux_Euzfw
+            Twexu_sim[t, :, :] = flux_Twexu
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -571,4 +577,7 @@ class SACSMA_snow_Mul(torch.nn.Module):
                         flux_twexls=twexls_sim.mean(-1, keepdim=True),
                         flux_Rlp=Rlp_sim.mean(-1, keepdim=True),
                         flux_Rls=Rls_sim.mean(-1, keepdim=True),
+                        flux_Euzfw=Euzfw_sim.mean(-1, keepdim=True),
+                        flux_Elztw=Elztw_sim.mean(-1, keepdim=True),
+                        flux_Twexu=Twexu_sim.mean(-1, keepdim=True),
                         )

@@ -4064,7 +4064,7 @@ class SNTEMP_flowSim(nn.Module):
         w = torch.zeros([lenF, m[1], m[2]])
         aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.001  # minimum 0.1. First dimension of a is repeat
         theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) #+ 0.001  # minimum 0.5
-        # t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        # t = torch.arrange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
         # t = t.cuda(aa.device)
         t = (torch.linspace(0.001, 10, lenF).view(lenF, 1, 1).repeat(1, m[1], 1))
         t = t.to(aa.device)
