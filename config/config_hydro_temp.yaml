@@ -22,7 +22,7 @@ nmul: 16
 #attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\f415_mswep_10_fold_Nanflow_1023\\attr_Flow_f415_mswep_f_in_10_05062024.npy"
 forcing_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\fFlow_mswep415_all_but_reg_1_05062024.npy"
 attr_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\PUR\\415_USA_7_reg\\attr_Flow_mswep415_all_but_reg_1_05062024.npy"
-output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
+output_model: "G:\\Farshid\\fzr5082\\test_checking" #\\PRMS_SNTEMP_415_208"
 # SUNTZU server
 #forcing_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//camels_671_dp_20240331.feather"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "//scratch//fzr5082//PGML_STemp_results//inputs//dataset_20240331//attr_camels_all_sep14_2023.feather"
@@ -79,7 +79,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP_gw0"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -108,7 +108,7 @@ dyn_params_list_temp: [] #, "f1", "f2" ["width_coef_pow", "width_coef_factor", "
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod
-hydro_model_name: "marrmot_PRMS_gw0"
+hydro_model_name: "SACSMA_with_snow"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
 
