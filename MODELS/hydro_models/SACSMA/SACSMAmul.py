@@ -235,12 +235,12 @@ class SACSMAMul(torch.nn.Module):
 
     def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
+        NEARZERO = args["NEARZERO"]
         # HBV(P, ETpot, T, parameters)
         #
         # Runs the HBV-light hydrological model (Seibert, 2005). NaN values have to be
         # removed from the inputs.
 
-        PRECS = 1e-5
 
         # Initialization
         if warm_up > 0:
@@ -312,7 +312,10 @@ class SACSMAMul(torch.nn.Module):
         twexlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Rls_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Rlp_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
-
+        Elztw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Euzfw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Twexu_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        Ru_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -344,35 +347,59 @@ class SACSMAMul(torch.nn.Module):
             flux_qdir = self.split_1(params_dict["pctim"], PRECIP)
             flux_peff = self.split_1(1 - params_dict["pctim"], PRECIP)
             UZTW_storage = UZTW_storage + flux_peff
+            ## to make sure UZTW_storage < uztwm
+            flux_Twexu = torch.clamp(UZTW_storage - uztwm, min=0.0)
+            UZTW_storage = torch.clamp(UZTW_storage - flux_Twexu - NEARZERO, min=NEARZERO)
+            ## to make sure UZFW_storage < uzfwm
+            UZFW_storage = UZFW_storage + flux_Twexu
+            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Qsur - NEARZERO, min=NEARZERO)
+
             flux_Ru = torch.where((UZTW_storage / uztwm) < (UZFW_storage / uzfwm),
                                   (uztwm * UZFW_storage - uzfwm * UZTW_storage) / (uztwm + uzfwm),
                                   torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Ru = torch.min(flux_Ru, UZFW_storage)
-            UZFW_storage = torch.clamp(UZFW_storage - flux_Ru, min=0.0001)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Ru - NEARZERO, min=NEARZERO)
             UZTW_storage = UZTW_storage + flux_Ru
-            flux_Twexu = torch.clamp(UZTW_storage - uztwm, min=0.0)
-            UZTW_storage = torch.clamp(UZTW_storage - flux_Twexu, min=0.0001)
-            # flux_Twexu = torch.clamp(flux_Twexu, min=0.0)
-            flux_Euztw = Ep * UZTW_storage / (uztwm + 0.0001)  # to avoid nan values, we add 0.001
-            flux_Euztw = torch.min(flux_Euztw, UZTW_storage)
-            UZTW_storage = torch.clamp(UZTW_storage - flux_Euztw, min=0.0001)
 
-            UZFW_storage = UZFW_storage + flux_Twexu
-            flux_Qsur = torch.clamp(UZFW_storage - uzfwm, min=0.0)
-            UZFW_storage = torch.clamp(UZFW_storage - flux_Qsur, min=0.0001)
+            # redo UZTW_storage and UZFW_storage
+            ## to make sure UZTW_storage < uztwm
+            extra_flux_UZTW = torch.clamp(UZTW_storage - uztwm, min=0.0)
+            UZTW_storage = torch.clamp(UZTW_storage - extra_flux_UZTW - NEARZERO, min=NEARZERO)
+            flux_Twexu = flux_Twexu + extra_flux_UZTW
+            ## to make sure UZFW_storage < uzfwm
+            UZFW_storage = UZFW_storage + extra_flux_UZTW
+            extra_flux_UZFW = torch.clamp(UZFW_storage - uzfwm, min=0.0)
+            flux_Qsur = flux_Qsur + extra_flux_UZFW
+            UZFW_storage = torch.clamp(UZFW_storage - extra_flux_UZFW - NEARZERO, min=NEARZERO)
+
+            flux_Euztw = Ep * UZTW_storage / uztwm
+            flux_Euztw = torch.min(flux_Euztw, UZTW_storage)
+            UZTW_storage = torch.clamp(UZTW_storage - flux_Euztw, min=NEARZERO)
             flux_Qint = params_dict["kuz"] * UZFW_storage
-            UZFW_storage = torch.clamp(UZFW_storage - flux_Qint, min=0.0001)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Qint, min=NEARZERO)
+
+            # to make sure LZTW_storage and LZFWP_storage and LZFWS_storage are lower than max volume
+            # This is important for the case of dynamic smax. if smax is smaller than smax in previous days,
+            # the water should be released first, before going through any equation.
+            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl - NEARZERO, min=NEARZERO)
+            flux_Qbfp = torch.clamp(LZFWP_storage - lzfwpm, min=0.0)
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp - NEARZERO, min=NEARZERO)
+            flux_Qbfs = torch.clamp(LZFWS_storage - lzfwsm, min=0.0)
+            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Qbfs - NEARZERO, min=NEARZERO)
+
+            # go to the equations
             LZ_deficiency = (lztwm - LZTW_storage) + (lzfwpm - LZFWP_storage) + (lzfwsm - LZFWS_storage)
-            LZ_deficiency = torch.clamp(LZ_deficiency, min=0.0)    # just to make sure there is no negative values
+            LZ_deficiency = torch.clamp(LZ_deficiency, min=0.0)  # just to make sure there is no negative values
             LZ_capacity = lztwm + lzfwsm + lzfwpm
-            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / (LZ_capacity+0.0001)) ** (1 + params_dict["rexp"]))))
+            Pc_demand = pbase * (1 + (zperc * ((LZ_deficiency / (LZ_capacity + 0.0001)) ** (1 + params_dict["rexp"]))))
             flux_Pc = Pc_demand * UZFW_storage / uzfwm
             flux_Pc = torch.min(flux_Pc, UZFW_storage)
-            UZFW_storage = torch.clamp(UZFW_storage - flux_Pc, min=0.0001)
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Pc, min=NEARZERO)
             flux_Euzfw = torch.clamp(Ep - flux_Euztw, min=0.0)
             flux_Euzfw = torch.min(flux_Euzfw, UZFW_storage)
-            UZFW_storage = torch.clamp(UZFW_storage - flux_Euzfw, min=0.0001)
-
+            UZFW_storage = torch.clamp(UZFW_storage - flux_Euzfw, min=NEARZERO)
 
             Rl_nominator = -LZTW_storage * (lzfwpm + lzfwsm) + lztwm * (LZFWP_storage + LZFWS_storage)
             Rl_denominator = (lzfwpm + lzfwsm) * (lztwm + lzfwpm + lzfwsm)
@@ -380,40 +407,48 @@ class SACSMAMul(torch.nn.Module):
                                    lzfwpm * (Rl_nominator / Rl_denominator),
                                    torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Rlp = torch.min(flux_Rlp, LZFWP_storage)
-            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Rlp, min=0.0001)
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Rlp, min=NEARZERO)
             LZTW_storage = LZTW_storage + flux_Rlp
+            ## if LZTW_storage > lztwm, we add the extra to flux_twexl
+            extra_LZTW_storage1 = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            flux_twexl = flux_twexl + extra_LZTW_storage1
+            LZTW_storage = torch.clamp(LZTW_storage - extra_LZTW_storage1 - NEARZERO, min=NEARZERO)
 
             flux_Rls = torch.where((LZTW_storage / lztwm) < ((LZFWP_storage + LZFWS_storage) / (lzfwpm + lzfwsm)),
                                    lzfwsm * (Rl_nominator / Rl_denominator),
                                    torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Rls = torch.min(flux_Rls, LZFWS_storage)
-            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Rls, min=0.0001)
+            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Rls, min=NEARZERO)
             LZTW_storage = LZTW_storage + flux_Rls
-
 
             flux_Pctw = (1 - params_dict["pfree"]) * flux_Pc
             flux_Pcfw = params_dict["pfree"] * flux_Pc
             LZTW_storage = LZTW_storage + flux_Pctw
+            ## this is the second time I added the extra water to flux_twexl
+            extra_LZTW_storage2 = torch.clamp(LZTW_storage - lztwm, min=0.0)
+            flux_twexl = flux_twexl + extra_LZTW_storage2
+            LZTW_storage = torch.clamp(LZTW_storage - extra_LZTW_storage2 - NEARZERO, min=NEARZERO)
 
-            flux_twexl = torch.clamp(LZTW_storage - lztwm, min=0.0)
-            LZTW_storage = torch.clamp(LZTW_storage - flux_twexl, min=0.0001)
             flux_Elztw = torch.where((LZTW_storage > 0.0) & (Ep > flux_Euztw + flux_Euzfw),
                                      (Ep - flux_Euztw - flux_Euzfw) * (LZTW_storage / (uztwm + lztwm)),
                                      torch.zeros(flux_qdir.shape, dtype=torch.float32, device=args["device"]))
             flux_Elztw = torch.min(flux_Elztw, LZTW_storage)
-            LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=0.0001)
+            LZTW_storage = torch.clamp(LZTW_storage - flux_Elztw, min=NEARZERO)
 
-            flux_Pcfwp = ((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
-                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_Pcfw
-            flux_twexlp = ((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
-                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_twexl
+            flux_Pcfwp = torch.clamp(((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
+                    (lzfwsm - LZFWS_storage) / lzfwsm)) + NEARZERO)) * flux_Pcfw, min=0.0)
+            flux_twexlp = torch.clamp(((lzfwpm - LZFWP_storage) / (lzfwpm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
+                    (lzfwsm - LZFWS_storage) / lzfwsm)) + NEARZERO)) * flux_twexl, min=0.0)
             LZFWP_storage = LZFWP_storage + flux_Pcfwp + flux_twexlp
-            flux_Qbfp = params_dict["klzp"] * LZFWP_storage
-            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp, min=0.0001)
+
+            flux_Qbfp2 = params_dict["klzp"] * LZFWP_storage
+            flux_Qbfp = flux_Qbfp + flux_Qbfp2
+            LZFWP_storage = torch.clamp(LZFWP_storage - flux_Qbfp2, min=NEARZERO)
+            # checking extra water for the second time
             extra_LZFWP = torch.clamp(LZFWP_storage - lzfwpm, min=0.0)
-            LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP,
-                                        min=0.0001)  # I added this to make the storage not to exceed the max
-            # just to make sure LZFWP_storage is always smaller than lzfwpm
+            LZFWP_storage = torch.clamp(LZFWP_storage - extra_LZFWP - NEARZERO,
+                                        min=NEARZERO)  # I added this to make the storage not to exceed the max
+            # just to make sure LZFWP_storage is always smaller than lzfwpm. we need it to calculate flux_twexls
             LZFWP_storage = torch.where(LZFWP_storage >= lzfwpm,
                                         lzfwpm - 0.0001,
                                         LZFWP_storage)
@@ -423,14 +458,15 @@ class SACSMAMul(torch.nn.Module):
             #             lzfwsm * ((lzfwsm - LZFWP_storage) / lzfwpm) + ((lzfwsm - LZFWS_storage) / lzfwsm))) * flux_Pcfw
             flux_Pcfws = torch.clamp(flux_Pcfw - flux_Pcfwp, min=0.0)
             flux_twexls = ((lzfwsm - LZFWS_storage) / (lzfwsm * (((lzfwpm - LZFWP_storage) / lzfwpm) + (
-                        (lzfwsm - LZFWS_storage) / lzfwsm) + 0.0001))) * flux_twexl
+                    (lzfwsm - LZFWS_storage) / lzfwsm)) + NEARZERO)) * flux_twexl
             LZFWS_storage = LZFWS_storage + flux_Pcfws + flux_twexls
 
-            flux_Qbfs = params_dict["klzs"] * LZFWS_storage
-            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Qbfs, min=0.0001)
+            flux_Qbfs2 = params_dict["klzs"] * LZFWS_storage
+            LZFWS_storage = torch.clamp(LZFWS_storage - flux_Qbfs2, min=NEARZERO)
+            flux_Qbfs = flux_Qbfs + flux_Qbfs2
             extra_LZFWS = torch.clamp(LZFWS_storage - lzfwsm, min=0.0)
-            LZFWS_storage = torch.clamp(LZFWS_storage - extra_LZFWS,
-                                        min=0.0001)  # I added this to make the storage not to exceed the max
+            LZFWS_storage = torch.clamp(LZFWS_storage - extra_LZFWS - NEARZERO,
+                                        min=NEARZERO)  # I added this to make the storage not to exceed the max
             # just to make sure LZFWS_storage is always smaller than lzfwsm
             LZFWS_storage = torch.where(LZFWS_storage >= lzfwsm,
                                         lzfwsm - 0.0001,
@@ -449,6 +485,10 @@ class SACSMAMul(torch.nn.Module):
             twexlp_sim[t, :, :] = flux_twexlp
             Rlp_sim[t, :, :] = flux_Rlp
             Rls_sim[t, :, :] = flux_Rls
+            Elztw_sim[t, :, :] = flux_Elztw
+            Euzfw_sim[t, :, :] = flux_Euzfw
+            Twexu_sim[t, :, :] = flux_Twexu
+            Ru_sim[t, :, :] = flux_Ru
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -500,6 +540,10 @@ class SACSMAMul(torch.nn.Module):
                         flux_twexls=twexls_sim.mean(-1, keepdim=True),
                         flux_Rlp=Rlp_sim.mean(-1, keepdim=True),
                         flux_Rls=Rls_sim.mean(-1, keepdim=True),
+                        flux_Euzfw=Euzfw_sim.mean(-1, keepdim=True),
+                        flux_Elztw=Elztw_sim.mean(-1, keepdim=True),
+                        flux_Twexu=Twexu_sim.mean(-1, keepdim=True),
+                        flux_Ru=Ru_sim.mean(-1, keepdim=True),
                         )
 
 

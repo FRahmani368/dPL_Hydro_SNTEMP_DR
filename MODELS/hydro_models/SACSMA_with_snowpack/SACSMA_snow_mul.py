@@ -252,8 +252,6 @@ class SACSMA_snow_Mul(torch.nn.Module):
         # Runs the HBV-light hydrological model (Seibert, 2005). NaN values have to be
         # removed from the inputs.
 
-        PRECS = 1e-5
-
         # Initialization
         if warm_up > 0:
             with torch.no_grad():
