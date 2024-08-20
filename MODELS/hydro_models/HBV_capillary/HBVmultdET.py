@@ -1,20 +1,15 @@
 import torch
 from MODELS.PET_models.potet import get_potet
-import torch.nn as nn
-from torch.nn import Parameter
 import torch.nn.functional as F
 
 
-# from .dropout import DropMask, createMask
-# from . import cnn
-
-
-class HBVMul(torch.nn.Module):
-    """HBV Model Pytorch version"""
-
+class HBVMulTDET(torch.nn.Module):
+    """HBV Model with multiple components and dynamic parameters PyTorch version"""
+    # Add an ET shape parameter for the original ET equation; others are the same as HBVMulTD()
+    # we suggest you read the class HBVMul() with original static parameters first
     def __init__(self, args):
         """Initiate a HBV instance"""
-        super(HBVMul, self).__init__()
+        super(HBVMulTDET, self).__init__()
         self.parameters_bound = dict(parBETA=[1.0, 6.0],
                                      parFC=[50, 1000],
                                      parK0=[0.05, 0.9],
@@ -26,10 +21,10 @@ class HBVMul(torch.nn.Module):
                                      parTT=[-2.5, 2.5],
                                      parCFMAX=[0.5, 10],
                                      parCFR=[0, 0.1],
-                                     parCWH=[0, 0.2])
-        if 'parBETAET' in args['dyn_params_list_hydro']:
-            self.parameters_bound['parBETAET'] = [0.3, 5]
-
+                                     parCWH=[0, 0.2],
+                                     parBETAET=[0.3, 5],
+                                     parC=[0, 1]
+                                     )
         self.conv_routing_hydro_model_bound = [
             [0, 2.9],  # routing parameter a
             [0, 6.5]  # routing parameter b
@@ -121,7 +116,6 @@ class HBVMul(torch.nn.Module):
     def change_param_range(self, param, bounds):
         out = param * (bounds[1] - bounds[0]) + bounds[0]
         return out
-
     def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False,
                 comprout=False, conv_params_hydro=None):
         # Modified from the original numpy version from Beck et al., 2020. (http://www.gloh2o.org/hbv/) which
@@ -129,10 +123,11 @@ class HBVMul(torch.nn.Module):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
 
+        # Initialization
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
-                initmodel = HBVMul(args).to(args["device"])
+                initmodel = HBVMulTDET(args).to(args["device"])
                 Qsinit, SNOWPACK, MELTWATER, SM, SUZ, SLZ = initmodel(xinit, c_hydro_model, params_raw, args,
                                                                       muwts=None, warm_up=0, init=True, routing=False,
                                                                       comprout=False, conv_params_hydro=None)
@@ -147,12 +142,20 @@ class HBVMul(torch.nn.Module):
             SLZ = (torch.zeros([Ngrid, nmul], dtype=torch.float32) + 0.001).to(args["device"])
             # ETact = (torch.zeros([Ngrid,mu], dtype=torch.float32) + 0.001).cuda()
 
-        ## parameters
+        # Parameters
         # inside the for loop
         params_dict_raw = dict()
         for num, param in enumerate(self.parameters_bound.keys()):
             params_dict_raw[param] = self.change_param_range(param=params_raw[:, :, num, :],
                                                              bounds=self.parameters_bound[param])
+
+
+        # T = x[bufftime:, :, 1]
+        # Tm = T.unsqueeze(2).repeat(1,1,mu) # temperature
+        # ETpot = x[bufftime:, :, 2]
+        # ETpm = ETpot.unsqueeze(2).repeat(1,1,mu) # potential ET
+        # parAll = parameters[bufftime:, :, :, :]
+        # parAllTrans = torch.zeros_like(parAll)
 
         vars = args["varT_hydro_model"]
         vars_c = args["varC_hydro_model"]
@@ -188,8 +191,19 @@ class HBVMul(torch.nn.Module):
 
         Nstep, Ngrid = P.size()
 
-        # Apply correction factor to precipitation
-        # P = parPCORR.repeat(Nstep, 1) * P
+
+        # # deal with the dynamic parameters and dropout to reduce overfitting of dynamic para
+        # parstaFull = parAllTrans[staind, :, :, :].unsqueeze(0).repeat([Nstep, 1, 1, 1])  # static para matrix
+        # parhbvFull = torch.clone(parstaFull)
+        # # create probability mask for each parameter on the basin dimension
+        # pmat = torch.ones([1, Ngrid, 1])*dydrop
+        # for ix in tdlst:
+        #     staPar = parstaFull[:, :, ix-1, :]
+        #     dynPar = parAllTrans[:, :, ix-1, :]
+        #     drmask = torch.bernoulli(pmat).detach_().to(parhbvFull)  # to drop dynamic parameters as static in some basins
+        #     comPar = dynPar*(1-drmask) + staPar*drmask
+        #     parhbvFull[:, :, ix-1, :] = comPar
+
 
         # Initialize time series of model variables
         Qsimmu = (torch.zeros(Pm.size(), dtype=torch.float32) + 0.001).to(args["device"])
@@ -204,12 +218,14 @@ class HBVMul(torch.nn.Module):
         tosoil_sim = (torch.zeros(Pm.size(), dtype=torch.float32)).to(args["device"])
         PERC_sim = (torch.zeros(Pm.size(), dtype=torch.float32)).to(args["device"])
         SWE_sim = (torch.zeros(Pm.size(), dtype=torch.float32)).to(args["device"])
+        capillary_sim = (torch.zeros(Pm.size(), dtype=torch.float32)).to(args["device"])
 
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
             if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
                 params_dict[key] = params_dict_raw[key][-1, :, :]
+
 
         ### Doing dynamic parameters based on dydrop ratio
         # basically, it drops dynamic parameters for some basins (based on dydrop ratio), and substitute them
@@ -229,13 +245,14 @@ class HBVMul(torch.nn.Module):
             for key in params_dict_raw.keys():
                 if key in args["dyn_params_list_hydro"]:  ## it is a dynamic parameter
                     # params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
-                    # to drop dynamic parameters as static in some basins
+                      # to drop dynamic parameters as static in some basins
                     params_dict[key] = params_dict_raw_dyn[key][warm_up + t, :, :]
 
-            # Separate precipitation into liquid and solid components
+                # Separate precipitation into liquid and solid components
             PRECIP = Pm[t, :, :]  # need to check later, seems repeating with line 52
             RAIN = torch.mul(PRECIP, (mean_air_temp[t, :, :] >= params_dict["parTT"]).type(torch.float32))
             SNOW = torch.mul(PRECIP, (mean_air_temp[t, :, :] < params_dict["parTT"]).type(torch.float32))
+
 
             # Snow
             SNOWPACK = SNOWPACK + SNOW
@@ -245,7 +262,7 @@ class HBVMul(torch.nn.Module):
             MELTWATER = MELTWATER + melt
             SNOWPACK = torch.clamp(SNOWPACK - melt, min=NEARZERO)
             refreezing = params_dict["parCFR"] * params_dict["parCFMAX"] * (
-                        params_dict["parTT"] - mean_air_temp[t, :, :])
+                    params_dict["parTT"] - mean_air_temp[t, :, :])
             refreezing = torch.clamp(refreezing, min=0.0)
             refreezing = torch.min(refreezing, MELTWATER)
             SNOWPACK = SNOWPACK + refreezing
@@ -263,15 +280,17 @@ class HBVMul(torch.nn.Module):
             excess = SM - params_dict["parFC"]
             excess = torch.clamp(excess, min=0.0)
             SM = torch.clamp(SM - excess, min=NEARZERO)
-            # parBETAET only has effect when it is a dynamic parameter (=1 otherwise).
-            evapfactor = (SM / (params_dict["parLP"] * params_dict["parFC"]))
-            if 'parBETAET' in params_dict:
-                evapfactor = evapfactor ** params_dict['parBETAET']
+            # Different from HBVmul. Add an ET shape parameter parBETAET. this param can be static or dynamic
+            evapfactor = (SM / (params_dict["parLP"] * params_dict["parFC"])) ** params_dict['parBETAET']
             evapfactor = torch.clamp(evapfactor, min=0.0, max=1.0)
             ETact = PET[t, :, :] * evapfactor
             ETact = torch.min(SM, ETact)
             AET[t, :, :] = ETact
             SM = torch.clamp(SM - ETact, min=NEARZERO)  # SM can not be zero for gradient tracking
+            capillary = torch.min(SLZ, params_dict["parC"] * SLZ * (1.0 - torch.clamp(SM / params_dict["parFC"], max=1.0)))
+
+            SM = torch.clamp(SM + capillary, min=NEARZERO)
+            SLZ = torch.clamp(SLZ - capillary, min=NEARZERO)
 
             # Groundwater boxes
             SUZ = SUZ + recharge + excess
@@ -295,7 +314,7 @@ class HBVMul(torch.nn.Module):
             tosoil_sim[t, :, :] = tosoil
             PERC_sim[t, :, :] = PERC
             SWE_sim[t, :, :] = SNOWPACK
-
+            capillary_sim[t, :, :] = capillary
 
         # get the primary average
         if muwts is None:
@@ -361,5 +380,5 @@ class HBVMul(torch.nn.Module):
                         tosoil=tosoil_sim.mean(-1, keepdim=True),
                         percolation=PERC_sim.mean(-1, keepdim=True),
                         SWE=SWE_sim.mean(-1, keepdim=True),
+                        capillary=capillary_sim.mean(-1, keepdim=True),
                         )
-

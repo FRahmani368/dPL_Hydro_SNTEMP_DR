@@ -302,11 +302,27 @@ class prms_marrmot(torch.nn.Module):
         for key in params_dict_raw.keys():
             if key not in args["dyn_params_list_hydro"]:  ## it is a static parameter
                 params_dict[key] = params_dict_raw[key][-1, :, :]
+        ### Doing dynamic parameters based on dydrop ratio
+        # basically, it drops dynamic parameters for some basins (based on dydrop ratio), and substitute them
+        # for a static parameter, which is the last day parameter
+        if len(args["dyn_params_list_hydro"]) > 0:
+            params_dict_raw_dyn = dict()
+            pmat = torch.ones([Ngrid, 1]) * args["dydrop"]
+            for i, key in enumerate(args["dyn_params_list_hydro"]):
+                drmask = torch.bernoulli(pmat).detach_().to(args["device"])
+                dynPar = params_dict_raw[key]
+                staPar = params_dict_raw[key][-1, :, :].unsqueeze(0).repeat([dynPar.shape[0], 1, 1])
+                params_dict_raw_dyn[key] = dynPar * (1 - drmask) + staPar * drmask
+        ###
+
         for t in range(Ndays):
             # do dynamic parameters
             for key in params_dict_raw.keys():
                 if key in args["dyn_params_list_hydro"]:  ## it is a dynamic parameter
-                    params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+                    # params_dict[key] = params_dict_raw[key][warm_up + t, :, :]
+                    # to drop dynamic parameters as static in some basins
+                    params_dict[key] = params_dict_raw_dyn[key][warm_up + t, :, :]
+
             scn = params_dict["fscn"] * params_dict["scx"]
             remx = (1 - params_dict["flz"]) * params_dict["stot"]
             smax = params_dict["flz"] * params_dict["stot"]

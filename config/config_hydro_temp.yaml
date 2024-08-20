@@ -4,7 +4,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 16
+nmul: 3
 ### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
@@ -29,11 +29,11 @@ output_model: "G:\\Farshid\\fzr5082\\test_checking" #\\PRMS_SNTEMP_415_208"
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 ## neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
+loss_function: "RmseLoss_flow_comb"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
-target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #
+target: ["00060_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #   , "00010_Mean"
 tRange: [19800101, 20150101]
 t_train: [19801001, 19951001]   # there should be an overlap because of the warm_up
 t_test: [19941001, 20101001]    # the first year is for warm_up
@@ -79,7 +79,7 @@ varC_NN: [
 ]
 
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_type: "SNTEMP"   #"van Vliet"  # "van Vliet", "Meisner", "SNTEMP"
 res_time_lenF_ssflow: 30   #60
@@ -107,15 +107,15 @@ dyn_params_list_temp: [] #, "f1", "f2" ["width_coef_pow", "width_coef_factor", "
 ### process based streamflow model configurations
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
-#                           9-marrmot_PRMS_mod
-hydro_model_name: "SACSMA"
+#                           9-marrmot_PRMS_mod; 10-HBV_capillary
+hydro_model_name: "marrmot_PRMS_refreeze"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
-
+dydrop: 0.5   # dynamic parameters dropout for some basins
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: []  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: ["tt"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 ### PET model configurations
 potet_module: "dataset" # "potet_hamon"  # "potet_hargreaves" , "dataset" -> Hamon is not ready beacause of lack of monthly coef
 potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "potet_module" == "dataset"
