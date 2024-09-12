@@ -7,7 +7,7 @@ Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 2
 # ------------------------------------------------
-### Directories of forcings, attributes, and output
+###### Directories of forcings, attributes, and output
 # ICDS
 #forcing_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//forcing_415_20231113.feather" #          no_dam_forcing_99%_days34sites.feather
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
@@ -21,13 +21,19 @@ forcing_path: "//scratch//fzr5082//dataset//f586_1023_daymet_20240826.npy"   # f
 attr_path: "//scratch//fzr5082//dataset//attr586_1023_daymet_20240826.npy"
 output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
 # ------------------------------------------------
-## neural network configuration
+###### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
-loss_function: "RmseLoss_flow_temp"      # "RmseLoss_flow_temp", "RmseLoss_flow_temp_BFI",  "RmseLoss_flow_temp_BFI_PET", "RmseLoss_flow_comb"  RmseLoss_BFI_temp  NSEsqrtLoss_flow_temp
+### you can choose different types of loss functions based on your need:
+   ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
+   ###  4- "RmseLoss_flow_temp_BFI_PET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
+loss_function: "RmseLoss_flow_temp"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
-target: ["00060_Mean", "00010_Mean"]#, "BFI_AVE"] #, "BFI_AVE", "PET"]     #   , "00010_Mean"
+### choose your targets based on your loss function
+    ### "00060_Mean": streamflow observation,    "00010_Mean": stream temperature observations
+    ### "BFI_AVE": Baseflow index ratio,          "PET": Potential evapotranspiration
+target: ["00060_Mean", "00010_Mean"]
 tRange: [19800101, 20230101]
 t_train: [20190101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [20190101, 20230101]    # the first year is for warm_up
