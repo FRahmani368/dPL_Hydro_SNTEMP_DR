@@ -1,4 +1,4 @@
-name: PGML_STemp
+name: dPL_Hydro_SNTEMP
 channels:
   - pytorch
   - nvidia
@@ -127,4 +127,4 @@ dependencies:
       - statsmodels==0.13.2
       - subprocess-run==0.0.8
       - torchviz==0.0.2
-prefix: /data/fzr5082/envs/PGML_STemp
+prefix: /data/fzr5082/envs/dPL_Hydro_SNTEMP
