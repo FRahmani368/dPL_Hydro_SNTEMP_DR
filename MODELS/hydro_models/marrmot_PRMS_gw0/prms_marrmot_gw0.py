@@ -511,7 +511,7 @@ class prms_marrmot_gw0(torch.nn.Module):
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
                         bas_shallow=Qbas_shallow_rout,   #### adding new GW_storage0
-                        flow_sim_no_rout=Q_sim.unsqueeze(dim=2),  #Q_sim.mean(-1, keepdim=True),
+                        flow_sim_no_rout=Q_sim.mean(-1, keepdim=True),
                         srflow_no_rout=(sas_sim + sro_sim).mean(-1, keepdim=True),
                         ssflow_no_rout=ras_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=bas_sim.mean(-1, keepdim=True),
