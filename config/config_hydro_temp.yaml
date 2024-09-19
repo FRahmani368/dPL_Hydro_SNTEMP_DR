@@ -90,14 +90,14 @@ varC_NN: [
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod; 10-HBV_capillary
-hydro_model_name: "HBV_capillary"
+hydro_model_name: "marrmot_PRMS"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['area_gages2']    # "area_gages2"    DRAIN_SQKM   , "lat"
 dydrop: 0.0   # dynamic parameters dropout for some basins
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["parBETA", "parK0", "parUZL", "parBETAET"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: []#"parBETA", "parK0", "parUZL", "parBETAET"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 
 # -----------------------------------------------------------
 ### PET model configurations
