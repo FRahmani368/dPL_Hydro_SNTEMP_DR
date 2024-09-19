@@ -30,6 +30,10 @@ class NSEsqrtLoss_flow(torch.nn.Module):
             #                 p)
             sqRes = torch.sqrt(args["NEARZERO"] + (p - t)**2)
             normRes = sqRes / (stdw + self.eps)
+            #yalan's version
+            sqRes = (p - t) ** 2
+            normRes = sqRes / (stdw + self.eps)**2
+
             loss = torch.mean(normRes)
         else:
             loss = 0.0

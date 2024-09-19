@@ -87,9 +87,9 @@ def calStatAll(args, x, c, y):
     varList = args["varT_NN"]
     for k in range(len(varList)):
         var = varList[k]
-        if var == "prcp(mm/day)":
-            statDict[var] = calStatgamma(x[:, :, k])
-        elif (var == "00060_Mean") or (var == "combine_discharge"):
+        # if var == "prcp(mm/day)":
+        #     statDict[var] = calStatgamma(x[:, :, k])
+        if (var == "00060_Mean") or (var == "combine_discharge"):
             statDict[var] = calStatbasinnorm(x[:, :, k: k + 1], x, args)
         else:
             statDict[var] = calStat(x[:, :, k])
@@ -118,8 +118,8 @@ def transNorm(args, x, varLst, *, toNorm):
         if toNorm is True:
             if len(x.shape) == 3:
                 if (
-                    var == "prcp(mm/day)"
-                    or var == "00060_Mean"
+                    # var == "prcp(mm/day)"
+                    var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
                     x_temp[:, :, k] = np.log10(np.sqrt(x_temp[:, :, k]) + 0.1)
@@ -127,8 +127,8 @@ def transNorm(args, x, varLst, *, toNorm):
                 out[:, :, k] = (x_temp[:, :, k] - stat[2]) / stat[3]
             elif len(x.shape) == 2:
                 if (
-                    var == "prcp(mm/day)"
-                    or var == "00060_Mean"
+                    # var == "prcp(mm/day)"
+                    var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
                     x_temp[:, k] = np.log10(np.sqrt(x_temp[:, k]) + 0.1)
@@ -137,8 +137,8 @@ def transNorm(args, x, varLst, *, toNorm):
             if len(x.shape) == 3:
                 out[:, :, k] = x_temp[:, :, k] * stat[3] + stat[2]
                 if (
-                    var == "prcp(mm/day)"
-                    or var == "00060_Mean"
+                    # var == "prcp(mm/day)"
+                    var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
                     out[:, :, k] = (np.power(10, out[:, :, k]) - 0.1) ** 2
@@ -146,8 +146,8 @@ def transNorm(args, x, varLst, *, toNorm):
             elif len(x.shape) == 2:
                 out[:, k] = x_temp[:, k] * stat[3] + stat[2]
                 if (
-                    var == "prcp(mm/day)"
-                    or var == "00060_Mean"
+                    # var == "prcp(mm/day)"
+                    var == "00060_Mean"
                     or var == "combine_discharge"
                 ):
                     out[:, k] = (np.power(10, out[:, k]) - 0.1) ** 2

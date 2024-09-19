@@ -236,11 +236,7 @@ class SACSMAMul(torch.nn.Module):
     def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         nmul = args["nmul"]
         NEARZERO = args["NEARZERO"]
-        # HBV(P, ETpot, T, parameters)
-        #
-        # Runs the HBV-light hydrological model (Seibert, 2005). NaN values have to be
-        # removed from the inputs.
-
+        warm_up = 0
 
         # Initialization
         if warm_up > 0:
@@ -543,7 +539,7 @@ class SACSMAMul(torch.nn.Module):
                         gwflow=gwflow_rout,
                         PET_hydro=PET.mean(-1, keepdim=True),
                         AET_hydro=AET.mean(-1, keepdim=True),
-                        flow_sim_no_rout=Q_sim.mean(-1, keepdim=True),
+                        flow_sim_no_rout=Qsim.unsqueeze(dim=2),  #Q_sim.mean(-1, keepdim=True),
                         srflow_no_rout=srflow_sim.mean(-1, keepdim=True),
                         ssflow_no_rout=ssflow_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=gwflow_sim.mean(-1, keepdim=True),

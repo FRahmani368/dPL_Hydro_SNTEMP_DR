@@ -5,7 +5,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 16
 # ------------------------------------------------
 ###### Directories of forcings, attributes, and output
 # ICDS
@@ -16,27 +16,27 @@ nmul: 2
 #forcing_path: "G:\\Farshid\\camels-20240527T2133Z\\force_dp_cam_orig.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "G:\\Farshid\\camels-20240527T2133Z\\attr_dp.npy"   #attr_415_tmean_ccov.feather" #        camels_40_attr.feather
 #output_model: "G:\\Farshid\\fzr5082\\test_checking" #\\PRMS_SNTEMP_415_208"
-# SUNTZU server
-forcing_path: "//scratch//fzr5082//dataset//f586_1023_daymet_20240826.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
-attr_path: "//scratch//fzr5082//dataset//attr586_1023_daymet_20240826.npy"
-output_model: "//scratch//fzr5082//PGML_STemp_results//models" #\\PRMS_SNTEMP_415_208"
+# Confucius server
+forcing_path: "//data//fzr5082//Yalans_camels//force_531.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
+attr_path: "//data//fzr5082//Yalans_camels//attr_531.npy"
+output_model: "//mnt//sdb1//fzr5082//models" #\\PRMS_SNTEMP_415_208"
 # ------------------------------------------------
 ###### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 ### you can choose different types of loss functions based on your need:
    ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
    ###  4- "RmseLoss_flow_temp_BFI_PET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
-loss_function: "RmseLoss_flow_temp"      #
+loss_function: "NSEsqrtLoss_flow"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
 ### choose your targets based on your loss function
     ### "00060_Mean": streamflow observation,    "00010_Mean": stream temperature observations
     ### "BFI_AVE": Baseflow index ratio,          "PET": Potential evapotranspiration
-target: ["00060_Mean", "00010_Mean"]
-tRange: [19800101, 20230101]
-t_train: [20190101, 20230101]   # there should be an overlap because of the warm_up
-t_test: [20190101, 20230101]    # the first year is for warm_up
+target: ["00060_Mean"] #, "00010_Mean"]
+tRange: [19801001, 20141001]
+t_train: [19891001, 19991001]   # there should be an overlap because of the warm_up
+t_test: [19991001, 20141001]    # the first year is for warm_up
 warm_up: 365
 rho: 365
 batch_size: 100
@@ -46,15 +46,15 @@ hidden_size: 256
 dropout: 0.5
 saveEpoch: 1
 no_basins: 25   # number of basins sampled in testing
-varT_NN: ['prcp(mm/day)', 'tmean(C)', 'dayl(s)', "PET_hargreaves(mm/day)", "ccov", 'srad(W/m2)', 'vp(Pa)']   # 'tmin(C)', 'vp(Pa)','srad(W/m2)',
+varT_NN: ['prcp(mm/day)', 'tmean(C)', "PET_hargreaves(mm/day)"]   # 'tmin(C)', 'vp(Pa)','srad(W/m2)',
 varC_NN: [
   ############   for mswep inputs
-  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
-  'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
-  'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
-  'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
-  'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
-  "DRAIN_SQKM",
+#  'aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
+#  'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
+#  'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
+#  'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
+#  'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
+#  "DRAIN_SQKM",
   ############## for GAGES-II inputs
 #  'ELEV_MEAN_M_BASIN',  'ELEV_STD_M_BASIN',
 #  'SLOPE_PCT', 'DRAIN_SQKM', 'NDAMS_2009', 'MAJ_NDAMS_2009',
@@ -76,6 +76,13 @@ varC_NN: [
 #  'geol_1st_class', 'glim_1st_class_frac', 'geol_2nd_class',
 #  'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy',
 #  'geol_permeability'
+  ################### Yalan's Camels
+  'p_mean','pet_mean', 'p_seasonality', 'frac_snow', 'aridity', 'high_prec_freq', 'high_prec_dur',
+  'low_prec_freq', 'low_prec_dur', 'elev_mean', 'slope_mean', 'area_gages2', 'frac_forest', 'lai_max',
+  'lai_diff', 'gvf_max', 'gvf_diff', 'dom_land_cover_frac', 'dom_land_cover', 'root_depth_50',
+  'soil_depth_pelletier', 'soil_depth_statsgo', 'soil_porosity', 'soil_conductivity',
+  'max_water_content', 'sand_frac', 'silt_frac', 'clay_frac', 'geol_1st_class', 'glim_1st_class_frac',
+  'geol_2nd_class', 'glim_2nd_class_frac', 'carbonate_rocks_frac', 'geol_porostiy', 'geol_permeability'
 ]
 
 # ---------------------------------------------------------------------
@@ -83,14 +90,14 @@ varC_NN: [
 # hydro_model_name options: 1-marrmot_PRMS; 2-marrmot_PRMS_refreeze; 3-marrmot_PRMS_gw0;
 #                           4-marrmot_PRMS_interflow; 5-HBV; 6-SACSMA; 7-SACSMA_with_snow; 8-None;
 #                           9-marrmot_PRMS_mod; 10-HBV_capillary
-hydro_model_name: "marrmot_PRMS"
+hydro_model_name: "HBV_capillary"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
-varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
-dydrop: 0.5   # dynamic parameters dropout for some basins
+varC_hydro_model: ['area_gages2']    # "area_gages2"    DRAIN_SQKM   , "lat"
+dydrop: 0.0   # dynamic parameters dropout for some basins
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"
-dyn_params_list_hydro: ["tt"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
+dyn_params_list_hydro: ["parBETA", "parK0", "parUZL", "parBETAET"]  #["pctim", "smax", "parTT"]# ["parBETAET"]   #["scx", "cgw", "alpha", "tt"]   #
 
 # -----------------------------------------------------------
 ### PET model configurations
@@ -100,7 +107,7 @@ potet_dataset_name: "PET_hargreaves(mm/day)"  #"PET_hargreaves(mm/day)" # if "po
 
 # -------------------------------------------------------------------
 ### process based stream temperature model configuration
-temp_model_name: "SNTEMP"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
+temp_model_name: "None"       #   "None" means no temperature model, "SNTEMP", "SNTEMP_gw0"
 routing_temp_model: True
 res_time_lenF_ssflow: 30   #60
 res_time_lenF_bas_shallow: 180 #

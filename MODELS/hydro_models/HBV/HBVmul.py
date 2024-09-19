@@ -128,7 +128,7 @@ class HBVMul(torch.nn.Module):
         # runs the HBV-light hydrological model (Seibert, 2005).
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
-
+        warm_up = 0
         if warm_up > 0:
             with torch.no_grad():
                 xinit = x_hydro_model[0:warm_up, :, :]
@@ -351,7 +351,7 @@ class HBVMul(torch.nn.Module):
                         gwflow=Q2_rout,
                         AET_hydro=AET.mean(-1, keepdim=True),
                         PET_hydro=PET.mean(-1, keepdim=True),
-                        flow_sim_no_rout=Qsim.mean(-1, keepdim=True),
+                        flow_sim_no_rout=Qsim.unsqueeze(dim=2),  #Qsim.mean(-1, keepdim=True),
                         srflow_no_rout=Q0_sim.mean(-1, keepdim=True),
                         ssflow_no_rout=Q1_sim.mean(-1, keepdim=True),
                         gwflow_no_rout=Q2_sim.mean(-1, keepdim=True),

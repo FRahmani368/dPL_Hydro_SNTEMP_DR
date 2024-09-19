@@ -5,18 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="aeff6280-77b9-4fa8-8950-4f02f27bdfff" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/MODELS/hydro_models/HBV_capillary/HBVmultdET.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dPL_Hydro_SNTEMP.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dPL_Hydro_SNTEMP.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/Differentiable_models.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/Differentiable_models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/HBV/HBVmul.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/HBV/HBVmul.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA/SACSMAmul.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA_with_snowpack/SACSMA_snow_mul.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/SACSMA_with_snowpack/SACSMA_snow_mul.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS/prms_marrmot.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS/prms_marrmot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_gw0/prms_marrmot_gw0.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_gw0/prms_marrmot_gw0.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_inteflow/prms_marrmot_interflow.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_inteflow/prms_marrmot_interflow.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_mod/prms_marrmot_mod.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_mod/prms_marrmot_mod.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_refreeze/prms_marrmot_refreeze.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/marrmot_PRMS_refreeze/prms_marrmot_refreeze.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/HBV_capillary/HBVmultdET.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/HBV_capillary/HBVmultdET.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/loss_functions/NSEsqrtLoss_flow.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/loss_functions/NSEsqrtLoss_flow.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_hydro_temp.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_hydro_temp.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/load_data/normalizing.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/load_data/normalizing.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,19 +36,24 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 0
+}]]></component>
   <component name="ProjectId" id="2f7R1vAzbJUGWOKojHNx7Az0xlh" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;G:/Farshid/GitHub/dPL_Hydro_SNTEMP/MODELS/hydro_models/marrmot_PRMS_mod&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.main_hydro_temp.executor": "Debug",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/home/fzr5082/GitHub/dPL_Hydro_SNTEMP",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="G:\Farshid\GitHub\dPL_Hydro_SNTEMP\MODELS\hydro_models\marrmot_PRMS_mod" />
@@ -63,6 +65,7 @@
   <component name="RunManager">
     <configuration name="main_hydro_temp" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="dPL_Hydro_SNTEMP" />
+      <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -82,6 +85,13 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-abccbe9d933a-ba05f1cad1b1-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.20224.428" />
+      </set>
+    </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -216,11 +226,6 @@
           <url>file://$PROJECT_DIR$/MODELS/hydro_models/SACSMA_with_snowpack/SACSMA_snow_mul.py</url>
           <line>461</line>
           <option name="timeStamp" value="667" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MODELS/hydro_models/HBV_capillary/HBVmultdET.py</url>
-          <line>242</line>
-          <option name="timeStamp" value="672" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
