@@ -169,7 +169,7 @@ class diff_hydro_temp_model(torch.nn.Module):
                 routing=self.args["routing_hydro_model"],
                 conv_params_hydro=params_dict["conv_params_hydro"]
             )
-            # to remove the warm_up part
+            # to remove the warm_up part --> consistent with removing the torch.no_grad() in hydro_model
             for key in flow_out.keys():
                 flow_out[key] = flow_out[key][self.args["warm_up"]:]
             # baseflow index percentage
