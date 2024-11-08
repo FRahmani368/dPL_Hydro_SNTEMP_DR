@@ -1018,3 +1018,97 @@ def regLinear(y, x):
         X = sm.add_constant(np.column_stack((ele, X)))
     out = sm.OLS(y, X).fit()
     return out
+
+
+def raincloud_plot(data,
+                   figsize=(8, 8),
+                   whiskers=[5, 95],
+                   sharex=False,
+                   widths=0.7,
+                   boxplots_colors=['yellowgreen', 'olivedrab', 'yellowgreen', 'olivedrab'],
+                   violin_colors=['thistle', 'orchid', 'thistle', 'orchid'],
+                   scatter_colors=['tomato', 'darksalmon', 'tomato', 'darksalmon'],
+                   feature_label=['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'],
+                   feature_label_fontsize=24,
+                   metrics_labels=["NSE", "KGE"],
+                   metric_labels_fontsize=24,
+                   PlotName="Raincloud Plot",
+                   plotname_fontsize=32,
+                   xticks_fontsize=24
+                   ):
+    nc = len(data)
+    fig, axes = plt.subplots(nrows=nc, sharex=sharex, figsize=figsize)
+    plt.subplots_adjust(left=0.2, right=0.99, top=0.95, bottom=0.07)
+    ## data curing
+    for k in range(0, nc):
+        ax = axes[k] if nc > 1 else axes
+        temp = data[k]
+        if type(temp) is list:
+            for kk in range(len(temp)):
+                tt = temp[kk]
+                if tt is None or (isinstance(tt, np.ndarray) and tt.size == 0):
+                    temp[kk] = []
+                else:
+                    tt = tt[~np.isnan(tt)]
+                    temp[kk] = tt
+        else:
+            temp = temp[~np.isnan(temp)]
+
+        # Calculate whisker values (5th and 95th percentiles)
+        lower_whisker = np.percentile(temp, whiskers[0])
+        upper_whisker = np.percentile(temp, whiskers[1])
+        # Filter data for violin and scatter (inside whisker range)
+        temp_filtered = [x[(x >= lower_whisker) & (x <= upper_whisker)] for x in temp] if isinstance(temp, list) else \
+        temp[(temp >= lower_whisker) & (temp <= upper_whisker)]
+
+        # Boxplot data
+        bp = ax.boxplot(temp_filtered, patch_artist=True, vert=False, notch=True,
+                        showfliers=False, whis=[0, 100], widths=widths,
+                        boxprops=dict(linewidth=2),
+                        medianprops=dict(linewidth=3, color='black'))
+
+        # Change to the desired color and add transparency
+        for patch, color in zip(bp['boxes'], boxplots_colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.6)
+
+        # # Draw whiskers for the scatter and violin plot
+        # ax.hlines(k + 1, lower_whisker, upper_whisker, color='black', linestyle='-', lw=2)
+        # Violinplot data
+        vp = ax.violinplot(temp_filtered, points=len(temp[0]),
+                           showmeans=False, showextrema=False, showmedians=False, vert=False)
+
+        for idx, b in enumerate(vp['bodies']):
+            # Get the center of the plot
+            # m = np.mean(b.get_paths()[0].vertices[:, 0])
+            # Modify it so we only see the upper half of the violin plot
+            # b.get_paths()[0].vertices[:, 1] = np.clip(b.get_paths()[0].vertices[:, 1], idx+1, idx+2)
+
+            b.get_paths()[0].vertices[:, 0] = np.clip(b.get_paths()[0].vertices[:, 0], lower_whisker, upper_whisker)
+            b.get_paths()[0].vertices[:, 1] = np.clip(b.get_paths()[0].vertices[:, 1], idx + 1, idx + 2)
+            # Change to the desired color
+            b.set_color(violin_colors[idx])
+            b.set_alpha(0.5)
+
+        # Scatterplot data
+        for idx, features in enumerate(temp_filtered):
+            # Add jitter effect so the features do not overlap on the y-axis
+            y = np.full(len(features), idx + .8)
+            idxs = np.arange(len(y))
+            out = y.astype(float)
+            out.flat[idxs] += np.random.uniform(low=-.09, high=.09, size=len(idxs))
+            y = out
+            ax.scatter(features, y, s=3, c=scatter_colors[idx])
+
+        # # Add whiskers to the scatter plot
+        # ax.hlines(k + 1, lower_whisker, upper_whisker, color='black', linestyle='-', lw=2)
+        ax.tick_params(axis='x', labelsize=xticks_fontsize)
+        if feature_label is not None:
+            ax.set_yticks(np.arange(1, len(feature_label) + 1, 1))
+            ax.set_yticklabels(feature_label, fontsize=feature_label_fontsize)  # Set text labels.
+        if metrics_labels is not None:
+            ax.set_xlabel(metrics_labels[k], fontsize=metric_labels_fontsize)
+    if PlotName is not None:
+        fig.suptitle(PlotName, fontsize=plotname_fontsize, y=1)
+
+    return fig

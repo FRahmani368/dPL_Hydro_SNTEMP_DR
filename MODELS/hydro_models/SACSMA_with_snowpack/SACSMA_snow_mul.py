@@ -326,6 +326,7 @@ class SACSMA_snow_Mul(torch.nn.Module):
         Euzfw_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Twexu_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         Ru_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
+        SWE_sim = torch.zeros(Pm.shape, dtype=torch.float32, device=args["device"])
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -537,6 +538,7 @@ class SACSMA_snow_Mul(torch.nn.Module):
             Euzfw_sim[t, :, :] = flux_Euzfw
             Twexu_sim[t, :, :] = flux_Twexu
             Ru_sim[t, :, :] = flux_Ru
+            SWE_sim[t, :, :] = SNOWPACK_storage
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -593,4 +595,5 @@ class SACSMA_snow_Mul(torch.nn.Module):
                         flux_Elztw=Elztw_sim.mean(-1, keepdim=True),
                         flux_Twexu=Twexu_sim.mean(-1, keepdim=True),
                         flux_Ru=Ru_sim.mean(-1, keepdim=True),
+                        SWE_sim=SWE_sim.mean(-1, keepdim=True)
                         )

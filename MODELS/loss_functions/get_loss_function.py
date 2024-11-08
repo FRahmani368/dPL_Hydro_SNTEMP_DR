@@ -7,7 +7,8 @@ def get_lossFun(args, obs):
     module = spec.loader.load_module()
     loss_function_default = getattr(module, args["loss_function"])
     if (args["loss_function"] =="RmseLoss_flow_temp") or (args["loss_function"] =="RmseLoss_flow_temp_BFI") or \
-            (args["loss_function"] =="RmseLoss_flow_temp_BFI_PET") or (args["loss_function"] =="RmseLoss_BFI_temp"):
+            (args["loss_function"] =="RmseLoss_flow_temp_BFI_PET") or \
+            (args["loss_function"] =="RmseLoss_BFI_temp") or (args["loss_function"] =="RmseLoss_F_T_BFI_PET_SWE"):
         lossFun = loss_function_default(w1=args["loss_function_weights"]["w1"],
                                         w2=args["loss_function_weights"]["w2"])
     elif (args["loss_function"] == "NSEsqrtLoss_flow_temp"):

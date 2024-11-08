@@ -3,9 +3,9 @@
 ##### Make sure the paths are correct. They are individual to your machine
 
 randomseed: [0]   # None means random
-Action: [1]   # 0:Train,   1: Test
+Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 2
+nmul: 3
 # ------------------------------------------------
 ###### Directories of forcings, attributes, and output
 # ICDS
@@ -13,9 +13,9 @@ nmul: 2
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "C:\\Users\\fzr5082\\Desktop\\dataset_20240826\\f1223_1023_daymet_20240826.npy"    #
-attr_path: "C:\\Users\\fzr5082\\Desktop\\dataset_20240826\\attr1223_1023_daymet_20240826.npy" #
-output_model: "L:\\Farshid\\model\\test" #\\PRMS_SNTEMP_415_208"
+forcing_path: "H:\\Farshid\\inputs\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20241107\\f1223_daymet_20241107.npy"    #
+attr_path: "H:\\Farshid\\inputs\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20241107\\attr_1223_daymet_20241107.npy" #
+output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 # Confucius server
 #forcing_path: "//data//fzr5082//Yalans_camels//force_531.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "//data//fzr5082//Yalans_camels//attr_531.npy"
@@ -26,14 +26,15 @@ NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 ### you can choose different types of loss functions based on your need:
    ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
    ###  4- "RmseLoss_flow_temp_BFI_PET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
-loss_function: "NSEsqrtLoss_flow_temp"      #
+   ###  7- "RmseLoss_F_T_BFI_PET_SWE"
+loss_function: "RmseLoss_F_T_BFI_PET_SWE"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
 ### choose your targets based on your loss function
     ### "00060_Mean": streamflow observation,    "00010_Mean": stream temperature observations
     ### "BFI_AVE": Baseflow index ratio,          "PET": Potential evapotranspiration
-target: ["00060_Mean", "00010_Mean"]
+target: ["00060_Mean", "00010_Mean", "PET", "BFI_AVE", "swe_nsidc"]
 tRange: [19800101, 20230101]
 t_train: [20180101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19990101, 20230101]    # the first year is for warm_up

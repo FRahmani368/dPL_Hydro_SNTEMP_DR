@@ -298,6 +298,7 @@ class prms_marrmot(torch.nn.Module):
         GAD_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         ea_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        SWE_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         # do static parameters
         params_dict = dict()
         for key in params_dict_raw.keys():
@@ -425,6 +426,7 @@ class prms_marrmot(torch.nn.Module):
             GAD_sim[t, :, :] = flux_gad
             ea_sim[t, :, :] = flux_ea
             qres_sim[t, :, :] = flux_qres
+            SWE_sim[t, :, :] = snow_storage
 
         if routing == True:
             tempa = self.change_param_range(param=conv_params_hydro[:, 0],
@@ -480,4 +482,5 @@ class prms_marrmot(torch.nn.Module):
                         flux_gad=GAD_sim.mean(-1, keepdim=True),
                         flux_ea=ea_sim.mean(-1, keepdim=True),
                         flux_qres=qres_sim.mean(-1, keepdim=True),
+                        SWE_sim=SWE_sim.mean(-1, keepdim=True)
                         )

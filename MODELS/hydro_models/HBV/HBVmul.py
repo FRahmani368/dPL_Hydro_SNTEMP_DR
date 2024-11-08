@@ -360,6 +360,6 @@ class HBVMul(torch.nn.Module):
                         evapfactor=evapfactor_sim.mean(-1, keepdim=True),
                         tosoil=tosoil_sim.mean(-1, keepdim=True),
                         percolation=PERC_sim.mean(-1, keepdim=True),
-                        SWE=SWE_sim.mean(-1, keepdim=True),
+                        SWE_sim=SWE_sim.mean(-1, keepdim=True),
                         )
 

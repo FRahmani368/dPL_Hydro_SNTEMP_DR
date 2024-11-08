@@ -305,6 +305,7 @@ class prms_marrmot_interflow(torch.nn.Module):
         ea_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         qres_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         interflow_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
+        SWE_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
         excs1_sim = torch.zeros(Precip.shape, dtype=torch.float32, device=args["device"])
 
 
@@ -450,6 +451,7 @@ class prms_marrmot_interflow(torch.nn.Module):
             ea_sim[t, :, :] = flux_ea
             qres_sim[t, :, :] = flux_qres
             interflow_sim[t, :, :] = flux_interflow
+            SWE_sim[t, :, :] = snow_storage
             # excs1_sim[t, :, :] = flux_excs1
 
         if routing == True:
@@ -512,5 +514,6 @@ class prms_marrmot_interflow(torch.nn.Module):
                         flux_gad=GAD_sim.mean(-1, keepdim=True),
                         flux_ea=ea_sim.mean(-1, keepdim=True),
                         flux_qres=qres_sim.mean(-1, keepdim=True),
+                        SWE_sim=SWE_sim.mean(-1, keepdim=True)
                         # flux_excs1=excs1_sim.mean(-1, keepdim=True),
                         )
