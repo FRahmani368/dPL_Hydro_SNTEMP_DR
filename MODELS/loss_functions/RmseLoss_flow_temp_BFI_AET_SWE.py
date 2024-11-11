@@ -2,9 +2,9 @@ import torch
 import json
 import os
 
-class RmseLoss_F_T_BFI_PET_SWE(torch.nn.Module):
+class RmseLoss_flow_temp_BFI_AET_SWE(torch.nn.Module):
     def __init__(self, w1=5, w2=None, w3=0.005, w4=0.001, w5=0.05, alpha=0.25, beta=1e-6):
-        super(RmseLoss_F_T_BFI_PET_SWE, self).__init__()
+        super(RmseLoss_flow_temp_BFI_AET_SWE, self).__init__()
         self.w1 = w1
         self.alpha = alpha  # weights of log-sqrt RMSE
         self.beta = beta
@@ -21,13 +21,13 @@ class RmseLoss_F_T_BFI_PET_SWE(torch.nn.Module):
         obs_flow = y_obs[:, :, varTar_NN.index("00060_Mean")]
         obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]
         obs_BFI = y_obs[0, :, varTar_NN.index("BFI_AVE")]
-        obs_PET = y_obs[0, :, varTar_NN.index("PET")]
+        obs_AET = y_obs[0, :, varTar_NN.index("AET")]
         obs_SWE = y_obs[:, :, varTar_NN.index("swe_nsidc")]
 
         sim_flow = y_sim["flow_sim"].squeeze()    #  simulation
         sim_temp = y_sim["temp_sim"].squeeze()
         sim_BFI = y_sim["BFI_sim"].squeeze()
-        sim_PET = torch.sum(y_sim["PET_hydro"][:, :, 0], dim=0).squeeze()
+        sim_AET = torch.sum(y_sim["AET_hydro"][:, :, 0], dim=0).squeeze()
         sim_SWE = y_sim["SWE_sim"].squeeze()
 
         if len(obs_flow[obs_flow==obs_flow]) > 0:
@@ -68,14 +68,14 @@ class RmseLoss_F_T_BFI_PET_SWE(torch.nn.Module):
 
         # PET calculation
         # Todo: PET loss doesn't make sense. it should be AET. but compared with what?
-        if len(obs_PET[obs_PET == obs_PET]) > 0:
-            mask_PET1 = obs_PET == obs_PET
-            p_PET = sim_PET[mask_PET1]
-            t_PET = obs_PET[mask_PET1]
-            p_PET2 = torch.where((torch.abs((p_PET - t_PET)) / t_PET > 0.1), p_PET, t_PET)
-            loss_PET = torch.sqrt(((p_PET2 - t_PET) ** 2).mean())  # RMSE item
+        if len(obs_AET[obs_AET == obs_AET]) > 0:
+            mask_AET1 = obs_AET == obs_AET
+            p_AET = sim_AET[mask_AET1]
+            t_AET = obs_PET[mask_AET1]
+            p_AET2 = torch.where((torch.abs((p_AET - t_AET)) / t_AET > 0.1), p_AET, t_AET)
+            loss_AET = torch.sqrt(((p_AET2 - t_AET) ** 2).mean())  # RMSE item
         else:
-            loss_PET = 0.0
+            loss_AET = 0.0
 
         # SWE
         if len(obs_SWE[obs_SWE == obs_SWE]) > 0:
@@ -89,5 +89,5 @@ class RmseLoss_F_T_BFI_PET_SWE(torch.nn.Module):
             loss_SWE = 0.0
 
         loss = self.w1 * loss_flow_total + self.w2 * loss_temp + \
-               self.w3 * loss_BFI + self.w4 * loss_PET + self.w5 * loss_SWE
+               self.w3 * loss_BFI + self.w4 * loss_AET + self.w5 * loss_SWE
         return loss

@@ -5,7 +5,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 3
+nmul: 1
 # ------------------------------------------------
 ###### Directories of forcings, attributes, and output
 # ICDS
@@ -25,16 +25,16 @@ output_model: "H:\\Farshid\\models" #\\PRMS_SNTEMP_415_208"
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 ### you can choose different types of loss functions based on your need:
    ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
-   ###  4- "RmseLoss_flow_temp_BFI_PET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
-   ###  7- "RmseLoss_F_T_BFI_PET_SWE"
-loss_function: "RmseLoss_F_T_BFI_PET_SWE"      #
+   ###  4- "RmseLoss_flow_temp_BFI_AET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
+   ###  7- "RmseLoss_flow_temp_BFI_AET_SWE"       8- "RmseLoss_flow_temp_BFI_SWE"
+loss_function: "RmseLoss_flow_temp_BFI_SWE"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
     w2: 1.0
 ### choose your targets based on your loss function
     ### "00060_Mean": streamflow observation,    "00010_Mean": stream temperature observations
     ### "BFI_AVE": Baseflow index ratio,          "PET": Potential evapotranspiration
-target: ["00060_Mean", "00010_Mean", "PET", "BFI_AVE", "swe_nsidc"]
+target: ["00060_Mean", "00010_Mean", "BFI_AVE", "swe_nsidc"]
 tRange: [19800101, 20230101]
 t_train: [20180101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19990101, 20230101]    # the first year is for warm_up
