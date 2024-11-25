@@ -43,33 +43,41 @@ class DataFrame_dataset(Data_Reader):
         sites = dfMain["site_no"].unique()
         tLst = tRange2Array(args["tRange"])
         tLstobs = tRange2Array(args["tRange"])
-        # nt = len(tLst)
-        ntobs = len(tLstobs)
-        nNodes = len(sites)
+
 
         varLst_forcing = []
         varLst_attr = []
+        sites = dfMain["site_no"].unique().tolist()
+        x = np.full((len(sites), int(len(dfMain) / len(sites)), len(varLst)), np.nan)
         for var in varLst:
             if var in dfMain.columns:
-                varLst_forcing.append(var)
+                xt = dfMain.loc[:, var].values
+                g = dfMain.reset_index(drop=True).groupby("site_no")
+                xtg = [xt[i.values, :] for k, i in g.groups.items()]
+                x[:, :, varLst.index(var)] = xtg
+                # varLst_forcing.append(var)
             elif var in dfMain_attr.columns:
-                varLst_attr.append(var)
+                x_attr_t = dfMain_attr.loc[:, varLst_attr].values
+                x_attr_t = np.expand_dims(x_attr_t, axis=1)
+                xattr = np.repeat(x_attr_t, x.shape[1], axis=1)
+                x[:, :, varLst.index(var)] = xattr
+                # varLst_attr.append(var)
             else:
                 print(var, "the var is not in forcing file nor in attr file")
-        xt = dfMain.loc[:, varLst_forcing].values
-        g = dfMain.reset_index(drop=True).groupby("site_no")
-        xtg = [xt[i.values, :] for k, i in g.groups.items()]
-        x = np.array(xtg)
+        # xt = dfMain.loc[:, varLst_forcing].values
+        # g = dfMain.reset_index(drop=True).groupby("site_no")
+        # xtg = [xt[i.values, :] for k, i in g.groups.items()]
+        # x = np.array(xtg)
 
         # TODO: Ths part is commented because I don't think we need to have it here as there ais a different
         #  function to read static inputs
         ## for attr
-        if len(varLst_attr) > 0:
-            x_attr_t = dfMain_attr.loc[:, varLst_attr].values
-            x_attr_t = np.expand_dims(x_attr_t, axis=2)
-            xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
-            xattr = np.transpose(xattr, (0, 2, 1))
-            x = np.concatenate((x, xattr), axis=2)
+        # if len(varLst_attr) > 0:
+        #     x_attr_t = dfMain_attr.loc[:, varLst_attr].values
+        #     x_attr_t = np.expand_dims(x_attr_t, axis=2)
+        #     xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
+        #     xattr = np.transpose(xattr, (0, 2, 1))
+        #     x = np.concatenate((x, xattr), axis=2)
 
         data = x
         C, ind1, ind2 = np.intersect1d(self.time, tLst, return_indices=True)
@@ -98,10 +106,6 @@ class DataFrame_dataset(Data_Reader):
             c[k, :] = data
 
         data = c
-        # if doNorm is True:
-        #     data = transNorm(data, varLst, toNorm=True)
-        # if rmNan is True:
-        #     data[np.where(np.isnan(data))] = 0
         return data
 
 class numpy_dataset(Data_Reader):
@@ -116,16 +120,7 @@ class numpy_dataset(Data_Reader):
         # These are default forcings and attributes that are read from the dataset
         ## getting the forcings and attrs names
         self.all_forcings_name, self.attrLst_name = self.get_forcing_attr_names(args)
-        # self.all_forcings_name = ['Lwd', 'PET_hargreaves(mm/day)', 'prcp(mm/day)',
-        #                         'Pres', 'RelHum', 'SpecHum', 'srad(W/m2)',
-        #                         'tmean(C)', 'tmax(C)', 'tmin(C)', 'Wind', 'ccov',
-        #                         'vp(Pa)', "00060_Mean", "00010_Mean",'dayl(s)']  #
-        # self.attrLst_name = ['aridity', 'p_mean', 'ETPOT_Hargr', 'NDVI', 'FW', 'SLOPE_PCT', 'SoilGrids1km_sand',
-        #                      'SoilGrids1km_clay', 'SoilGrids1km_silt', 'glaciers', 'HWSD_clay', 'HWSD_gravel',
-        #                      'HWSD_sand', 'HWSD_silt', 'ELEV_MEAN_M_BASIN', 'meanTa', 'permafrost',
-        #                      'permeability','seasonality_P', 'seasonality_PET', 'snow_fraction',
-        #                      'snowfall_fraction','T_clay','T_gravel','T_sand', 'T_silt','Porosity',
-        #                      "DRAIN_SQKM", "lat", "site_no_int", "stream_length_square", "lon"]
+
     def get_forcing_attr_names(self, args):
         # forcing
         forcing_file_name = os.path.basename(args["forcing_path"])
@@ -157,25 +152,18 @@ class numpy_dataset(Data_Reader):
             print("data type is not supported")
             exit()
 
-        varLst_index_forcing = []
-        varLst_index_attr = []
+        x = np.full((forcing_main.shape[0], forcing_main.shape[1], len(varLst)), np.nan)
         for var in varLst:
             if var in self.all_forcings_name:
-                varLst_index_forcing.append(self.all_forcings_name.index(var))
+                x[:, :, varLst.index(var)] = forcing_main[:, :, self.all_forcings_name.index(var)]
             elif var in self.attrLst_name:
-                varLst_index_attr.append(self.attrLst_name.index(var))
+                x_attr_t = attr_main[:, self.attrLst_name.index(var)]
+                x_attr_t = np.expand_dims(x_attr_t, axis=1)
+                xattr = np.repeat(x_attr_t, x.shape[1], axis=1)
+                x[:, :, varLst.index(var)] = xattr
             else:
                 print(var, "the var is not in forcing file nor in attr file")
                 exit()
-
-        x = forcing_main[:, :, varLst_index_forcing]
-        ## for attr
-        if len(varLst_index_attr) > 0:
-            x_attr_t = attr_main[:, varLst_index_attr]
-            x_attr_t = np.expand_dims(x_attr_t, axis=2)
-            xattr = np.repeat(x_attr_t, x.shape[1], axis=2)
-            xattr = np.transpose(xattr, (0, 2, 1))
-            x = np.concatenate((x, xattr), axis=2)
 
         data = x
         tLst = tRange2Array(args["tRange"])

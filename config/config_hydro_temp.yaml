@@ -5,7 +5,7 @@
 randomseed: [0]   # None means random
 Action: [0, 1]   # 0:Train,   1: Test
 device: "cuda"
-nmul: 1
+nmul: 2
 # ------------------------------------------------
 ###### Directories of forcings, attributes, and output
 # ICDS
@@ -27,6 +27,7 @@ NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
    ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
    ###  4- "RmseLoss_flow_temp_BFI_AET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
    ###  7- "RmseLoss_flow_temp_BFI_AET_SWE"       8- "RmseLoss_flow_temp_BFI_SWE"
+   ###  9- "RmseLoss_flow_temp_SWE",        10- "RmseLoss_flow_BFI_SWE"
 loss_function: "RmseLoss_flow_temp_BFI_SWE"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
@@ -34,7 +35,7 @@ loss_function_weights:
 ### choose your targets based on your loss function
     ### "00060_Mean": streamflow observation,    "00010_Mean": stream temperature observations
     ### "BFI_AVE": Baseflow index ratio,          "PET": Potential evapotranspiration
-target: ["00060_Mean", "00010_Mean", "BFI_AVE", "swe_nsidc"]
+target: ["00060_Mean", "00010_Mean", "BFI_AVE",  "swe_nsidc"]   ##"00010_Mean",  "BFI_AVE",
 tRange: [19800101, 20230101]
 t_train: [20180101, 20230101]   # there should be an overlap because of the warm_up
 t_test: [19990101, 20230101]    # the first year is for warm_up
@@ -94,7 +95,7 @@ varC_NN: [
 hydro_model_name: "marrmot_PRMS"
 varT_hydro_model: ['prcp(mm/day)','tmean(C)', "PET_hargreaves(mm/day)"] #, "t_monthly(C)", 'dayl(s)', "dayofyear"]    # , "pet_nldas"
 varC_hydro_model: ['DRAIN_SQKM']    # "area_gages2"    DRAIN_SQKM   , "lat"
-dydrop: 0.0   # dynamic parameters dropout for some basins
+dydrop: 0.5   # dynamic parameters dropout for some basins
 routing_hydro_model: True
 # if hydro_model_name = None --> we need a path to read the flow data from
 flow_data_path: "G:\\Farshid\\PGML_STemp_results\\inputs\\MSWET_MSWX_2003_GAGES_II_1384_merit\\gages-II\\npy\\hydro_sim_50_only_flow_0823.npy"

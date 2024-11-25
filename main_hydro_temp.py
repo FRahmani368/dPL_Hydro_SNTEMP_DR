@@ -11,11 +11,6 @@ from MODELS import train_test
 
 
 def main_hydro_temp(args):
-    # updating args. all settings are here
-    # args = update_args(args,
-    #                     frac_smoothening_mode=frac_smooth,
-    #                     randomseed=seed
-    # )
     randomseed_config(seed=args["randomseed"][0])
     # Creating output directories and adding it to args
     args = create_output_dirs(args)

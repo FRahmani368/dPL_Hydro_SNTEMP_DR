@@ -2,15 +2,14 @@ import torch
 import json
 import os
 
-class RmseLoss_flow_temp_BFI_SWE(torch.nn.Module):
-    def __init__(self, w1=5, w2=1, w3=0.05, w4=0.05, alpha=0.25, beta=1e-6):
-        super(RmseLoss_flow_temp_BFI_SWE, self).__init__()
+class RmseLoss_flow_BFI_SWE(torch.nn.Module):
+    def __init__(self, w1=5, w2=0.02, w3=0.05, alpha=0.25, beta=1e-6):
+        super(RmseLoss_flow_BFI_SWE, self).__init__()
         self.w1 = w1
-        self.alpha = alpha  # weights of log-sqrt RMSE
-        self.beta = beta
         self.w2 = w2
         self.w3 = w3
-        self.w4 = w4
+        self.alpha = alpha  # weights of log-sqrt RMSE
+        self.beta = beta
 
     def forward(self, args, y_sim, y_obs, igrid):
         if self.w2 == None:    # w1 + w2 =1
@@ -18,12 +17,10 @@ class RmseLoss_flow_temp_BFI_SWE(torch.nn.Module):
         # flow
         varTar_NN = args["target"]
         obs_flow = y_obs[:, :, varTar_NN.index("00060_Mean")]
-        obs_temp = y_obs[:, :, varTar_NN.index("00010_Mean")]
         obs_BFI = y_obs[0, :, varTar_NN.index("BFI_AVE")]
         obs_SWE = y_obs[:, :, varTar_NN.index("swe_nsidc")]
 
         sim_flow = y_sim["flow_sim"].squeeze()    #  simulation
-        sim_temp = y_sim["temp_sim"].squeeze()
         sim_BFI = y_sim["BFI_sim"].squeeze()
         sim_SWE = y_sim["SWE_sim"].squeeze()
 
@@ -42,15 +39,6 @@ class RmseLoss_flow_temp_BFI_SWE(torch.nn.Module):
             loss_flow_total = (1.0-self.alpha) * loss_flow1 + self.alpha * loss_flow2
         else:
             loss_flow_total = 0.0
-
-        # temp
-        if len(obs_temp[obs_temp==obs_temp]) > 0:
-            mask_temp1 = obs_temp == obs_temp
-            p_temp = sim_temp[mask_temp1]
-            t_temp = obs_temp[mask_temp1]
-            loss_temp = torch.sqrt(((p_temp - t_temp) ** 2).mean())  # RMSE item
-        else:
-            loss_temp = 0.0
 
         # BFI calculation
         if len(obs_BFI[obs_BFI==obs_BFI]) > 0:
@@ -75,6 +63,5 @@ class RmseLoss_flow_temp_BFI_SWE(torch.nn.Module):
         else:
             loss_SWE = 0.0
 
-        loss = self.w1 * loss_flow_total + self.w2 * loss_temp + \
-               self.w3 * loss_BFI + self.w4 * loss_SWE
+        loss = self.w1 * loss_flow_total + self.w2 * loss_BFI + self.w3 * loss_SWE
         return loss
