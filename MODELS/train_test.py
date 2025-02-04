@@ -140,11 +140,12 @@ def save_outputs(args, list_out_diff_model, y_obs, calculate_metrics=True):
         obsLst = list()
         name_list = []
         if args["hydro_model_name"] != "None":
-            flow_sim = torch.cat([d["flow_sim"] for d in list_out_diff_model], dim=1)
-            flow_obs = y_obs[:, :, args["target"].index("00060_Mean")]
-            predLst.append(flow_sim.numpy())
-            obsLst.append(np.expand_dims(flow_obs, 2))
-            name_list.append("flow")
+            if "00010_Mean" in args["target"]:
+                flow_sim = torch.cat([d["flow_sim"] for d in list_out_diff_model], dim=1)
+                flow_obs = y_obs[:, :, args["target"].index("00060_Mean")]
+                predLst.append(flow_sim.numpy())
+                obsLst.append(np.expand_dims(flow_obs, 2))
+                name_list.append("flow")
         if args["temp_model_name"] != "None":
             temp_sim = torch.cat([d["temp_sim"] for d in list_out_diff_model], dim=1)
             predLst.append(temp_sim.numpy())

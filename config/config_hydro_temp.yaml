@@ -43,10 +43,10 @@ warm_up: 365
 rho: 365
 batch_size: 100
 EPOCHS: 1    # number of epochs to train
-EPOCH_testing: 1   # which epoch you want to pick to test?
+EPOCH_testing: 1   # which epoch you want to pick to test on?
 hidden_size: 256
 dropout: 0.5
-saveEpoch: 1
+saveEpoch: 1    # intervals you want to save the model
 no_basins: 25   # number of basins sampled in testing
 varT_NN: ['prcp(mm/day)', 'tmean(C)', "PET_hargreaves(mm/day)"]   # 'tmin(C)', 'vp(Pa)','srad(W/m2)',
 varC_NN: [
