@@ -9,6 +9,7 @@ from MODELS.hydro_models.HBV.HBVmul import HBVMul
 from MODELS.hydro_models.HBV_capillary.HBVmultdET import HBVMulTDET
 from MODELS.hydro_models.SACSMA.SACSMAmul import SACSMAMul
 from MODELS.hydro_models.SACSMA_with_snowpack.SACSMA_snow_mul import SACSMA_snow_Mul
+from MODELS.hydro_models.NWM_SACSMA.NWM_SACSMA_mul import NWM_SACSMA_Mul
 
 from MODELS.temp_models.SNTEMP.SNTEMP import SNTEMP_flowSim
 from MODELS.temp_models.SNTEMP_with_gw0.SNTEMP_gw0 import SNTEMP_flowSim_gw0
@@ -76,6 +77,8 @@ class diff_hydro_temp_model(torch.nn.Module):
                 self.hydro_model = SACSMAMul()
             elif self.args["hydro_model_name"] == "SACSMA_with_snow":
                 self.hydro_model = SACSMA_snow_Mul()
+            elif self.args["hydro_model_name"] == "NWM_SACSMA":
+                self.hydro_model = NWM_SACSMA_Mul()
             else:
                 print("hydrology (streamflow) model type has not been defined")
                 exit()
