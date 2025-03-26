@@ -8,7 +8,7 @@ from core.utils.randomseed_config import randomseed_config
 from core.utils.small_codes import create_output_dirs
 from MODELS.Differentiable_models import diff_hydro_temp_model
 from MODELS import train_test
-TORCH_CUDA_ARCH_LIST=3.0
+
 
 def main_hydro_temp(args):
     randomseed_config(seed=args["randomseed"][0])

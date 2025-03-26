@@ -5,119 +5,8 @@ from MODELS.PET_models.potet import get_potet
 import torch.nn.functional as F
 
 class NWM_SACSMA_Mul(torch.nn.Module):
-    """HBV Model with multiple components and dynamic parameters PyTorch version"""
-    # Add an ET shape parameter for the original ET equation; others are the same as HBVMulTD()
-    # we suggest you read the class HBVMul() with original static parameters first
-
-    def __init__(self):
-        """Initiate a HBV instance"""
-        super(NWM_SACSMA_Mul, self).__init__()
-        self.parameters_bound = dict(uztwm=[1, 20],
-                                     uzfwm =[0.0025, 3000],
-                                     lztwm=[0.0025, 3000],
-                                     lzfsm=[0.0025, 3000],
-                                     lzfpm=[0.0025, 3000],
-                                     uzk=[0.0, 1.0],
-                                     pctim=[0.0, 1.0],
-                                     ADIMP=[0, 1],    #[1, 3000]
-                                     riva=[0.0, 0.001],   ## it's basically zero
-                                     zperc=[0.005, 10000],
-                                     rexp=[0.0, 8],      #[0.0, 8]
-                                     lzsk=[0, 1],
-                                     lzpk=[0, 1],
-                                     pfree=[0, 1],
-                                     rserv=[0.3, 0.3001],   ## always 0.3
-                                     side=[0.0, 0.0001],   # The atio of unobserved to observed flow
-                                     parTT=[-3.0, 3.0],   #[-2.5, 2.5]   ###not in SACSMA. TO handle snow to precip
-                                     parCFMAX=[0.4, 12],   # [0.4, 12]
-                                     parCFR=[0, 0.1],
-                                     parCWH=[0, 0.2]
-                                     )
-        self.conv_routing_hydro_model_bound = [
-            [0, 2.9],  # routing parameter a
-            [0, 6.5]  # routing parameter b
-        ]
-
-
-    def UH_gamma(self, a, b, lenF=10):
-        # UH. a [time (same all time steps), batch, var]
-        m = a.shape
-        lenF = min(a.shape[0], lenF)
-        w = torch.zeros([lenF, m[1], m[2]])
-        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
-        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
-        t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
-        t = t.cuda(aa.device)
-        denom = (aa.lgamma().exp()) * (theta ** aa)
-        mid = t ** (aa - 1)
-        right = torch.exp(-t / theta)
-        w = 1 / denom * mid * right
-        w = w / w.sum(0)  # scale to 1 for each UH
-
-        return w
-
-    def UH_conv(self, x, UH, viewmode=1):
-        # UH is a vector indicating the unit hydrograph
-        # the convolved dimension will be the last dimension
-        # UH convolution is
-        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
-        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
-        # hence we flip the UH
-        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
-        # view
-        # x: [batch, var, time]
-        # UH:[batch, var, uhLen]
-        # batch needs to be accommodated by channels and we make use of groups
-        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
-        # https://pytorch.org/docs/stable/nn.functional.html
-
-        mm = x.shape;
-        nb = mm[0]
-        m = UH.shape[-1]
-        padd = m - 1
-        if viewmode == 1:
-            xx = x.view([1, nb, mm[-1]])
-            w = UH.view([nb, 1, m])
-            groups = nb
-
-        y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
-        if padd != 0:
-            y = y[:, :, 0:-padd]
-        return y.view(mm)
-
-
-    def change_param_range(self, param, bounds):
-        out = param * (bounds[1] - bounds[0]) + bounds[0]
-        return out
-
-    def source_flow_calculation(self, args, flow_out, c_NN, after_routing=True):
-        varC_NN = args["varC_NN"]
-        if "DRAIN_SQKM" in varC_NN:
-            area_name = "DRAIN_SQKM"
-        elif "area_gages2" in varC_NN:
-            area_name = "area_gages2"
-        else:
-            print("area of basins are not available among attributes dataset")
-        area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
-            flow_out["flow_sim"].shape[
-                0], 1, 1)
-        # flow calculation. converting mm/day to m3/sec
-        if after_routing == True:
-            srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
-            ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
-            gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
-        else:
-            srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
-            ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
-            gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
-        # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
-        # ssflow = torch.clamp(ssflow, min=0.0)
-        # gwflow = torch.clamp(gwflow, min=0.0)
-        return srflow, ssflow, gwflow
-
-    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
-        """ from fortran code https://github.com/NOAA-OWP/sac-sma/blob/master/src/sac/sac1.f
-        C    ----- VARIABLES -----
+    """ from fortran code https://github.com/NOAA-OWP/sac-sma/blob/master/src/sac/sac1.f
+    C    ----- VARIABLES -----
 C    DT       Computational time interval
 C    IFRZE    Frozen ground module switch.  0 = No frozen ground module,
 C                 1 = Use frozen ground module
@@ -209,8 +98,115 @@ C    SE4      Assuming this is the monthly sum of E4 (NOT USED)
 C    SE5      Assuming this is the monthly sum of E5 (NOT USED)
 C    RSUM(7)  Sums of (1) TCI, (2) ROIMP, (3) SDRO, (4) SSUR, (5) SIF,
 C                 (6) BFS, (7) BFP. (NOT USED)
-        """
+    """
 
+    def __init__(self):
+        """Initiate a HBV instance"""
+        super(NWM_SACSMA_Mul, self).__init__()
+        self.parameters_bound = dict(uztwm=[1, 20],
+                                     uzfwm =[0.0025, 3000],
+                                     lztwm=[0.0025, 3000],
+                                     lzfsm=[0.0025, 3000],
+                                     lzfpm=[0.0025, 3000],
+                                     UZK=[0.0, 1.0],
+                                     pctim=[0.0, 1.0],
+                                     ADIMP=[0, 1],    #[1, 3000]
+                                     RIVA=[0.0, 0.001],   ## it's basically zero
+                                     ZPERC=[0.005, 10000],
+                                     rexp=[0.0, 8],      #[0.0, 8]
+                                     LZSK=[0, 1],
+                                     LZPK=[0, 1],
+                                     PFREE=[0, 1],
+                                     rserv=[0.3, 0.3001],   ## always 0.3
+                                     SIDE=[0.0, 0.0001],   # The atio of unobserved to observed flow
+                                     parTT=[-3.0, 3.0],   #[-2.5, 2.5]   ###not in SACSMA. TO handle snow to precip
+                                     parCFMAX=[0.4, 12],   # [0.4, 12]
+                                     parCFR=[0, 0.1],
+                                     parCWH=[0, 0.2]
+                                     )
+        self.conv_routing_hydro_model_bound = [
+            [0, 2.9],  # routing parameter a
+            [0, 6.5]  # routing parameter b
+        ]
+
+
+    def UH_gamma(self, a, b, lenF=10):
+        # UH. a [time (same all time steps), batch, var]
+        m = a.shape
+        lenF = min(a.shape[0], lenF)
+        w = torch.zeros([lenF, m[1], m[2]])
+        aa = F.relu(a[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.1  # minimum 0.1. First dimension of a is repeat
+        theta = F.relu(b[0:lenF, :, :]).view([lenF, m[1], m[2]]) + 0.5  # minimum 0.5
+        t = torch.arange(0.5, lenF * 1.0).view([lenF, 1, 1]).repeat([1, m[1], m[2]])
+        t = t.cuda(aa.device)
+        denom = (aa.lgamma().exp()) * (theta ** aa)
+        mid = t ** (aa - 1)
+        right = torch.exp(-t / theta)
+        w = 1 / denom * mid * right
+        w = w / w.sum(0)  # scale to 1 for each UH
+
+        return w
+
+    def UH_conv(self, x, UH, viewmode=1):
+        # UH is a vector indicating the unit hydrograph
+        # the convolved dimension will be the last dimension
+        # UH convolution is
+        # Q(t)=\integral(x(\tao)*UH(t-\tao))d\tao
+        # conv1d does \integral(w(\tao)*x(t+\tao))d\tao
+        # hence we flip the UH
+        # https://programmer.group/pytorch-learning-conv1d-conv2d-and-conv3d.html
+        # view
+        # x: [batch, var, time]
+        # UH:[batch, var, uhLen]
+        # batch needs to be accommodated by channels and we make use of groups
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+        # https://pytorch.org/docs/stable/nn.functional.html
+
+        mm = x.shape;
+        nb = mm[0]
+        m = UH.shape[-1]
+        padd = m - 1
+        if viewmode == 1:
+            xx = x.view([1, nb, mm[-1]])
+            w = UH.view([nb, 1, m])
+            groups = nb
+
+        y = F.conv1d(xx, torch.flip(w, [2]), groups=groups, padding=padd, stride=1, bias=None)
+        if padd != 0:
+            y = y[:, :, 0:-padd]
+        return y.view(mm)
+
+
+    def change_param_range(self, param, bounds):
+        out = param * (bounds[1] - bounds[0]) + bounds[0]
+        return out
+
+    def source_flow_calculation(self, args, flow_out, c_NN, after_routing=True):
+        varC_NN = args["varC_NN"]
+        if "DRAIN_SQKM" in varC_NN:
+            area_name = "DRAIN_SQKM"
+        elif "area_gages2" in varC_NN:
+            area_name = "area_gages2"
+        else:
+            print("area of basins are not available among attributes dataset")
+        area = c_NN[:, varC_NN.index(area_name)].unsqueeze(0).unsqueeze(-1).repeat(
+            flow_out["flow_sim"].shape[
+                0], 1, 1)
+        # flow calculation. converting mm/day to m3/sec
+        if after_routing == True:
+            srflow = (1000 / 86400) * area * (flow_out["srflow"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            ssflow = (1000 / 86400) * area * (flow_out["ssflow"]).repeat(1, 1, args["nmul"])  # ras
+            gwflow = (1000 / 86400) * area * (flow_out["gwflow"]).repeat(1, 1, args["nmul"])
+        else:
+            srflow = (1000 / 86400) * area * (flow_out["srflow_no_rout"]).repeat(1, 1, args["nmul"])  # Q_t - gw - ss
+            ssflow = (1000 / 86400) * area * (flow_out["ssflow_no_rout"]).repeat(1, 1, args["nmul"])  # ras
+            gwflow = (1000 / 86400) * area * (flow_out["gwflow_no_rout"]).repeat(1, 1, args["nmul"])
+        # srflow = torch.clamp(srflow, min=0.0)  # to remove the small negative values
+        # ssflow = torch.clamp(ssflow, min=0.0)
+        # gwflow = torch.clamp(gwflow, min=0.0)
+        return srflow, ssflow, gwflow
+
+    def forward(self, x_hydro_model, c_hydro_model, params_raw, args, muwts=None, warm_up=0, init=False, routing=False, comprout=False, conv_params_hydro=None):
         NEARZERO = args["NEARZERO"]
         nmul = args["nmul"]
         ### TODO: need to check DT value
@@ -345,60 +341,117 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             ## TODO: tosoil is basically the melted water ready to join the network. Please check this statement
             PXV = RAIN + tosoil  # PXV: Input moisture (e.g. precip, precip+melt)
             EDMND = PET[t, :, :]
-
+            print(f"PXV = {PXV[0,0]}")
+            print(f"EDMND = {EDMND[0, 0]}")
             E1 = EDMND * UZTWC / params_dict["uztwm"]   # E1 = flux_Euztw in marrmot
-            RED = torch.clamp(EDMND-E1, min=NEARZERO)   ## RED IS RESIDUAL EVAP DEMAND
-            UZTWC = torch.clamp(UZTWC-E1, min=NEARZERO)
+            RED = torch.clamp(EDMND-E1, min=0.0)   ## RED IS RESIDUAL EVAP DEMAND
+            UZTWC = torch.clamp(UZTWC-E1, min=0.0)
+            print(f"E1 = {E1[0, 0]}")
+            print(f"RED = {RED[0, 0]}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            E2 = torch.zeros(E1.shape, dtype=torch.float32, device=args["device"])
 
-            E2 = torch.where((UZFWC > RED),
+            E2 = torch.where((UZFWC > RED) & (UZTWC == 0.0),
                              RED,
-                             UZFWC
+                             E2
+                             )
+            E2 = torch.where((UZFWC <= RED) & (UZTWC == 0.0),
+                             UZFWC,
+                             E2
                              )
 
             UZFWC = torch.clamp(UZFWC - E2, min=NEARZERO)
-            RED = torch.clamp(RED - E2, min=NEARZERO)
-
-            E3 = torch.where((UZTWC / params_dict["uztwm"]) > (UZFWC / params_dict["uzfwm"]),
-                             RED * (LZTWC / (params_dict["uztwm"] + params_dict["lztwm"])),
-                             torch.zeros(E1.shape, dtype=torch.float32, device=args["device"]))
+            RED = torch.clamp(RED - E2, min=0.0)
 
             # UPPER ZONE FREE WATER RATIO EXCEEDS UPPER ZONE
-            # TENSION WATER RATIO, THUS TRANSFER FREE WATER TO TENSION
-            UZRAT = torch.where((UZTWC / params_dict["uztwm"]) < (UZFWC / params_dict["uzfwm"]),
-                                RED * (LZTWC / (params_dict["uztwm"] + params_dict["lztwm"])),
+            # TENSION WATER RATIO, THUS TRANSFER FREE WATER TO TENSION -->
+            # it means we redistribute water between UZTWC and UZFWC with ratio of UZRAT
+            UZRAT = torch.where((UZTWC / params_dict["uztwm"]) <= (UZFWC / params_dict["uzfwm"]),
+                                (UZTWC +UZFWC) / (params_dict["uztwm"] + params_dict["lztwm"]),
                                 torch.zeros(E1.shape, dtype=torch.float32, device=args["device"]))
 
-            UZTWC = torch.where((UZTWC / params_dict["uztwm"]) < (UZFWC / params_dict["uzfwm"]),
+            UZTWC = torch.where((UZTWC / params_dict["uztwm"]) <= (UZFWC / params_dict["uzfwm"]),
                                 params_dict["uztwm"] * UZRAT,
                                 UZTWC)
 
-            UZFWC = torch.where((UZTWC / params_dict["uztwm"]) < (UZFWC / params_dict["uzfwm"]),
+            UZFWC = torch.where((UZTWC / params_dict["uztwm"]) <= (UZFWC / params_dict["uzfwm"]),
                                 params_dict["uzfwm"] * UZRAT,
                                 UZFWC)
 
+
             # E3 implementation, E3 cannot exceed LZTWC
+            E3 = RED * (LZTWC / (params_dict["uztwm"] + params_dict["lztwm"]))
+
             E3 = torch.min(LZTWC, E3)
             LZTWC = torch.clamp(LZTWC - E3, min=NEARZERO)
+
+            print("------Before RATLZT--------")
+            print(f"E3 = {E3[0, 0]}")
+            print(f"UZRAT = {UZRAT[0, 0]}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            print(f"UZFWC = {UZFWC[0, 0]}")
+            print(f"LZTWC = {LZTWC[0, 0]}")
+
             RATLZT = LZTWC / params_dict["lztwm"]   # for dynamic parametrization, this line doesn't work
 
-            SAVED = params_dict["RSERV"] * (params_dict["lzfpm"] + params_dict["lzfsm"])
+            SAVED = params_dict["rserv"] * (params_dict["lzfpm"] + params_dict["lzfsm"])
 
             RATLZ = (LZTWC + LZFPC  + LZFSC - SAVED) / (params_dict["lztwm"] + params_dict["lzfpm"] + params_dict["lzfsm"] - SAVED)
 
+            print("------label 226 and before GOTO 230--------")
+            print(f"SAVED = {SAVED[0, 0]}")
+            print(f"RATLZT = {RATLZT[0, 0]}")
+            print(f"RATLZ = {RATLZ[0, 0]}")
+            print(f"LZTWC = {LZTWC[0, 0]}")
+            print(f"LZFSC = {LZFSC[0, 0]}")
+            print("------------------------------------")
             E5 = torch.where((RATLZT > RATLZ),
                               E1 + (RED + E2) *((ADIMC - E1 - UZTWC) / (params_dict["uztwm"] + params_dict["lztwm"])),
                               torch.zeros(E1.shape, dtype=torch.float32, device=args["device"]))
+            print("------label 230 and before GOTO 231--------")
+            print(f"E5 = {E5[0, 0]}")
+            print(f"ADIMC = {ADIMC[0, 0]}")
+            print(f"E1 = {E1[0, 0]}")
+            print(f"E2 = {E2[0, 0]}")
+            print(f"RED = {RED[0, 0]}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            a = params_dict["uztwm"][0, 0]
+            b = params_dict["lztwm"][0, 0]
+            print(f"UZTWM+LZTWM = {a + b}")
+            print("-----------------------------")
             E5 = torch.min(E5, ADIMC)
-            ADIMC = torch.clamp(ADIMC - E5, min=NEARZERO)
+            ADIMC = torch.clamp(ADIMC - E5, min=0.0)
+            print("------after label 231 and before GOTO 232--------")
+            print(f"ADIMC = {ADIMC[0, 0]}")
+            print("-------------------------------------------------")
             # ADIMP is the additional impervious area, not sure why we multiply it to ADIMP
-            E5 = E5 * ADIMP
+            #update: TODO: still not sure why the following line happens after all the calculations related to E5
+            E5 = E5 * params_dict["ADIMP"]
+            print("------After label 230 and before GOTO 232--------")
+            print(f"SAVED = {SAVED[0, 0]}")
+            print(f"E5 = {E5[0, 0]}")
+            print("-------------------------------------------------")
             ## DEL equals to Rls in marrmot version
-            DEL = torch.where((RATLZT < RATLZ),
+            DEL = torch.where((RATLZT <= RATLZ),
                               (RATLZ - RATLZT) * params_dict["lztwm"],
                               torch.zeros(E1.shape, dtype=torch.float32, device=args["device"]))
             LZTWC = LZTWC + DEL
-            LZFSC = torch.clamp(LZFSC - DEL, min=NEARZERO)
-            ### TODO: I think the above two lines are not correct, although they are from NWM fortran code.
+            LZFSC = LZFSC - DEL
+            ## My understanding is that whenever DEl is large and there is not enough water in LZFSC,
+            # then LZFPC provides the deficit to LZTWC. The question is what if LZFPC doesn't have enough water
+            LZFPC = torch.where(LZFSC <= NEARZERO,
+                                LZFPC + LZFSC,
+                                LZFPC)
+            ## if water is not available in LZFPC either, then DEL cannot be fully payed. therefore,
+            # we return the water from LZTWC to LZFPC
+            LZTWC = torch.where(LZFPC < NEARZERO,
+                                LZTWC + LZFPC,
+                                LZTWC)
+            LZFPC = torch.clamp(LZFPC, min=NEARZERO)
+            LZFSC = torch.clamp(LZFSC, min=NEARZERO)   #
+
+            ### TODO: The above lines are not in the NWM fortran code and I added them,
+            #         because I think the original code was not right!!.
             ### The order matters. it should be something like:
             # DEL = torch.min(LZFSC, DEL)
             # LZFSC = torch.clamp(LZFSC - DEL, min=NEARZERO)
@@ -407,22 +460,36 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             # COMPUTE PERCOLATION AND RUNOFF AMOUNTS.
             # PXV is input moisture i.e. Precip, or Precip + melt
             TWX = UZTWC + PXV - params_dict["uztwm"]
+            print("------After label 231 and before GOTO 232--------")
+            print(f"E5 = {E5[0, 0]}")
+            print(f"ADIMC = {ADIMC[0, 0]}")
+            print(f"TWX = {TWX[0, 0]}")
+            print(f"PXV = {PXV[0, 0]}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            a = params_dict["uztwm"]
+            print(f"uztwm = {a[0, 0]}")
+            print("-----------------------------")
             UZTWC = torch.where((TWX > torch.zeros(TWX.shape, dtype=torch.float32, device=args["device"])),
                                 params_dict["uztwm"],
-                                params_dict["uztwm"] + PXV)
-            TWX = torch.clamp(TWX, min=NEARZERO)
+                                UZTWC + PXV)
+            TWX = torch.clamp(TWX, min=0.0)
+            print("------ GOTO 232--------")
+            print(f"TWX = {TWX[0, 0]}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            print("-------------------------------------------------")
             # MOISTURE AVAILABLE IN EXCESS OF UZTW STORAGE
-            ADIMC = ADMIC + PXV - TWX
+            ADIMC = ADIMC + PXV - TWX
 
             # COMPUTE IMPERVIOUS AREA RUNOFF.
             ROIMP = PXV * params_dict["pctim"]   # ROIMP    Impervious runoff from the permanent impervious area
             # ROIMP IS RUNOFF FROM THE MINIMUM IMPERVIOUS AREA.
-            SIMPVT = SIMPVT + ROIMP    # sum of ROIMP
+            # SIMPVT = SIMPVT + ROIMP    # sum of ROIMP
 
             # DETERMINE COMPUTATIONAL TIME INCREMENTS FOR THE BASIC TIME INTERVAL
-            NINC = 1 + 0.2 * (UZFWC + TWX)     # NINC=NUMBER OF TIME INCREMENTS THAT THE TIME INTERVAL
+            NINC = torch.round(1 + 0.2 * (UZFWC + TWX))     # NINC=NUMBER OF TIME INCREMENTS THAT THE TIME INTERVAL
             DINC = (1 / NINC) * DT   # DT: computational time interval
-            PINC = TWX / NINC    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
+            ## TODO: not sure if torch.round  is ok to be used in terms of gradient descent
+            PINC = TWX / int(torch.round(NINC.max())) #    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
 
             # COMPUTE FREE WATER DEPLETION FRACTIONS FOR
             # THE TIME INCREMENT BEING USED-BASIC DEPLETIONS
@@ -432,8 +499,18 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             DLZS = 1.0 - ((1.0 - params_dict["LZSK"]) ** DINC)   # LZSK in NWM version = Klzs in marrmot version
 
             ## INFERRED PARAMETER (ADDED BY Q DUAN ON 3/6/95)
-            PAREA = 1.0 - ADIMP - params_dict["pctim"]
-
+            PAREA = 1.0 - params_dict["ADIMP"] - params_dict["pctim"]
+            print("------ GOTO 233--------")
+            print(f"ROIMP = {ROIMP[0, 0]}")
+            print(f"ADIMC = {ADIMC[0, 0]}")
+            print(f"NINC = {NINC[0, 0]}")
+            print(f"DINC = {DINC[0, 0]}")
+            print(f"PINC = {PINC[0, 0]}")
+            print(f"DUZ = {DUZ[0, 0]}")
+            print(f"DLZP = {DLZP[0, 0]}")
+            print(f"DLZS = {DLZS[0, 0]}")
+            print(f"PAREA = {PAREA[0, 0]}")
+            print("-------------------------------------------------")
             ## ---------------------------------
             # START INCREMENTAL DO LOOP FOR THE TIME INTERVAL.
             SPBF = torch.zeros(UZTWC.shape, dtype=torch.float32, device=args["device"])
@@ -442,37 +519,53 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             SIF = torch.zeros(UZTWC.shape, dtype=torch.float32, device=args["device"])
             SSUR = torch.zeros(UZTWC.shape, dtype=torch.float32, device=args["device"])
             SDRO = torch.zeros(UZTWC.shape, dtype=torch.float32, device=args["device"])
-            for i in range(1, NINC + 1):
+            for i in range(1, int(torch.round(NINC.max())) + 1):
                 ## COMPUTE DIRECT RUNOFF (FROM ADIMP AREA)
                 RATIO = torch.clamp((ADIMC - UZTWC) / params_dict["lztwm"], min=0.0)
                 # ADDRO IS THE AMOUNT OF DIRECT RUNOFF FROM THE AREA ADIMP.
                 ADDRO = PINC * (RATIO ** 2)
                 # COMPUTE BASEFLOW AND KEEP TRACK OF TIME INTERVAL SUM.
-                BF = torch.clamp(LZFPC * DLZP, min=0.0)   # baseflow primary and secondary
-                BF = torch.min(BF, LZFPC)
-                ## TODO: since it is a for loop, I need to chack min=NEARZERO is not adding too much error to the system
-                LZFPC = torch.clamp(LZFPC - BF, min=NEARZERO)
-                SPBF = SPBF + BF
+                # baseflow from LZFSC
+                BF_LZFPC = torch.clamp(LZFPC * DLZP, min=0.0)   # baseflow primary and secondary
+                LZFPC = LZFPC - BF_LZFPC
 
-                BF = torch.clamp(LZFSC * DLZS, min=0.0)
-                BF = torch.min(BF, LZFSC)
+                ## TODO: since it is a for loop, I need to chack min=NEARZERO is not adding too much error to the system
+                # LZFPC = torch.clamp(LZFPC - BF, min=NEARZERO)
+                BF_LZFPC = torch.where((LZFPC <= 0.0001),
+                                    BF_LZFPC + LZFPC,
+                                    BF_LZFPC)
+                # Basically, it means if the LZFPC is smaller than 0.0001--> all of  it  is BF and LZFPC is zero.
+                LZFPC = torch.where((LZFPC <= 0.0001),
+                                 torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]) + NEARZERO,
+                                 LZFPC)
+
+
+                SPBF = SPBF + BF_LZFPC
+                # baseflow from LZFSC
+                BF_LZFSC = torch.clamp(LZFSC * DLZS, min=0.0)
+                BF_LZFSC = torch.min(BF_LZFSC, LZFSC)
                 ## TODO: since it is a for loop, I need to chack min=NEARZERO is not adding to much error to the system
-                LZFSC = torch.clamp(LZFSC - BF, min=NEARZERO)
-                SBF = SBF + BF
+                LZFSC = torch.clamp(LZFSC - BF_LZFSC, min=NEARZERO)
+                print("------ in label 234 before if and before GOTO 235--------")
+                print(f"LZFSC = {LZFSC[0, 0]}")
+                print("---------------------------------")
+                # Label 235
+                SBF = SBF + BF_LZFSC
 
                 # COMPUTE PERCOLATION-IF NO WATER AVAILABLE THEN SKIP
                 # to do it in parallel, we need to keep this PINC + UZFWC <> 0.01 to handle GOTO commands in fortran
-                UZFWC = torch.where((PINC + UZFWC < 0.01 ),
+                mask_PINC_UZFWC = (PINC + UZFWC) < 0.01
+                UZFWC = torch.where(mask_PINC_UZFWC,
                                     PINC + UZFWC,
                                     UZFWC)
-                PERCM = torch.where((PINC + UZFWC > 0.01 ),
+                PERCM = torch.where(mask_PINC_UZFWC,
                                     params_dict["lzfpm"] * DLZP + params_dict["lzfsm"] *DLZS,
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                PERC = torch.where((PINC + UZFWC > 0.01 ),
+                PERC = torch.where(mask_PINC_UZFWC,
                                     PERCM * (UZFWC / params_dict["uzfwm"]),
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
                 ## equivalent to LZ_deficiency / LZ_capacity in marrmot
-                DEFR = torch.where((PINC + UZFWC > 0.01 ),
+                DEFR = torch.where(mask_PINC_UZFWC,
                                    1.0 - ((LZTWC + LZFPC + LZFSC) / (params_dict["lztwm"] + params_dict["lzfpm"] + params_dict["lzfsm"])),
                                    torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
@@ -484,43 +577,43 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 FR = torch.tensor(1.0, dtype=torch.float32, device=args["device"])
                 FI = torch.tensor(1.0, dtype=torch.float32, device=args["device"])
 
-                PERC = torch.where((PINC + UZFWC > 0.01 ),
-                                   PERC * (1.0 + ZPERC * (DEFR ** params_dict["rexp"])) * FR,
+                PERC = torch.where(mask_PINC_UZFWC,
+                                   PERC * (1.0 + params_dict["ZPERC"] * (DEFR ** params_dict["rexp"])) * FR,
                                    torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
                 # NOTE...PERCOLATION OCCURS FROM UZFWC BEFORE PAV IS ADDED.
-                PERC = torch.where((PINC + UZFWC > 0.01 ) & (PERC > UZFWC),
+                PERC = torch.where(mask_PINC_UZFWC & (PERC > UZFWC),
                                    UZFWC,
-                                   torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                UZFWC= torch.where((PINC + UZFWC > 0.01 ),
+                                   PERC)
+                UZFWC= torch.where(mask_PINC_UZFWC,
                                     UZFWC - PERC,
                                     UZFWC)
                 ## TODO: not sure if I need this line without having the condition PINC + UZFWC > 0.01
                 UZFWC = torch.clamp(UZFWC, min=NEARZERO)
                 # CHECK TO SEE IF PERCOLATION EXCEEDS LOWER ZONE DEFICIENCY.
-                CHECK = torch.where((PINC + UZFWC > 0.01 ),
+                CHECK = torch.where(mask_PINC_UZFWC,
                                     LZTWC + LZFPC + LZFSC + PERC - params_dict["lztwm"] - params_dict["lzfpm"] - params_dict["lzfsm"],
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                PERC = torch.where((PINC + UZFWC > 0.01 ) & (CHECK > 0.0),
+                PERC = torch.where(mask_PINC_UZFWC & (CHECK > 0.0),
                                     PERC - CHECK,
                                     PERC)
-                UZFWC = torch.where((PINC + UZFWC > 0.01 ) & (CHECK > 0.0),
+                UZFWC = torch.where(mask_PINC_UZFWC & (CHECK > 0.0),
                                      UZFWC + CHECK,
                                      UZFWC)
                 # SPERC IS THE TIME INTERVAL SUMMATION OF PERC
-                SPERC = torch.where((PINC + UZFWC > 0.01 ),
+                SPERC = torch.where(mask_PINC_UZFWC,
                                      SPERC + PERC,
                                      SPERC)
 
                 # COMPUTE INTERFLOW AND KEEP TRACK OF TIME INTERVAL SUM.
                 # NOTE...PINC HAS NOT YET BEEN ADDED
-                DEL_uz = torch.where((PINC + UZFWC > 0.01 ),
+                DEL_uz = torch.where(mask_PINC_UZFWC,
                                       UZFWC * DUZ * FI,
                                       torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
                 # SIF: sum of interflow
-                SIF = torch.where((PINC + UZFWC > 0.01 ),
+                SIF = torch.where(mask_PINC_UZFWC,
                                      SIF + DEL_uz,
                                      torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                UZFWC = torch.where((PINC + UZFWC > 0.01 ),
+                UZFWC = torch.where(mask_PINC_UZFWC,
                                      UZFWC - DEL_uz,
                                      UZFWC)
 
@@ -528,107 +621,123 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 # TENSION WATER MUST BE FILLED FIRST EXCEPT FOR THE PFREE AREA.
                 # PERCT IS PERCOLATION TO TENSION WATER AND PERCF IS PERCOLATION GOING TO FREE WATER.
                 # PERCT is equivalent to PCtw in marrmot
-                PERCT = torch.where((PINC + UZFWC > 0.01 ),
-                                    PERC * (1.0 - params_dict["pfree"]),
+                PERCT = torch.where(mask_PINC_UZFWC,
+                                    PERC * (1.0 - params_dict["PFREE"]),
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
+                mask_PERCT_LZTWC_low = (PERCT + LZTWC) <= params_dict["lztwm"]
+                LZTWC = torch.where(mask_PINC_UZFWC & mask_PERCT_LZTWC_low,
+                                    LZTWC + PERCT,
+                                    LZTWC)
                 # if (PERCT + LZTWC > lztwm)
-                PERCF = torch.where((PINC + UZFWC > 0.01 ) & (PERCT + LZTWC > params_dict["lztwm"]),
+                PERCF_LZTWC = torch.where((mask_PINC_UZFWC) & (~mask_PERCT_LZTWC_low),
                                     PERCT + LZTWC - params_dict["lztwm"],
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                LZTWC = torch.where((PINC + UZFWC > 0.01 ) & (PERCT + LZTWC > params_dict["lztwm"]),
+                LZTWC = torch.where((mask_PINC_UZFWC) & (~mask_PERCT_LZTWC_low),
                                     params_dict["lztwm"],
                                     LZTWC)
 
                 # if (PERCT + LZTWC < lztwm)
                 # for PERCF with (PERCT + LZTWC < lztwm) : it has been taken care of on the upper lines
-                LZTWC = torch.where((PINC + UZFWC > 0.01 ) & (PERCT + LZTWC < params_dict["lztwm"]),
+                LZTWC = torch.where(mask_PINC_UZFWC & mask_PERCT_LZTWC_low,
                                     LZTWC + PERCT,
                                     LZTWC)
 
                 # line 426 in sac.f with label 244
                 # DISTRIBUTE PERCOLATION IN EXCESS OF TENSION
                 # REQUIREMENTS AMONG THE FREE WATER STORAGES.
-                PERCF = torch.where((PINC + UZFWC > 0.01 ),
-                                    PERCF + PERC * PFREE,
-                                    PERCF)
+                PERCF = torch.where(mask_PINC_UZFWC,
+                                    PERCF_LZTWC + PERC * params_dict["PFREE"],
+                                    torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
                 # HPL IS THE RELATIVE SIZE OF THE PRIMARY STORAGE
                 # AS COMPARED WITH TOTAL LOWER ZONE FREE WATER STORAGE.
-                HPL = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                HPL = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                   params_dict["lzfpm"] / (params_dict["lzfpm"] + params_dict["lzfsm"]),
                                   torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
                 # RATLP AND RATLS ARE CONTENT TO CAPACITY RATIOS, OR
                 # IN OTHER WORDS, THE RELATIVE FULLNESS OF EACH STORAGE
-                RATLP = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                RATLP = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                   LZFPC / (params_dict["lzfpm"]),
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
-                RATLS = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                RATLS = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     LZFSC / params_dict["lzfsm"],
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
                 # FRACP IS THE FRACTION GOING TO PRIMARY.
-                FRACP = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                FRACP = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     (HPL * 2.0 * (1.0 - RATLP)) / ((1.0 - RATLP) + (1.0 - RATLS)),
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
-                FRACP = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0) & (FRACP > 1.0),
+                FRACP = torch.where(mask_PINC_UZFWC & (PERCF != 0.0) & (FRACP > 1.0),
                                     torch.ones(FRACP.shape, dtype=torch.float32, device=args["device"]),
                                     FRACP)
 
                 # PERCP AND PERCS ARE THE AMOUNT OF THE EXCESS
                 # PERCOLATION GOING TO PRIMARY AND SUPPLEMENTAL STORGES,RESPECTIVELY.
-                PERCP = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                PERCP = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     PERCF * FRACP,
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                PERCS = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                PERCS = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     PERCF - PERCP,
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
 
                 # PERCS = torch.min(PERCS, torch.clamp(lzrfsm - LZFSC, min=0.0))
-                LZFSC = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                LZFSC = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     LZFSC + PERCS,
                                     LZFSC)
-                PERCS = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0) & (LZFSC > params_dict["lzfsm"]),
+                mask_LZFSC_high = LZFSC > params_dict["lzfsm"]
+                PERCS = torch.where(mask_PINC_UZFWC & (PERCF != 0.0) & mask_LZFSC_high,
                                     PERCS - LZFSC + params_dict["lzfsm"],
                                     PERCS)
-                LZFSC = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0) & (LZFSC > params_dict["lzfsm"]),
+                LZFSC = torch.where(mask_PINC_UZFWC & (PERCF != 0.0) & mask_LZFSC_high,
                                     params_dict["lzfsm"],
                                     LZFSC)
                 #label 246 in Fortran code sac1.f
-                LZFPC = torch.where((PINC + UZFWC > 0.01 ) & (PERCF != 0.0),
+                LZFPC = torch.where(mask_PINC_UZFWC & (PERCF != 0.0),
                                     LZFPC + (PERCF - PERCS),
                                     LZFPC)
-                # CHECK TO MAKE SURE LZFPC DOES NOT EXCEED LZFPM
+                # CHECK TO MAKE SURE LZFPC DOES NOT EXCEED LZFPM. I f it exceeds, exess water goes to LZTWC
                 # TODO: need to recheck if the following line needs to be written by torch.where()
-                EXCESS = torch.clamp(LZFPC - params_dict["lzfpm"], min=NEARZERO)
-                LZTWC = torch.where(((PINC + UZFWC) > 0.01 ) & (PERCF != 0.0) & (LZFPC > params_dict["lzfpm"]),
+                #       it can be written as:
+                # EXCESS = torch.where(((PINC + UZFWC) > 0.01 ) & (LZFPC > params_dict["lzfpm"]),
+                #                      LZFPC - params_dict["lzfpm"],
+                #                      torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
+                EXCESS = torch.clamp(LZFPC - params_dict["lzfpm"], min=0.0)
+                mask_LZFPC_high = LZFPC > params_dict["lzfpm"]
+                LZTWC = torch.where(mask_PINC_UZFWC & (PERCF != 0.0) & mask_LZFPC_high,
                                     LZTWC + EXCESS,
                                     LZTWC)
-                LZFPC = torch.where(((PINC + UZFWC) > 0.01 ) & (PERCF != 0.0) & (LZFPC > params_dict["lzfpm"]),
+                # TODO: don't we need to check if LZTWC is larger than lztwm, when we add EXCESS?
+                LZFPC = torch.where(mask_PINC_UZFWC & (PERCF != 0.0) & mask_LZFPC_high,
                                     params_dict["lzfpm"],
                                     LZFPC)
 
                 ## line 455 in Fortran sac1.f, label 245
                 # DISTRIBUTE PINC BETWEEN UZFWC AND SURFACE RUNOFF.
                 # if (PINC + UZFWC) < uzfwm
-                UZFWC = torch.where(((PINC + UZFWC) > 0.01 ) &
-                                    (PINC > 0.0) & ((PINC + UZFWC) < params_dict["uzfwm"]),
+                ## Note: we make a mask for UZFWC because  we need the exact same mask
+                # for calculating SUR, SSUR, ADSUR in label 248
+                mask_UZFWC_extra = mask_PINC_UZFWC & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"])
+                mask_UZFWC_extra_low = mask_PINC_UZFWC & (PINC > 0.0) & ((PINC + UZFWC) <= params_dict["uzfwm"])
+                UZFWC = torch.where(mask_UZFWC_extra_low,
                                     UZFWC + PINC,
                                     UZFWC)
 
                 ## Label 248
                 # if (PINC + UZFWC) > uzfwm
                 # COMPUTE SURFACE RUNOFF (SUR) AND KEEP TRACK OF TIME INTERVAL SUM.
-                SUR = torch.where(((PINC + UZFWC) > 0.01 ) & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"]),
+                SUR = torch.where(mask_UZFWC_extra,
                                     PINC + UZFWC - params_dict["uzfwm"],
                                   torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                UZFWC = torch.where(((PINC + UZFWC) > 0.01 ) & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"]),
+                ## Note: mask_UZFWC_extra may not cover all elements in UZFWC larger than uzfwm.
+                # It covers only the elements that were higher than uzfwm before adding PINC to it
+                UZFWC = torch.where(mask_UZFWC_extra,
                                     params_dict["uzfwm"],
                                     UZFWC)
 
                 # SSUR: Sum of the indirect surface runoff components from ADIMP and PAREA
-                SSUR = torch.where(((PINC + UZFWC) > 0.01 ) & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"]),
+                SSUR = torch.where(mask_UZFWC_extra,
                                    SSUR + SUR * PAREA,
                                    SSUR)
 
@@ -637,24 +746,24 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 # CURRENTLY GENERATING DIRECT RUNOFF.  ADDRO/PINC
                 # IS THE FRACTION OF ADIMP CURRENTLY GENERATING
                 # DIRECT RUNOFF.
-                ADSUR = torch.where(((PINC + UZFWC) > 0.01 ) & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"]),
+                ADSUR = torch.where(mask_UZFWC_extra,
                                     SUR * (1.0 - ADDRO / PINC),
                                     torch.zeros(UZFWC.shape, dtype=torch.float32, device=args["device"]))
-                SSUR = torch.where(((PINC + UZFWC) > 0.01 ) & (PINC > 0.0) & ((PINC + UZFWC) > params_dict["uzfwm"]),
-                                   SSUR + ADSUR * ADIMP,
+                SSUR = torch.where(mask_UZFWC_extra,
+                                   SSUR + ADSUR * params_dict["ADIMP"],
                                    SSUR)
 
                 # line 476 in Fortran sac1.f, label 249 --> All conditions are gone here.
                 # ADIMP AREA WATER BALANCE -- SDRO IS THE 6 HR SUM OF DIRECT RUNOFF.
                 ADIMC = ADIMC + PINC - ADDRO - ADSUR
-                ADIMC = torch.where(ADIMC >= params_dict["uztwm"] + params_dict["lztwm"],
+                ADDRO = torch.where(ADIMC >= (params_dict["uztwm"] + params_dict["lztwm"]),
                                     ADDRO + ADIMC - (params_dict["uztwm"] + params_dict["lztwm"]),
                                     ADDRO)
-                ADIMC = torch.where(ADIMC >= params_dict["uztwm"] + params_dict["lztwm"],
+                ADIMC = torch.where(ADIMC >= (params_dict["uztwm"] + params_dict["lztwm"]),
                                     params_dict["uztwm"] + params_dict["lztwm"],
                                     ADIMC)
                 ## line 480, label 247 --> all conditions are gone again
-                SDRO = SDRO + ADDRO * ADIMP
+                SDRO = SDRO + ADDRO * params_dict["ADIMP"]
 
             # COMPUTE SUMS AND ADJUST RUNOFF AMOUNTS BY THE AREA OVER WHICH THEY ARE GENERATED.
             EUSED  = E1 + E2 + E3
@@ -665,8 +774,8 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             # TBF IS TOTAL BASEFLOW
             TBF = SBF * PAREA
             # BFCC IS BASEFLOW, CHANNEL COMPONENT
-            BFCC = TBF * (1.0 / (1.0 + SIDE))
-            BFP = SPBF * PAREA / (1.0 + SIDE)
+            BFCC = TBF * (1.0 / (1.0 + params_dict["SIDE"]))
+            BFP = SPBF * PAREA / (1.0 + params_dict["SIDE"])
             BFS = BFCC - BFP
             BFS = torch.clamp(BFS, min=0.0)
             # BFNCC IS BASEFLOW,NON-CHANNEL COMPONENT
@@ -685,11 +794,20 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             TCI = ROIMP + SDRO + SSUR + SIF + BFCC
 
             #COMPUTE E4-ET FROM RIPARIAN VEGETATION.
-            E4 = (EDMND - EUSED) * RIVA
+            E4 = (EDMND - EUSED) * params_dict["RIVA"]
 
             ## SUBTRACT E4 FROM CHANNEL INFLOW
             E4 = torch.min(E4, TCI)
             TCI = torch.clamp(TCI - E4, min=0.0)    ## TODO: or maybe NEARZERO?
+
+            print("------ after GOTO 240 before if cond to go to 250--------")
+            print(f"E4 = {E4[0, 0]}")
+            print(f"TCI = {TCI[0, 0]}")
+            print(f"EDMND = {EDMND[0, 0]}")
+            print(f"EUSED = {EUSED[0, 0]}")
+            a = params_dict["RIVA"][0, 0]
+            print(f"RIVA = {a}")
+            print("-------------------------------------------------")
 
             ## line 525 Fortran, label 250
             # SROT = SROT + TCI  #SROT is monthly. and we may not need it
@@ -719,8 +837,9 @@ C                 (6) BFS, (7) BFP. (NOT USED)
          # BFS:   non-channel baseflow
          # BFP:   some kind of baseflow...
          # TCI:   Total channel inflow
-
-
+            print("***********************")
+            print(f"TIME:     {t}")
+            print("***********************")
 
             QS = ROIMP + SDRO + SSUR + SIF
             QG = BFS + BFP   # what about nonchannel baseflow
