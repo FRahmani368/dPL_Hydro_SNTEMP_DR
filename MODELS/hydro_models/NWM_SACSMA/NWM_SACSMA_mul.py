@@ -342,14 +342,18 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             ## TODO: tosoil is basically the melted water ready to join the network. Please check this statement
             PXV = RAIN + tosoil  # PXV: Input moisture (e.g. precip, precip+melt)
             EDMND = PET[t, :, :]
+            """
             print(f"PXV = {PXV[0,0]}")
             print(f"EDMND = {EDMND[0, 0]}")
+            """
             E1 = EDMND * UZTWC / params_dict["uztwm"]   # E1 = flux_Euztw in marrmot
             RED = torch.clamp(EDMND-E1, min=0.0)   ## RED IS RESIDUAL EVAP DEMAND
             UZTWC = torch.clamp(UZTWC-E1, min=0.0)
+            """
             print(f"E1 = {E1[0, 0]}")
             print(f"RED = {RED[0, 0]}")
             print(f"UZTWC = {UZTWC[0, 0]}")
+            """
             E2 = torch.zeros(E1.shape, dtype=dtype, device=args["device"])
 
             E2 = torch.where((UZFWC > RED) & (UZTWC == 0.0),
@@ -368,7 +372,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             # TENSION WATER RATIO, THUS TRANSFER FREE WATER TO TENSION -->
             # it means we redistribute water between UZTWC and UZFWC with ratio of UZRAT
             UZRAT = torch.where((UZTWC / params_dict["uztwm"]) <= (UZFWC / params_dict["uzfwm"]),
-                                (UZTWC +UZFWC) / (params_dict["uztwm"] + params_dict["lztwm"]),
+                                (UZTWC +UZFWC) / (params_dict["uztwm"] + params_dict["uzfwm"]),
                                 torch.zeros(E1.shape, dtype=dtype, device=args["device"]))
 
             UZTWC = torch.where((UZTWC / params_dict["uztwm"]) <= (UZFWC / params_dict["uzfwm"]),
@@ -385,6 +389,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
 
             E3 = torch.min(LZTWC, E3)
             LZTWC = torch.clamp(LZTWC - E3, min=NEARZERO)
+            """
 
             print("------Before RATLZT--------")
             print(f"E3 = {E3[0, 0]}")
@@ -392,12 +397,14 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             print(f"UZTWC = {UZTWC[0, 0]}")
             print(f"UZFWC = {UZFWC[0, 0]}")
             print(f"LZTWC = {LZTWC[0, 0]}")
+            """
 
             RATLZT = LZTWC / params_dict["lztwm"]   # for dynamic parametrization, this line doesn't work
 
             SAVED = params_dict["rserv"] * (params_dict["lzfpm"] + params_dict["lzfsm"])
 
             RATLZ = (LZTWC + LZFPC  + LZFSC - SAVED) / (params_dict["lztwm"] + params_dict["lzfpm"] + params_dict["lzfsm"] - SAVED)
+            """
 
             print("------label 226 and before GOTO 230--------")
             print(f"SAVED = {SAVED[0, 0]}")
@@ -406,9 +413,11 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             print(f"LZTWC = {LZTWC[0, 0]}")
             print(f"LZFSC = {LZFSC[0, 0]}")
             print("------------------------------------")
+            """
             E5 = torch.where((RATLZT > RATLZ),
                               E1 + (RED + E2) *((ADIMC - E1 - UZTWC) / (params_dict["uztwm"] + params_dict["lztwm"])),
                               torch.zeros(E1.shape, dtype=dtype, device=args["device"]))
+            """
             print("------label 230 and before GOTO 231--------")
             print(f"E5 = {E5[0, 0]}")
             print(f"ADIMC = {ADIMC[0, 0]}")
@@ -420,18 +429,23 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             b = params_dict["lztwm"][0, 0]
             print(f"UZTWM+LZTWM = {a + b}")
             print("-----------------------------")
+            """
             E5 = torch.min(E5, ADIMC)
             ADIMC = torch.clamp(ADIMC - E5, min=0.0)
+            """
             print("------after label 231 and before GOTO 232--------")
             print(f"ADIMC = {ADIMC[0, 0]}")
             print("-------------------------------------------------")
+            """
             # ADIMP is the additional impervious area, not sure why we multiply it to ADIMP
             #update: TODO: still not sure why the following line happens after all the calculations related to E5
             E5 = E5 * params_dict["ADIMP"]
+            """
             print("------After label 230 and before GOTO 232--------")
             print(f"SAVED = {SAVED[0, 0]}")
             print(f"E5 = {E5[0, 0]}")
             print("-------------------------------------------------")
+            """
             ## DEL equals to Rls in marrmot version
             DEL = torch.where((RATLZT <= RATLZ),
                               (RATLZ - RATLZT) * params_dict["lztwm"],
@@ -461,6 +475,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             # COMPUTE PERCOLATION AND RUNOFF AMOUNTS.
             # PXV is input moisture i.e. Precip, or Precip + melt
             TWX = UZTWC + PXV - params_dict["uztwm"]
+            """
             print("------After label 231 and before GOTO 232--------")
             print(f"E5 = {E5[0, 0]}")
             print(f"ADIMC = {ADIMC[0, 0]}")
@@ -470,14 +485,17 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             a = params_dict["uztwm"]
             print(f"uztwm = {a[0, 0]}")
             print("-----------------------------")
-            UZTWC = torch.where((TWX > torch.zeros(TWX.shape, dtype=dtype, device=args["device"])),
+            """
+            UZTWC = torch.where((TWX > 0.0),
                                 params_dict["uztwm"],
                                 UZTWC + PXV)
             TWX = torch.clamp(TWX, min=0.0)
-            print("------ GOTO 232--------")
+            """
+            print("------ GOTO 233--------")
             print(f"TWX = {TWX[0, 0]}")
             print(f"UZTWC = {UZTWC[0, 0]}")
             print("-------------------------------------------------")
+            """
             # MOISTURE AVAILABLE IN EXCESS OF UZTW STORAGE
             ADIMC = ADIMC + PXV - TWX
 
@@ -487,10 +505,10 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             # SIMPVT = SIMPVT + ROIMP    # sum of ROIMP
 
             # DETERMINE COMPUTATIONAL TIME INCREMENTS FOR THE BASIC TIME INTERVAL
-            NINC = torch.round(1 + 0.2 * (UZFWC + TWX))     # NINC=NUMBER OF TIME INCREMENTS THAT THE TIME INTERVAL
+            NINC = torch.trunc(1 + 0.2 * (UZFWC + TWX))     # NINC=NUMBER OF TIME INCREMENTS THAT THE TIME INTERVAL
             DINC = (1 / NINC) * DT   # DT: computational time interval
             ## TODO: not sure if torch.round  is ok to be used in terms of gradient descent
-            PINC = TWX / int(torch.round(NINC.max())) #    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
+            PINC = TWX / int(NINC.max()) #    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
 
             # COMPUTE FREE WATER DEPLETION FRACTIONS FOR
             # THE TIME INCREMENT BEING USED-BASIC DEPLETIONS
@@ -501,6 +519,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
 
             ## INFERRED PARAMETER (ADDED BY Q DUAN ON 3/6/95)
             PAREA = 1.0 - params_dict["ADIMP"] - params_dict["pctim"]
+            """
             print("------ GOTO 233--------")
             print(f"ROIMP = {ROIMP[0, 0]}")
             print(f"ADIMC = {ADIMC[0, 0]}")
@@ -512,6 +531,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             print(f"DLZS = {DLZS[0, 0]}")
             print(f"PAREA = {PAREA[0, 0]}")
             print("-------------------------------------------------")
+            """
             ## ---------------------------------
             # START INCREMENTAL DO LOOP FOR THE TIME INTERVAL.
             SPBF = torch.zeros(UZTWC.shape, dtype=dtype, device=args["device"])
@@ -555,9 +575,11 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 # BF_LZFSC = torch.min(BF_LZFSC, LZFSC)
                 # ## TODO: since it is a for loop, I need to chack min=NEARZERO is not adding to much error to the system
                 # LZFSC = torch.clamp(LZFSC - BF_LZFSC, min=NEARZERO)
+                """
                 print("------ in label 234 before if and before GOTO 235--------")
                 print(f"LZFSC = {LZFSC[0, 0]}")
                 print("---------------------------------")
+                """
                 # Label 235
                 SBF = SBF + BF_LZFSC
 
@@ -602,6 +624,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 CHECK = torch.where(mask_PINC_UZFWC,
                                     LZTWC + LZFPC + LZFSC + PERC - params_dict["lztwm"] - params_dict["lzfpm"] - params_dict["lzfsm"],
                                     torch.zeros(UZFWC.shape, dtype=dtype, device=args["device"]))
+                """
                 print("------ after ifcond GOTO 239 before GOTO 241--------")
                 print(f"UZFWC = {UZFWC[0, 0]}")
                 print(f"CHECK = {CHECK[0, 0]}")
@@ -610,6 +633,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 print(f"LZFSC = {LZFSC[0, 0]}")
                 print(f"PERC = {PERC[0, 0]}")
                 print("---------------------------------")
+                """
                 PERC = torch.where(mask_PINC_UZFWC & (CHECK > 0.0),
                                     PERC - CHECK,
                                     PERC)
@@ -816,7 +840,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             ## SUBTRACT E4 FROM CHANNEL INFLOW
             E4 = torch.min(E4, TCI)
             TCI = torch.clamp(TCI - E4, min=0.0)    ## TODO: or maybe NEARZERO?
-
+            """
             print("------ after GOTO 240 before if cond to go to 250--------")
             print(f"E4 = {E4[0, 0]}")
             print(f"TCI = {TCI[0, 0]}")
@@ -825,7 +849,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             a = params_dict["RIVA"][0, 0]
             print(f"RIVA = {a}")
             print("-------------------------------------------------")
-
+            """
             ## line 525 Fortran, label 250
             # SROT = SROT + TCI  #SROT is monthly. and we may not need it
 
@@ -854,9 +878,16 @@ C                 (6) BFS, (7) BFP. (NOT USED)
          # BFS:   non-channel baseflow
          # BFP:   some kind of baseflow...
          # TCI:   Total channel inflow
+            """
             print("***********************")
             print(f"TIME:     {t}")
+            print(f"UZTWC = {UZTWC[0, 0]}")
+            print(f"UZFWC = {UZFWC[0, 0]}")
+            print(f"LZTWC = {LZTWC[0, 0]}")
+            print(f"LZFSC = {LZFSC[0, 0]}")
+            print(f"LZFPC = {LZFPC[0, 0]}")
             print("***********************")
+            """
 
             QS = ROIMP + SDRO + SSUR + SIF
             QG = BFS + BFP   # what about nonchannel baseflow
