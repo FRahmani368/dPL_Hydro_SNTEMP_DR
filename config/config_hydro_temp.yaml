@@ -121,7 +121,7 @@ STemp_default_albedo: 0.1
 STemp_default_delta_Z: 1.0       # for streambed conduction
 params_water_density: 1000
 params_C_w: 4184    # J/kg. K
-NEARZERO: 1e-6
+NEARZERO: 1e-3
 Epan_coef: 1.0
 initial_values_shade_fraction: 0.1
 varT_temp_model: ["ccov", 'vp(Pa)', "srad(W/m2)"]  # tmean is used in air_T_memory.  #'dayl(s)',  , "dayofyear", "t_monthly(C)",

@@ -104,10 +104,10 @@ C                 (6) BFS, (7) BFP. (NOT USED)
         """Initiate a HBV instance"""
         super(NWM_SACSMA_Mul, self).__init__()
         self.parameters_bound = dict(uztwm=[1, 20],
-                                     uzfwm =[0.0025, 3000],
-                                     lztwm=[0.0025, 3000],
-                                     lzfsm=[0.0025, 3000],
-                                     lzfpm=[0.0025, 3000],
+                                     uzfwm =[0.25, 3000],    #0.0025
+                                     lztwm=[0.25, 3000],
+                                     lzfsm=[0.25, 3000],
+                                     lzfpm=[0.25, 3000],
                                      UZK=[0.0, 1.0],
                                      pctim=[0.0, 1.0],
                                      ADIMP=[0, 1],    #[1, 3000]
@@ -508,7 +508,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             NINC = torch.trunc(1 + 0.2 * (UZFWC + TWX))     # NINC=NUMBER OF TIME INCREMENTS THAT THE TIME INTERVAL
             DINC = (1 / NINC) * DT   # DT: computational time interval
             ## TODO: not sure if torch.round  is ok to be used in terms of gradient descent
-            PINC = TWX / int(NINC.max()) #    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
+            PINC = TWX / int(NINC.max().clamp(min=1.0)) #    # PINC=AMOUNT OF AVAILABLE MOISTURE FOR EACH INCREMENT
 
             # COMPUTE FREE WATER DEPLETION FRACTIONS FOR
             # THE TIME INCREMENT BEING USED-BASIC DEPLETIONS
@@ -540,7 +540,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
             SIF = torch.zeros(UZTWC.shape, dtype=dtype, device=args["device"])
             SSUR = torch.zeros(UZTWC.shape, dtype=dtype, device=args["device"])
             SDRO = torch.zeros(UZTWC.shape, dtype=dtype, device=args["device"])
-            for i in range(1, int(torch.round(NINC.max())) + 1):
+            for i in range(1, int(NINC.max()) + 1):
                 ## COMPUTE DIRECT RUNOFF (FROM ADIMP AREA)
                 RATIO = torch.clamp((ADIMC - UZTWC) / params_dict["lztwm"], min=0.0)
                 # ADDRO IS THE AMOUNT OF DIRECT RUNOFF FROM THE AREA ADIMP.
@@ -788,7 +788,7 @@ C                 (6) BFS, (7) BFP. (NOT USED)
                 # IS THE FRACTION OF ADIMP CURRENTLY GENERATING
                 # DIRECT RUNOFF.
                 ADSUR = torch.where(mask_UZFWC_extra,
-                                    SUR * (1.0 - ADDRO / PINC),
+                                    SUR * (1.0 - ADDRO / (PINC + NEARZERO)),
                                     torch.zeros(UZFWC.shape, dtype=dtype, device=args["device"]))
                 SSUR = torch.where(mask_UZFWC_extra,
                                    SSUR + ADSUR * params_dict["ADIMP"],

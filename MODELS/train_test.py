@@ -49,12 +49,17 @@ def train_differentiable_model(args, diff_model, optim):
         for iIter in range(1, nIterEp + 1):
             dataset_dictionary_sample = take_sample_train(args, dataset_dictionary, ngrid_train, nt, batchSize)
             # Batch running of the differentiable model
+            # torch.autograd.set_detect_anomaly(True)
             out_diff_model = diff_model(dataset_dictionary_sample)
             # loss function
             loss = lossFun(args, out_diff_model,
                            dataset_dictionary_sample["obs"],
                            igrid=dataset_dictionary_sample["iGrid"])
+
             loss.backward()  # retain_graph=True
+            for name, param in diff_model.named_parameters():
+                if param.grad is not None and torch.isnan(param.grad).any():
+                    print(f"NaN in gradient of {name}")
             optim.step()
             diff_model.zero_grad()
             lossEp = lossEp + loss.item()

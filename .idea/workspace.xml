@@ -7,6 +7,7 @@
     <list default="true" id="4b97773f-fedc-4c64-865f-329ad98e0e34" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MODELS/hydro_models/NWM_SACSMA/NWM_SACSMA_mul.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/hydro_models/NWM_SACSMA/NWM_SACSMA_mul.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MODELS/train_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/MODELS/train_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/config_hydro_temp.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_hydro_temp.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -135,16 +136,5 @@
         </entry>
       </map>
     </option>
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MODELS/Differentiable_models.py</url>
-          <line>161</line>
-          <option name="timeStamp" value="98" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>
