@@ -3,7 +3,7 @@
 ##### Make sure the paths are correct. They are individual to your machine
 
 randomseed: [0]   # None means random
-Action: [0, 1]   # 0:Train,   1: Test
+Action: [1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 2
 # ------------------------------------------------
