@@ -3,7 +3,7 @@
 ##### Make sure the paths are correct. They are individual to your machine
 
 randomseed: [0]   # None means random
-Action: [1]   # 0:Train,   1: Test
+Action: [0,1]   # 0:Train,   1: Test
 device: "cuda"
 nmul: 2
 # ------------------------------------------------
@@ -13,9 +13,9 @@ nmul: 2
 #attr_path: "//storage//work//fzr5082//PGML_STemp_results//inputs//dataset_20231113//attr_415_tmean_ccov.feather" #           no_dam_attr_temp99%_days34sites.feather
 #output_model: "//scratch//fzr5082//PGML_STemp_results//models//"
 # Windows server
-forcing_path: "H:\\Frshd\\inputs\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240826\\f1223_1023_daymet_20240826.npy"    #
-attr_path: "H:\\Frshd\\inputs\\PGML_STemp_results\\inputs\\inputs_2003\\dataset_20240826\\attr1223_1023_daymet_20240826.npy"
-output_model: "H:\\Frshd\\models" #\\PRMS_SNTEMP_415_208"
+forcing_path: "D:\\data_attr_inputs2003\\f1223_1023_daymet_20240826.npy"    #
+attr_path: "D:\\data_attr_inputs2003\\attr1223_1023_daymet_20240826.npy"
+output_model: "D:\\tmp_dirs" #\\PRMS_SNTEMP_415_208"
 # Confucius server
 #forcing_path: "//data//fzr5082//Yalans_camels//force_531.npy"   # forcing_415_tmean_ccov_fillNa.feather" #
 #attr_path: "//data//fzr5082//Yalans_camels//attr_531.npy"
