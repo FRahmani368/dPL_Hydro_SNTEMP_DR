@@ -5,11 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4b97773f-fedc-4c64-865f-329ad98e0e34" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dPL_Hydro_SNTEMP.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dPL_Hydro_SNTEMP.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/python1.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/NWM_test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_hydro_temp.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_hydro_temp.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +42,7 @@
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;data__release&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/GitHub/dPL_Hydro_SNTEMP&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;
   }
