@@ -15,10 +15,7 @@ output_model: "D:\\tmp_dirs"
 ###### neural network configuration
 NN_model_name: "LSTM"   # it can be "MLP", "LSTM" too.
 ### you can choose different types of loss functions based on your need:
-   ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",      3- "RmseLoss_flow_temp_BFI"
-   ###  4- "RmseLoss_flow_temp_BFI_AET",    5- "RmseLoss_BFI_temp"   ,    6- "NSEsqrtLoss_flow_temp"
-   ###  7- "RmseLoss_flow_temp_BFI_AET_SWE"       8- "RmseLoss_flow_temp_BFI_SWE"
-   ###  9- "RmseLoss_flow_temp_SWE",        10- "RmseLoss_flow_BFI_SWE"
+   ###  1- "RmseLoss_flow_comb",            2- "RmseLoss_flow_temp",
 loss_function: "RmseLoss_flow_temp"      #
 loss_function_weights:
     w1: 3      # w1: flow loss weight (11.0), for RmseLoss_BFI_temp(w1=5.0, w2=1.0, w3=0.05,)
