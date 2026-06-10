@@ -251,7 +251,7 @@ def converting_daily_to_yearly(daily_data_dict, start_date, end_date):
         df[site_idx] = daily_data_dict[key]
         df = df.set_index("time")
         model_name = key.split("_daily")[0]
-        yearly_data_dict[model_name + "_yearly"] = (df[site_idx].resample('A-SEP').sum()).to_numpy()
+        yearly_data_dict[model_name + "_yearly"] = (df[site_idx].resample('YE-SEP').sum()).to_numpy()
     return yearly_data_dict
 
 def converting_daily_to_yearly_precip(daily_data_dict, start_date, end_date):
@@ -265,7 +265,7 @@ def converting_daily_to_yearly_precip(daily_data_dict, start_date, end_date):
         df[site_idx] = daily_data_dict[key]
         df = df.set_index("time")
         model_name = key
-        yearly_data_dict[model_name] = (df[site_idx].resample('A-SEP').sum()).to_numpy()
+        yearly_data_dict[model_name] = (df[site_idx].resample('YE-SEP').sum()).to_numpy()
     return yearly_data_dict
 
 def calculate_yearly_trends(yearly_data_dict, start_date, end_date, flow_obs_daily, flow_percentage_availability,
