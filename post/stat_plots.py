@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
@@ -762,7 +764,7 @@ def plot_multiple_shapefiles(data_dict, shapefiles, lat_dict, lon_dict,
 
     # Add title
     if title:
-        ax.set_title(title, fontsize=26, y=0.98)
+        ax.set_title(title, fontsize=26, y=0.99)
 
     plt.show()
     if new_figure == True:
