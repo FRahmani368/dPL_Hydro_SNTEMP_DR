@@ -25,7 +25,9 @@ def main_hydro_temp(args):
         )
     if 1 in args["Action"]:  # testing mode
         modelFile = os.path.join(args["out_dir"], "model_Ep" + str(args["EPOCH_testing"]) + ".pt")
-        diff_model = torch.load(modelFile)
+        # weights_only=False is required for PyTorch >= 2.6 (the default flipped
+        # to True): the checkpoint is a full pickled model object, not a state dict.
+        diff_model = torch.load(modelFile, weights_only=False)
         train_test.test_differentiable_model(
             args=args,
             diff_model=diff_model
