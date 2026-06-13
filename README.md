@@ -27,6 +27,12 @@ A **differentiable programming (dPL) framework** that integrates process-based h
 10. [Understanding the Training Output](#10-understanding-the-training-output)
 11. [Output Files](#11-output-files)
 12. [Tips and Common Issues](#12-tips-and-common-issues)
+13. [Reproducing the Data-Release Figures](#13-reproducing-the-data-release-figures)
+    - [13.1 What the Scripts Do](#131-what-the-scripts-do)
+    - [13.2 How to Run a Figure Script](#132-how-to-run-a-figure-script)
+    - [13.3 Setting Up the Data Directory](#133-setting-up-the-data-directory)
+    - [13.4 Script-by-Script Reference](#134-script-by-script-reference)
+    - [13.5 Common Issues](#135-common-issues)
 
 ---
 
@@ -70,14 +76,7 @@ dPL_Hydro_SNTEMP/
 │   ├── hydro_models/               # Differentiable hydrological models
 │   │   ├── HBV/                    # HBV model
 │   │   ├── HBV_capillary/          # HBV with capillary rise
-│   │   ├── SACSMA/                 # Sacramento Soil Moisture Accounting
-│   │   ├── SACSMA_with_snowpack/   # SACSMA + snow module
-│   │   ├── NWM_SACSMA/             # NWM version of SACSMA
-│   │   ├── marrmot_PRMS/           # PRMS (base)
-│   │   ├── marrmot_PRMS_refreeze/  # PRMS with refreezing
-│   │   ├── marrmot_PRMS_gw0/       # PRMS with groundwater initialization
-│   │   ├── marrmot_PRMS_mod/       # PRMS modified variant
-│   │   └── marrmot_PRMS_inteflow/  # PRMS with interflow routing
+│   │   └── marrmot_PRMS/           # PRMS (Precipitation-Runoff Modeling System)
 │   │
 │   ├── temp_models/
 │   │   ├── SNTEMP/                 # Energy-balance stream temperature model
@@ -85,24 +84,18 @@ dPL_Hydro_SNTEMP/
 │   │
 │   ├── NN_models/
 │   │   ├── LSTM_models.py          # CuDNN LSTM with recurrent dropout
-│   │   └── MLP_models.py           # Multi-layer perceptron
+│   │   ├── MLP_models.py           # Multi-layer perceptron
+│   │   └── dropout.py              # Recurrent-dropout helper used by the LSTM
 │   │
-│   ├── loss_functions/             # One file per loss function combination
-│   │   ├── RmseLoss_flow_comb.py
-│   │   ├── RmseLoss_flow_temp.py
-│   │   ├── RmseLoss_flow_temp_BFI.py
-│   │   ├── RmseLoss_flow_temp_BFI_AET.py
-│   │   ├── RmseLoss_flow_temp_BFI_AET_SWE.py
-│   │   ├── RmseLoss_flow_temp_BFI_SWE.py
-│   │   ├── RmseLoss_flow_temp_SWE.py
-│   │   ├── RmseLoss_flow_BFI_SWE.py
-│   │   ├── RmseLoss_BFI_temp.py
-│   │   ├── RmseLoss_temp.py
-│   │   ├── NSEsqrtLoss_flow.py
-│   │   ├── NSEsqrtLoss_flow_temp.py
+│   ├── loss_functions/             # One file per loss function
+│   │   ├── RmseLoss_flow_comb.py   # Flow only (linear + log-sqrt RMSE)
+│   │   ├── RmseLoss_flow_temp.py   # Flow + temperature
+│   │   ├── NSEsqrtLoss_flow_temp.py# Scale-normalized NSE for flow + temperature
+│   │   ├── crit.py                 # Shared loss/metric primitives
 │   │   └── get_loss_function.py    # Factory that loads the correct loss class
 │   │
 │   └── PET_models/                 # Potential evapotranspiration methods
+│       └── potet.py
 │
 ├── core/
 │   ├── load_data/
@@ -331,7 +324,7 @@ The config file contains three commented-out attribute sets for different datase
 ### 4.4 Hydrological Model Settings
 
 ```yaml
-hydro_model_name: "NWM_SACSMA"
+hydro_model_name: "marrmot_PRMS"
 
 varT_hydro_model: ['prcp(mm/day)', 'tmean(C)', 'PET_hargreaves(mm/day)']
 varC_hydro_model: ['DRAIN_SQKM']
@@ -468,9 +461,8 @@ These are **not** required to sum to 1. A ratio of `w1=3, w2=1` means streamflow
 |---|---|---|
 | `"00060_Mean"` | Daily mean streamflow | m³/s |
 | `"00010_Mean"` | Daily mean stream temperature | °C |
-| `"BFI_AVE"` | Long-term baseflow index ratio | 0–1 |
-| `"swe_nsidc"` | Snow water equivalent | mm |
-| `"PET"` | Potential evapotranspiration | mm/day |
+
+> The loss functions shipped in this release (see [Section 7](#7-loss-functions-explained)) train on streamflow and stream temperature only. Use `target: ["00060_Mean"]` for flow-only training and `target: ["00060_Mean", "00010_Mean"]` for coupled flow + temperature training.
 
 ---
 
@@ -503,20 +495,6 @@ Flow outputs: `flow_sim` (total), `ssflow` (subsurface), `gwflow` (groundwater b
 
 An extension of HBV that adds a capillary rise flux from the lower groundwater zone back up to the soil moisture store during dry periods. Useful in regions with shallow water tables where capillary suction is significant.
 
-### SACSMA (`"SACSMA"`)
-
-The **Sacramento Soil Moisture Accounting** model, originally developed for operational streamflow forecasting by NOAA's National Weather Service. Uses a multi-layer soil system with upper and lower zone tension and free water stores, plus direct impervious area runoff.
-
-Key parameters include `UZTWM` (upper zone tension water max), `UZFWM` (upper zone free water max), `LZTWM` (lower zone tension water max), `LZFPM` (lower zone primary free water max), `LZFSM` (lower zone secondary free water max), and drainage coefficients `UZK`, `LZPK`, `LZSK`.
-
-### SACSMA with Snow (`"SACSMA_with_snow"`)
-
-SACSMA combined with a degree-day snow accumulation and melt module. Appropriate for basins where snow is an important part of the water balance (mountainous or high-latitude catchments).
-
-### NWM-SACSMA (`"NWM_SACSMA"`)
-
-The version of SACSMA as implemented in NOAA's **National Water Model (NWM)**, which runs operationally for the continental United States. Includes frozen ground handling and NWM-specific parameterizations. Recommended when working with data from CONUS basins or when results need to be comparable to NWM simulations.
-
 ### PRMS (`"marrmot_PRMS"`)
 
 The **Precipitation-Runoff Modeling System** from the USGS, ported from the MARRMoT (Modular Assessment of Rainfall-Runoff Models Toolbox). A flexible, multi-process model with interception, snow, soil, interflow, groundwater, and deep sink components.
@@ -533,15 +511,6 @@ The **Precipitation-Runoff Modeling System** from the USGS, ported from the MARR
 | `stot` | 1–2000 mm | Total soil moisture storage |
 | `cgw` | 0–20 mm/d | Constant drainage to deep groundwater |
 | `k1`–`k6` | 0–1 | Various recession and drainage coefficients |
-
-### PRMS Variants
-
-| Model name | Additional feature vs. base PRMS |
-|---|---|
-| `"marrmot_PRMS_refreeze"` | Allows liquid water in the snowpack to refreeze during cold spells |
-| `"marrmot_PRMS_gw0"` | Explicitly initializes groundwater storage at the start of simulation |
-| `"marrmot_PRMS_mod"` | Modified soil water conceptualization for improved low-flow simulation |
-| `"marrmot_PRMS_inteflow"` | Adds a separate interflow reservoir with distinct routing parameters |
 
 ---
 
@@ -564,7 +533,7 @@ The convolution filters for each flow source model this buffering effect mathema
 
 ### SNTEMP with 4 Groundwater Components (`"SNTEMP_gw0"`)
 
-An enhanced version of SNTEMP that tracks 4 distinct groundwater outflow pathways (e.g., primary baseflow, secondary baseflow, shallow baseflow, and a fourth component). Each component has its own residence time filter and temperature. Use this when working with models that explicitly simulate multiple groundwater reservoirs (e.g., `marrmot_PRMS_gw0`).
+An enhanced version of SNTEMP that tracks 4 distinct groundwater outflow pathways (e.g., primary baseflow, secondary baseflow, shallow baseflow, and a fourth component). Each component has its own residence time filter and temperature. Use this when working with a hydrology model that explicitly simulates multiple groundwater reservoirs.
 
 ---
 
@@ -616,101 +585,22 @@ temp_model_name: "SNTEMP"
 
 ---
 
-### `RmseLoss_flow_temp_BFI`
-
-Adds a **Baseflow Index (BFI)** constraint on top of `RmseLoss_flow_temp`. BFI is the long-term fraction of streamflow that comes from groundwater baseflow (a single number per basin, not a time series). Including BFI in the loss forces the model to correctly partition flow between fast runoff and slow groundwater — this improves temperature simulation because groundwater temperature differs fundamentally from surface flow temperature.
-
-The BFI loss uses a **threshold penalty**: it only penalizes the model if the simulated BFI differs from the observed BFI by more than 25%. This avoids over-penalizing small differences and focuses on correcting large partitioning errors.
-
-`L = w1 * L_flow + w2 * L_temp + w3 * L_BFI`
-
-Default weights: `w1=5.0, w2=1.0, w3=0.05`
-
-**When to use:** When you have long-term BFI estimates (e.g., from USGS NWIS or CAMELS attributes) and want to improve the groundwater/surface partitioning, which directly improves temperature simulation.
-
-**Config:**
-```yaml
-loss_function: "RmseLoss_flow_temp_BFI"
-target: ["00060_Mean", "00010_Mean", "BFI_AVE"]
-```
-
----
-
-### `RmseLoss_flow_temp_BFI_AET`
-
-Extends the previous loss with **Actual Evapotranspiration (AET)** as a fourth target. AET constrains how much water leaves the basin via evaporation and transpiration, which is the dominant water balance term in many semi-arid basins. Constraining AET helps the model correctly close the water balance.
-
-`L = w1 * L_flow + w2 * L_temp + w3 * L_BFI + w4 * L_AET`
-
-**When to use:** When you have AET estimates from remote sensing (e.g., MODIS) or reanalysis products, and are working in regions where evapotranspiration is important (e.g., the southeastern US or semi-arid regions).
-
----
-
-### `RmseLoss_flow_temp_BFI_AET_SWE`
-
-The most comprehensive multi-objective loss, adding **Snow Water Equivalent (SWE)** to all four previous targets. SWE constrains the snow accumulation and melt processes, which is critical for snowmelt-dominated basins (Rocky Mountains, Sierra Nevada, etc.).
-
-`L = w1 * L_flow + w2 * L_temp + w3 * L_BFI + w4 * L_AET + w5 * L_SWE`
-
-**When to use:** Mountainous or high-latitude basins where snow is a major part of the hydrological cycle and you have SWE observations (e.g., from SNOTEL or MODIS NSIDC).
-
----
-
-### `RmseLoss_flow_temp_BFI_SWE`
-
-Same as above but without the AET term. Use when you have SWE observations but not AET.
-
----
-
-### `RmseLoss_flow_temp_SWE`
-
-Flow + Temperature + SWE, without BFI. Suitable for snowmelt basins where you have temperature and SWE observations but no BFI data.
-
----
-
-### `RmseLoss_flow_BFI_SWE`
-
-Flow + BFI + SWE, without temperature. Use for hydrology-only experiments in snowy basins where you want to constrain both the flow partitioning and the snowpack.
-
----
-
-### `RmseLoss_BFI_temp`
-
-**Temperature + BFI only, no direct streamflow target.** This is a specialized loss for scenarios where you are more interested in understanding the thermal regime and groundwater contributions than in matching the total streamflow volume.
-
-The BFI component again uses the 25% threshold: `loss_BFI` is only computed if `|BFI_sim - BFI_obs| / BFI_obs > 0.25`, meaning small errors are silently accepted.
-
-`L = w1 * L_BFI + w2 * L_temp`
-
-Default: `w1=0.05, w2=0.95`
-
----
-
-### `RmseLoss_temp`
-
-**Temperature only.** Trains purely on stream temperature. The hydrology model still runs (to produce the source flows needed by SNTEMP), but streamflow errors do not contribute to the loss. Useful for fine-tuning temperature model parameters after the hydrology model has already been calibrated.
-
----
-
-### `NSEsqrtLoss_flow`
-
-Uses the **Nash-Sutcliffe Efficiency (NSE)** on square-root-transformed streamflow, normalized by the observed standard deviation across basins. This is the batch-normalized NSE formulation from Kratzert et al. (2019):
-
-`L = mean( (Q_sim - Q_obs)² / (std_obs + eps)² )`
-
-Unlike RMSE, this loss is scale-independent — a basin with small flows and a basin with large flows are weighted equally. This is important when training on basins with very different flow magnitudes (e.g., small headwater vs. large river basins).
-
-**When to use:** Large, heterogeneous basin datasets (hundreds of basins) where flow magnitudes span several orders of magnitude.
-
----
-
 ### `NSEsqrtLoss_flow_temp`
 
-The same scale-normalized NSE approach applied to both streamflow and temperature simultaneously. Both losses are normalized by their respective observed standard deviations, so no manual weight tuning is required.
+A scale-normalized **Nash-Sutcliffe Efficiency (NSE)** loss applied to both streamflow and temperature simultaneously. Each term is computed on square-root-transformed values and normalized by its respective observed standard deviation across basins (the batch-normalized NSE formulation from Kratzert et al., 2019), so no manual weight tuning is required:
 
 `L = L_NSE_flow + L_NSE_temp`
 
-**When to use:** Coupled hydro-temperature training on large, heterogeneous datasets.
+Unlike RMSE, this loss is scale-independent — basins with small flows and basins with large flows are weighted equally. This matters when training on basins whose flow magnitudes span several orders of magnitude.
+
+**When to use:** Coupled hydro-temperature training on large, heterogeneous datasets (hundreds of basins).
+
+**Config:**
+```yaml
+loss_function: "NSEsqrtLoss_flow_temp"
+target: ["00060_Mean", "00010_Mean"]
+temp_model_name: "SNTEMP"
+```
 
 ---
 
@@ -770,7 +660,7 @@ To train a streamflow model without any temperature component:
 **Step 1 — Edit `config/config_hydro_temp.yaml`:**
 ```yaml
 # Choose a hydrology model
-hydro_model_name: "NWM_SACSMA"    # or HBV, marrmot_PRMS, etc.
+hydro_model_name: "marrmot_PRMS"  # or "HBV", "HBV_capillary"
 
 # Disable temperature model
 temp_model_name: "None"
@@ -884,9 +774,12 @@ flow_data_path: "D:\\models\\experiment_01\\out_dict_test.npy"
 # Enable temperature model
 temp_model_name: "SNTEMP"
 
-# Temperature-only loss
-loss_function: "RmseLoss_temp"
-target: ["00010_Mean"]
+# Coupled flow + temperature loss (both targets required)
+loss_function: "RmseLoss_flow_temp"
+loss_function_weights:
+    w1: 3.0
+    w2: 1.0
+target: ["00060_Mean", "00010_Mean"]
 ```
 
 Run:
@@ -895,6 +788,8 @@ python main_hydro_temp.py
 ```
 
 This is faster because the hydrology model forward pass is skipped, and useful for exploring different temperature model settings without re-optimizing the hydrology parameters.
+
+> The loss functions in this release all train on streamflow (and optionally temperature) together — there is no temperature-only loss. To emphasize temperature when the flows are already fixed, lower the flow weight `w1` relative to `w2`.
 
 ---
 
@@ -978,3 +873,165 @@ optim = torch.optim.Adadelta(model.parameters())
 ```
 
 **Reproducibility:** Always set `randomseed: [0]` (or any fixed integer) and keep `torch.backends.cudnn.deterministic = True` (already set in the training loop) to ensure identical results across runs.
+
+---
+
+## 13. Reproducing the Data-Release Figures
+
+The `examples/` folder contains stand-alone scripts that regenerate the figures from the data release. Each script loads pre-computed model output and observation files, performs the necessary post-processing (trends, baseflow separation, statistics), and saves a publication-quality PNG.
+
+| Script | Figure(s) it produces |
+|--------|-----------------------|
+| `examples/Fig1a.py` | Fig. 1a — observed vs. simulated mean-annual recharge (δ models vs. WaterGAP2-2c) |
+| `examples/Fig1b.py` | Fig. 1b — wet/dry × warm/cold climate-region map of CONUS |
+| `examples/Fig1cdef.py` | Fig. 1c–f — recharge vs. precipitation scatter by climate region |
+| `examples/Fig2.py` | Fig. 2 — baseflow-trend scatter by zone (δ, GHM ensemble, DBH vs. obs) |
+| `examples/Fig3_S3_S4.py` | Fig. 3 and Supp. Figs. S3, S4 — recharge mean/trend maps per period |
+| `examples/Fig4_S2_S9.py` | Fig. 4 and Supp. Figs. S2, S9 — per-zone recharge time series |
+| `examples/FigS1.py` | Supp. Fig. S1 — streamflow KGE + stream-temperature NSE/RMSE boxplots |
+| `examples/FigS5_S6_S7_S8.py` | Supp. Figs. S5–S8 — per-zone boxplots of recharge trends |
+
+### 13.1 What the Scripts Do
+
+These scripts are **evaluation / plotting** scripts — they do **not** train or run the model. They consume:
+
+- **Model output** the δPL framework already produced (streamflow, stream temperature, recharge), plus
+- **Reference datasets** (USGS observations, ISIMIP2a/2b global hydrological model output, climate classifications, basin attributes, CONUS zone shapefiles).
+
+All of these are distributed with the data release. You only need to point the scripts at the folder where you unpacked that data.
+
+### 13.2 How to Run a Figure Script
+
+**1. Install the environment.** Everything the figure scripts need (`cartopy`, `geopandas`, `xarray`, `netcdf4`, `baseflow`, `statsmodels`, `scikit-learn`, …) is already declared in `pyproject.toml`, so a single `uv sync` (see [Section 3](#3-environment-setup)) installs it all. No GPU is required for the figures.
+
+**2. Tell the script where the data lives.** Open the script and edit the one line near the top:
+
+```python
+BASE_DIR = Path("D:/DR")        # ← change to wherever you unpacked the data release
+# BASE_DIR = Path("/scratch/.../DR")   # example for Linux/HPC
+```
+
+Every other path in the script is derived from `BASE_DIR`, so this is the only edit you normally need.
+
+**3. Run from the repository root.** The scripts import the local `post` package (`from post.read_GHMs_dPLs import ...`). That package lives at the repository root and is only importable when the root is on Python's path, so run the scripts **as modules from the repo root** — *not* by `cd`-ing into `examples/`:
+
+```bash
+# from the dPL_Hydro_SNTEMP_DR repository root, with the venv activated
+python -m examples.Fig1a
+python -m examples.Fig1b
+python -m examples.Fig1cdef
+python -m examples.Fig2
+python -m examples.Fig3_S3_S4
+python -m examples.Fig4_S2_S9
+python -m examples.FigS1
+python -m examples.FigS5_S6_S7_S8
+```
+
+> Note the **`-m examples.Fig1a`** form (dotted module name, no `.py`). Running `python examples/Fig1a.py` instead will fail with `ModuleNotFoundError: No module named 'post'`, because Python then puts `examples/` — not the repo root — on the import path. If you prefer the file form, add the repo root to `PYTHONPATH` first:
+>
+> ```powershell
+> # Windows PowerShell
+> $env:PYTHONPATH = (Get-Location)
+> python examples\Fig1a.py
+> ```
+> ```bash
+> # Linux / macOS
+> PYTHONPATH=. python examples/Fig1a.py
+> ```
+
+Each script prints progress and finishes with `END`. The PNG(s) are written to `BASE_DIR/evaluation_figures/` (created automatically). The scripts use the non-interactive `Agg` Matplotlib backend, so they run fine over SSH or in a batch job with no display attached.
+
+### 13.3 Setting Up the Data Directory
+
+Unpack the data release so that `BASE_DIR` contains the `data/` and `M/` sub-trees below. `evaluation_figures/` is created for you. (Filenames are taken verbatim from the scripts — if you rename a file, update the corresponding constant at the top of the script.)
+
+```
+D:/DR/                                  ← BASE_DIR
+├── data/                               # reference datasets & basin metadata
+│   ├── ISIMIP2a/GHMs/Watergap2_2c/GSWP3/
+│   │     watergap2-2c_gswp3_nobc_hist_nosoc_co2_qr_global_monthly_1901_2010.nc4
+│   ├── ISIMIP2b/precip_dict.pkl
+│   ├── recharge_208basins/huc12_recharge_208.csv
+│   ├── ts_data_4231/
+│   │     attr_HUC12_4231_grid_clip_20250224.npy
+│   │     attr_HUC12_4231_grid_clip_20250224_name.json
+│   ├── ts_2003basins/
+│   │     attr2003_mswep_03122024.npy
+│   │     attr2003_mswep_03122024_name.json
+│   ├── tr_1223basins/attr1223_1023_daymet_20240826.npy
+│   ├── climate_classifications/
+│   │     climate_class_MIROC5_rcp60_2006_2099_USA.nc
+│   │     2b_climate_labels_rcp60.json
+│   │     2b_climate_labels_rcp85.json
+│   └── Zones/Zones_0228.shp            # plus the .dbf / .shx / .prj sidecar files
+│
+├── M/                                  # model output (δPL) and cached intermediates
+│   ├── daymet_1223_1023_PUB/                  # δ streamflow & temperature output
+│   ├── daymet_1223_1023_PUB_huc12_dmt_4231/   # δ HUC12 recharge output
+│   ├── upscale/
+│   │     mSS_recharge_grid_huc12_dmt_4231_1980_2023.nc
+│   │     mSS_recharge_grid_huc12_GSWP3_4238_1962_2011.nc
+│   │     obs_mean_recharge_grid.nc
+│   │     CPI/grid_gage_2003_CPI_intersect.feather
+│   │     CPI/merged_shpfile_GHMs.shp
+│   ├── qr_2b/sim_recharge_dict_yearly_2007_2100.npz
+│   ├── bf/                                     # cached daily baseflow arrays (Fig2)
+│   └── qtot/sim_qtot_dict.npz                  # streamflow cache (FigS1, auto-created)
+│
+└── evaluation_figures/                 # ← all PNG outputs land here (auto-created)
+```
+
+> A `.shp` shapefile is only valid alongside its sidecar files (`.dbf`, `.shx`, `.prj`, …). Keep the whole set together when copying `Zones_0228.shp` or `merged_shpfile_GHMs.shp`.
+
+### 13.4 Script-by-Script Reference
+
+Below are the specific inputs each script reads (all relative to `BASE_DIR`) and the file(s) it writes to `evaluation_figures/`.
+
+**`Fig1a.py`** — recharge scatter, δ vs. WaterGAP2-2c vs. observations.
+- Reads: `data/ISIMIP2a/GHMs/Watergap2_2c/GSWP3/…qr…1901_2010.nc4`, `data/recharge_208basins/huc12_recharge_208.csv`, `data/ts_data_4231/attr_HUC12_4231_grid_clip_20250224.npy(+_name.json)`, `M/daymet_1223_1023_PUB_huc12_dmt_4231/`, `M/upscale/mSS_recharge_grid_huc12_*.nc`, `M/upscale/obs_mean_recharge_grid.nc`.
+- Writes: `rech_dPL_huc12_dmt_GSWP3_hist.png`.
+
+**`Fig1b.py`** — CONUS climate-region map.
+- Reads: `data/climate_classifications/climate_class_MIROC5_rcp60_2006_2099_USA.nc`.
+- Writes: `climate_regions_classification_MIROC5_rcp60_2006_2099_USA.png`.
+- **First run needs internet:** cartopy downloads the Natural Earth `admin_0_countries` (50 m) shapefile used to mask everything outside the USA.
+
+**`Fig1cdef.py`** — recharge-vs-precipitation scatter by climate region (2 × 2).
+- Reads: `M/qr_2b/sim_recharge_dict_yearly_2007_2100.npz`, `data/ISIMIP2b/precip_dict.pkl`, `data/climate_classifications/2b_climate_labels_rcp60.json` and `…rcp85.json`.
+- Writes: `rech_precip_2008_2099.png`.
+
+**`Fig2.py`** — per-zone baseflow-trend scatter (δ, GHM ensemble, DBH vs. obs).
+- Controlled by the flag `LOAD_BF_FROM_DISK` (default **`True`**):
+  - `True` → loads cached baseflow arrays from `M/bf/` (`mSS_Furey_daily.npy`, `mSS_Daymet_Furey_daily.npy`, `GHM_ens_Furey_daily.npy`, `DBH_Furey_daily.npy`, `obs_flow_Furey_daily.npy`). These are shipped with the release; this is the fast path.
+  - `False` → re-runs the full baseflow-separation pipeline from raw ISIMIP2a GHM streamflow. This additionally requires the raw GHM NetCDFs (the reader defaults to `D:\P\inputs\isimip2a\GHMs`; edit `read_GHM_ISIMIP2a_daily` in `post/read_GHMs_dPLs.py` if your raw data is elsewhere) and writes the `.npy` caches into `M/bf/`.
+- Also reads: `data/ts_2003basins/attr2003_mswep_03122024.npy(+_name.json)`, `data/tr_1223basins/attr1223_1023_daymet_20240826.npy`, `data/Zones/Zones_0228.shp`, `M/upscale/CPI/grid_gage_2003_CPI_intersect.feather`, `M/daymet_1223_1023_PUB/`.
+- Writes: `bf_trend_hres_scatter_zones_dmt_GSWP3_zone0228_DBH.png`.
+
+**`Fig3_S3_S4.py`** — recharge mean & trend maps, one figure per period (2008–2050, 2050–2099, 2008–2099).
+- Reads: `M/qr_2b/sim_recharge_dict_yearly_2007_2100.npz`, `data/ts_2003basins/attr2003_mswep_03122024.npy(+_name.json)`, `data/Zones/Zones_0228.shp`.
+- Writes: `map1_shp_recharge_dPL_GHM_2b_ens_rcp85_rcp60_{from}_{to}.png` (3 files).
+
+**`Fig4_S2_S9.py`** — per-zone yearly recharge time series (3 figures: absolute, relative, and percent change).
+- Reads: same `qr_2b` npz, `attr2003`, and `Zones` as above.
+- Writes: `plot_future_trend_recharge_mvAve.png`, `plot_relative_future_trend_recharge_mvAve.png`, `perc_plot_relative_future_trend_recharge_mvAve.png`.
+
+**`FigS1.py`** — streamflow KGE + stream-temperature NSE/RMSE boxplots.
+- Streamflow is cached at `M/qtot/sim_qtot_dict.npz`: if present it is loaded; if absent it is **built from scratch** (reads raw ISIMIP2a GHM streamflow from `D:\P\inputs\isimip2a\GHMs` plus δ output from `M/daymet_1223_1023_PUB/`, then saves the cache). Stream temperature is always read from `M/daymet_1223_1023_PUB/`.
+- Also reads: `data/ts_2003basins/attr2003_mswep_03122024.npy(+_name.json)`, `data/Zones/Zones_0228.shp`, `M/upscale/CPI/grid_gage_2003_CPI_intersect.feather`.
+- Writes: `qtot_STemp.png`.
+
+**`FigS5_S6_S7_S8.py`** — per-zone boxplots of recharge trends, one figure per (RCP, period) combination.
+- Reads: `M/qr_2b/sim_recharge_dict_yearly_2007_2100.npz`, `attr2003`, `Zones`.
+- Writes: `qr_trends_future_2b_zones_GHM_dPL_ens_{rcp}_{from}_{to}.png` (4 files).
+
+### 13.5 Common Issues
+
+**`ModuleNotFoundError: No module named 'post'`** — You ran the script from inside `examples/`. Run it from the repository root with the module form (`python -m examples.Fig1a`) or set `PYTHONPATH` to the repo root (see [Section 13.2](#132-how-to-run-a-figure-script)).
+
+**`FileNotFoundError` on a `data/…` or `M/…` path** — `BASE_DIR` is not pointing at your unpacked data release, or the file was renamed. Fix the `BASE_DIR` line, or the specific path constant near the top of the script. `Fig2.py` raises a deliberate, descriptive `FileNotFoundError` listing exactly which `M/bf/*.npy` caches are missing when `LOAD_BF_FROM_DISK=True`.
+
+**Shapefile read error** — A `.shp` was copied without its `.dbf` / `.shx` / `.prj` sidecars. Copy the entire shapefile set.
+
+**`Fig1b.py` hangs or errors on first run** — It is downloading the Natural Earth boundaries. Ensure the machine has internet access for the first run (cartopy caches the file afterward).
+
+**Recomputing instead of using caches is slow / needs raw data** — `Fig2.py` (`LOAD_BF_FROM_DISK=False`) and `FigS1.py` (missing `qtot` cache) fall back to reading raw ISIMIP2a GHM NetCDFs from `D:\P\inputs\isimip2a\GHMs`. If you only have the released caches, keep `LOAD_BF_FROM_DISK=True` and the `M/qtot/sim_qtot_dict.npz` cache in place so these raw reads are skipped.
