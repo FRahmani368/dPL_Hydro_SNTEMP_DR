@@ -36,7 +36,7 @@ FIG_OUT_DIR = BASE_DIR / "evaluation_figures"
 FIG_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 RECHARGE_YEARLY_NPZ = M_DIR    / "qr_2b" / "sim_recharge_dict_yearly_2007_2100.npz"
-PRECIP_PKL          = DATA_DIR / "isimip2b" / "precip_dict.pkl"
+PRECIP_PKL          = DATA_DIR / "ISIMIP2b" / "precip_dict.pkl"
 LABELS_RCP60_JSON   = DATA_DIR / "climate_classifications" / "2b_climate_labels_rcp60.json"
 LABELS_RCP85_JSON   = DATA_DIR / "climate_classifications" / "2b_climate_labels_rcp85.json"
 

@@ -5,15 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4b97773f-fedc-4c64-865f-329ad98e0e34" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/examples/Fig3_S3_S4.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/Fig3_S3_S4_S5_S6_S7_S8_S9.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/Fig4_S2_S9.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/FigS5_S6_S7_S8.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/FigS1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/Fig1a0.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/Fig1cdef0.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/Fig20.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/post/stat_plots.py" beforeDir="false" afterPath="$PROJECT_DIR$/post/stat_plots.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/Fig1cdef.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/Fig1cdef.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,6 +42,7 @@
     "Python.Fig3_S3_S4_S5_S6_S7_S8_S9.executor": "Debug",
     "Python.Fig4_S2_S9 (1).executor": "Debug",
     "Python.Fig4_S9.executor": "Debug",
+    "Python.FigS1.executor": "Debug",
     "Python.FigS5_S6_S7_S8.executor": "Debug",
     "Python.NWM_test.executor": "Debug",
     "Python.SACSMA_snow_mul.executor": "Debug",
@@ -68,30 +63,7 @@
       <recent name="$PROJECT_DIR$/MODELS/hydro_models/NWM_SACSMA" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.FigS5_S6_S7_S8">
-    <configuration name="Fig3_S3_S4" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="dPL_Hydro_SNTEMP" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/examples" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/examples/Fig3_S3_S4.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.FigS1">
     <configuration name="Fig3_S3_S4_S5_S6_S7_S8_S9" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="dPL_Hydro_SNTEMP" />
       <option name="ENV_FILES" value="" />
@@ -138,7 +110,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="Fig4_S2_S9" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="FigS1-0" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="dPL_Hydro_SNTEMP" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -152,7 +124,30 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="D:\GitHub\dPL_Hydro_SNTEMP_DR\examples\Fig4_S2_S9.py" />
+      <option name="SCRIPT_NAME" value="D:\GitHub\dPL_Hydro_SNTEMP_DR\examples\FigS1-0.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="FigS1" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="dPL_Hydro_SNTEMP" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/examples" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/examples/FigS1.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -186,11 +181,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.FigS1" />
+        <item itemvalue="Python.FigS1-0" />
         <item itemvalue="Python.FigS5_S6_S7_S8" />
         <item itemvalue="Python.Fig4_S2_S9 (1)" />
         <item itemvalue="Python.Fig3_S3_S4_S5_S6_S7_S8_S9" />
-        <item itemvalue="Python.Fig4_S2_S9" />
-        <item itemvalue="Python.Fig3_S3_S4" />
       </list>
     </recent_temporary>
   </component>
