@@ -146,8 +146,8 @@ class numpy_dataset(Data_Reader):
             elif self.inputfile_attr.endswith(".feather"):
                 attr_main = pd.read_feather(self.inputfile_attr)
         elif self.inputfile.endswith(".pt"):
-            forcing_main = torch.load(self.inputfile)
-            attr_main = torch.load(self.inputfile_attr)
+            forcing_main = torch.load(self.inputfile, weights_only=False)
+            attr_main = torch.load(self.inputfile_attr, weights_only=False)
         else:
             print("data type is not supported")
             exit()
@@ -178,7 +178,7 @@ class numpy_dataset(Data_Reader):
         if self.inputfile_attr.endswith(".npy"):
             dfC = np.load(self.inputfile_attr)
         elif self.inputfile_attr.endswith(".pt"):
-            dfC = torch.load(self.inputfile_attr)
+            dfC = torch.load(self.inputfile_attr, weights_only=False)
         else:
             print("data type is not supported")
             exit()

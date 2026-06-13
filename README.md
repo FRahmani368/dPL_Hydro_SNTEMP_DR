@@ -838,7 +838,9 @@ output_model/
 **Loading a saved model for inference:**
 ```python
 import torch
-model = torch.load("path/to/model_Ep100.pt")
+# weights_only=False is required for PyTorch >= 2.6 — the checkpoint is a full
+# pickled model object, not a state dict.
+model = torch.load("path/to/model_Ep100.pt", weights_only=False)
 model.eval()
 ```
 
@@ -867,7 +869,7 @@ BFI_sim  = results["BFI_sim"]    # shape: [basins] — long-term baseflow index 
 **Resuming training from a checkpoint:** Load the checkpoint and continue training:
 ```python
 import torch
-model = torch.load("model_Ep50.pt")
+model = torch.load("model_Ep50.pt", weights_only=False)  # PyTorch >= 2.6
 optim = torch.optim.Adadelta(model.parameters())
 # then pass model and optim back to train_differentiable_model()
 ```
